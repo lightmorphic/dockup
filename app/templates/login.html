@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Sign in - Dockle</title>
+<link rel="icon" href="/static/icons/dockle.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="auth-page">
+<main class="auth-wrap">
+  <div class="panel auth-panel">
+    <div class="auth-logo">
+      <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="26" width="16" height="16" rx="3" fill="var(--accent)"/><rect x="26" y="26" width="16" height="16" rx="3" fill="var(--brand-navy)" class="logo-navy"/><rect x="16" y="6" width="16" height="16" rx="3" fill="var(--brand-navy)" class="logo-navy"/></svg>
+      <h1>Dockle</h1>
+    </div>
+    {% if error %}<p class="alert alert-danger" role="alert">! {{ error }}</p>{% endif %}
+    {% if show_totp %}
+    <form method="post" class="form-grid" autocomplete="off">
+      <div class="field">
+        <label for="code">Six-digit code from your authenticator app</label>
+        <input id="code" name="code" inputmode="numeric" pattern="[0-9 ]*" autocomplete="one-time-code" required autofocus>
+      </div>
+      <button class="btn btn-primary" type="submit">Verify</button>
+    </form>
+    {% else %}
+    <form method="post" class="form-grid">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary" type="submit">Sign in</button>
+    </form>
+    {% endif %}
+  </div>
+</main>
+</body>
+</html>

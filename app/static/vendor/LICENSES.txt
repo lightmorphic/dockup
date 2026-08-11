@@ -1,0 +1,1 @@
+xterm.js v5.5.0 - https://github.com/xtermjs/xterm.js - MIT licence

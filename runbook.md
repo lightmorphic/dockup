@@ -1,0 +1,99 @@
+# Dockle runbook
+
+Plain-language guide for running Dockle. Everything here works from the
+UI or a couple of copy-paste commands - no deep terminal knowledge needed.
+
+## Install (Docker host)
+
+```bash
+mkdir -p /opt/dockle /opt/stacks && cd /opt/dockle
+# copy the repo contents here, then:
+echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" > .env
+docker compose up -d --build
+```
+
+Open `http://<server-ip>:5001` and create the admin account.
+Keep a copy of the `.env` file's SECRET_KEY somewhere safe (password
+manager). It encrypts your saved settings - lose it and saved passwords
+in Settings have to be re-entered.
+
+## First steps after install
+
+1. **Settings → Email alerts**: fill in SMTP and press *Send test email*.
+   Until this works, error alerts only show in Activity.
+2. **Settings → Account**: consider switching on 2FA.
+3. **Dashboard**: if you already had things running, an "adopt" panel
+   lists them - adopt what you want Dockle to manage.
+
+## Daily use
+
+Everything is a button: start/stop/restart/update per stack, logs and
+terminal per stack, pruning under Maintenance, backups under Backups.
+Errors show in red in Activity, and email you if SMTP is set up.
+
+## Restore a backup
+
+Backups run daily (hour and retention set in Settings) and cover the
+stacks folder plus Dockle's own database.
+
+- **From the UI**: Backups → pick one → Restore (click twice). The
+  current files are kept at `data/pre-restore-stacks` first, so a restore
+  can itself be undone by copying that folder back.
+- Restored stacks aren't restarted automatically - press play on each
+  when you're ready.
+
+## Roll back Dockle itself
+
+Dockle's code is in git. To go back to the previous working version:
+
+```bash
+cd /opt/dockle
+git log --oneline -5        # find the commit you want
+git checkout <commit> && docker compose up -d --build
+```
+
+Your data (stacks, database, backups) is untouched by rollbacks - it
+lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
+
+## Restart / update Dockle
+
+```bash
+cd /opt/dockle
+docker compose restart            # just restart
+git pull && docker compose up -d --build   # update to latest
+```
+
+## Switch to Podman (no daemon)
+
+1. On the host: `systemctl enable --now podman.socket`
+   (rootful; for rootless see the Podman docs - the socket path differs).
+2. In `compose.yaml`, replace the Docker socket line with the Podman one
+   (the comment in the file shows exactly which line).
+3. `docker compose up -d` (or `podman compose up -d`) to restart Dockle.
+4. In Settings → Engine, pick Podman, set the socket path to
+   `/var/run/docker.sock` (that's where the mount lands inside the
+   container) and press *Test connection*.
+
+## If Dockle is down
+
+```bash
+cd /opt/dockle && docker compose ps      # is it running?
+docker compose logs --tail 50 dockle     # what happened?
+docker compose up -d                     # start it again
+```
+
+The container restarts itself (`restart: unless-stopped`) and has a
+health check, so a crash normally self-heals within a minute.
+
+## Uptime check
+
+Dockle answers on `/health` without a login. Point any LAN uptime tool
+(Uptime Kuma, etc.) at `http://<server-ip>:5001/health` and alert on
+non-200. That way you hear about it even if Dockle itself is the thing
+that's down.
+
+## Full export / moving house
+
+Backups → *Download everything (zip)* gives you the stacks folder and
+Dockle's database in one file. The stacks folder alone is enough to run
+everything with plain `docker compose` anywhere - no lock-in.

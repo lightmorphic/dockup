@@ -1,0 +1,12 @@
+{
+  "name": "Dockle",
+  "short_name": "Dockle",
+  "description": "Home-lab compose stack manager",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "/static/icons/dockle.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

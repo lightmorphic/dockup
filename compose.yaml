@@ -1,0 +1,19 @@
+services:
+  dockle:
+    build: .
+    image: dockle:latest
+    container_name: dockle
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      # The one and only secret. Set it once in .env or the shell:
+      #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting Dockle}
+      TZ: ${TZ:-Europe/London}
+    volumes:
+      - ./data:/app/data
+      # Docker host: keep this line. Podman host: swap it for
+      #   - /run/podman/podman.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks:/opt/stacks
