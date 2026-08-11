@@ -5,6 +5,7 @@ actions live here.
 
 import re
 import shutil
+import socket
 from pathlib import Path
 
 import yaml
@@ -222,11 +223,15 @@ def api_discover():
                if d.is_dir() and any((d / f).exists() for f in config.COMPOSE_FILENAMES)} \
         if config.STACKS_DIR.exists() else set()
 
+    # the project Dockle itself belongs to shouldn't offer to adopt itself
+    own_id = socket.gethostname()[:12]
+    own_project = next((c["project"] for c in containers if c["id"] == own_id), None)
+
     projects: dict[str, dict] = {}
     standalone = []
     for c in containers:
         if c["project"]:
-            if c["project"] in managed:
+            if c["project"] in managed or c["project"] == own_project:
                 continue
             entry = projects.setdefault(c["project"], {
                 "name": c["project"],
