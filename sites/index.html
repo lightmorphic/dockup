@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Lightmorphic Dockle - a home-lab compose stack manager with a proper login</title>
+<meta name="description" content="Dockle is a self-hosted Docker Compose stack manager for home labs. Secure login with 2FA, live logs, web terminal, pruning, adoption of existing containers, daily backups. Works with Docker or Podman. Inspired by Dockge.">
+<link rel="canonical" href="https://dockle.lightmorphic.co.uk/">
+<link rel="icon" href="dockle.svg" type="image/svg+xml">
+<meta property="og:title" content="Lightmorphic Dockle">
+<meta property="og:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dockle.lightmorphic.co.uk/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Lightmorphic Dockle",
+  "operatingSystem": "Linux",
+  "applicationCategory": "DeveloperApplication",
+  "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman. Inspired by Dockge.",
+  "url": "https://dockle.lightmorphic.co.uk/",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
+  "publisher": { "@type": "Organization", "name": "Lightmorphic" }
+}
+</script>
+<style>
+@font-face {
+  font-family: "Manrope";
+  src: url("fonts/Manrope-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 200 800;
+  font-display: swap;
+}
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --fg: #09090b;
+  --panel: #ffffff; --panel-border: rgba(24,24,40,.10);
+  --border: #e4e4e7; --muted: #f4f4f5; --muted-fg: #71717a;
+  --shadow-panel: 0 1px 2px rgba(24,24,40,.05), 0 8px 24px -16px rgba(24,24,40,.18);
+  --accent: #fbc711; --accent-hover: #ddaf0f; --on-accent: #645007;
+  --accent-container: #fff8e2; --on-accent-container: #5f4c06;
+  --brand-navy: #111827;
+  --link: #1b74bc;
+  --warning: #8f6c03; --warning-bg: #fffbee;
+  --radius: .875rem; --panel-radius: 1.375rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b; --fg: #fafafa;
+    --panel: #1b1d29; --panel-border: rgba(255,255,255,.09);
+    --border: #27272a; --muted: #1c1c1f; --muted-fg: #a1a1aa;
+    --shadow-panel: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px -16px rgba(0,0,0,.6);
+    --accent-container: #4b3c05; --on-accent-container: #fde694;
+    --link: #2295f1;
+    --warning: #ffc006; --warning-bg: #382a01;
+  }
+  .logo-navy { fill: #fafafa; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: "Manrope", system-ui, sans-serif;
+  background: var(--bg); color: var(--fg); line-height: 1.6; font-size: 1.0625rem;
+}
+a { color: var(--link); }
+.wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
+header.hero { padding: 4rem 0 2.5rem; }
+.hero-brand { display: flex; align-items: center; gap: .875rem; margin-bottom: 1.75rem; }
+.hero-brand span { font-weight: 700; font-size: 1.25rem; letter-spacing: -.01em; }
+h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 1rem; max-width: 21ch; }
+.lede { font-size: 1.1875rem; color: var(--muted-fg); max-width: 56ch; margin: 0 0 1.75rem; }
+.lede strong { color: var(--fg); }
+.cta-row { display: flex; gap: .875rem; flex-wrap: wrap; align-items: center; }
+.btn {
+  display: inline-block; font-weight: 700; text-decoration: none;
+  padding: .75rem 1.5rem; border-radius: var(--radius);
+  background: var(--accent); color: var(--on-accent);
+}
+.btn:hover { background: var(--accent-hover); }
+.btn.ghost { background: var(--muted); color: var(--fg); border: 1px solid var(--border); }
+.note {
+  background: var(--warning-bg); color: var(--warning);
+  border-radius: var(--radius); padding: .625rem 1rem; font-weight: 600;
+  max-width: fit-content; margin: 1.75rem 0 0; font-size: .9375rem;
+}
+.panel {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); padding: 1.75rem;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin: 2.5rem 0; }
+.grid h3 { margin: 0 0 .375rem; font-size: 1.0625rem; }
+.grid p { margin: 0; color: var(--muted-fg); font-size: .9375rem; }
+.grid .ico { width: 26px; height: 26px; margin-bottom: .75rem; color: var(--fg); }
+.grid .ico.accent { color: var(--accent); }
+h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -.01em; margin: 3rem 0 1rem; }
+pre {
+  background: #101116; color: #d6d8e0; border-radius: var(--radius);
+  padding: 1.125rem 1.25rem; overflow-x: auto; font-size: .875rem; line-height: 1.6;
+}
+pre .c { color: #6a6f85; }
+.two { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; align-items: start; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0 3rem; color: var(--muted-fg); font-size: .9375rem; }
+footer .wrap { padding-top: 0; padding-bottom: 0; }
+.shot { margin: 0; }
+.shot svg { width: 100%; height: auto; border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); display: block; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-brand">
+      <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>
+      <span>Lightmorphic Dockle</span>
+    </div>
+    <h1>Your home-lab stacks, one window, a proper login.</h1>
+    <p class="lede">Dockle is a self-hosted Docker&nbsp;Compose stack manager,
+    <strong>inspired by <a href="https://github.com/louislam/dockge">Dockge</a></strong> -
+    the same everyday job, fresh actively-maintained code, and security taken seriously
+    from the first line. Works with <strong>Docker or Podman</strong>.</p>
+    <div class="cta-row">
+      <a class="btn" href="https://github.com/lightmorphic/dockle">Get Dockle on GitHub</a>
+      <a class="btn ghost" href="#install">Install in two minutes</a>
+    </div>
+    <p class="note">! Built for home labs on your own network - not hardened for public VPS hosting (yet).</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <figure class="shot" aria-label="Stylised view of the Dockle dashboard">
+    <svg viewBox="0 0 960 470" role="img" aria-hidden="true">
+      <rect width="960" height="470" rx="22" fill="#1b1d29"/>
+      <rect x="0" y="0" width="960" height="54" rx="22" fill="#111827"/>
+      <rect x="0" y="30" width="960" height="24" fill="#111827"/>
+      <rect x="24" y="16" width="22" height="22" rx="5" fill="#FBC711"/>
+      <text x="58" y="33" fill="#fafafa" font-family="system-ui" font-size="16" font-weight="700">Dockle</text>
+      <rect x="130" y="14" width="150" height="26" rx="13" fill="none" stroke="#4bae4f"/>
+      <text x="145" y="32" fill="#4bae4f" font-family="system-ui" font-size="13">&#10003; Docker 29.7</text>
+      <rect x="0" y="54" width="220" height="416" fill="#171925"/>
+      <rect x="20" y="78" width="180" height="36" rx="10" fill="#FBC711"/>
+      <text x="42" y="101" fill="#645007" font-family="system-ui" font-size="14" font-weight="700">+ New stack</text>
+      <g font-family="system-ui" font-size="14" fill="#d6d8e0">
+        <circle cx="36" cy="150" r="5" fill="#4bae4f"/><text x="52" y="155">jellyfin</text>
+        <circle cx="36" cy="186" r="5" fill="#4bae4f"/><text x="52" y="191">homeassistant</text>
+        <circle cx="36" cy="222" r="5" fill="#f34236"/><text x="52" y="227">pihole</text>
+        <circle cx="36" cy="258" r="5" fill="#4bae4f"/><text x="52" y="263">vaultwarden</text>
+      </g>
+      <g font-family="system-ui" font-size="15">
+        <rect x="248" y="86" width="330" height="120" rx="16" fill="#232637"/>
+        <circle cx="278" cy="122" r="6" fill="#4bae4f"/>
+        <text x="296" y="128" fill="#fafafa" font-weight="700">jellyfin</text>
+        <rect x="272" y="146" width="92" height="24" rx="12" fill="#102611"/>
+        <text x="284" y="163" fill="#4bae4f" font-size="12">&#10003; running</text>
+        <rect x="602" y="86" width="330" height="120" rx="16" fill="#232637"/>
+        <circle cx="632" cy="122" r="6" fill="#f34236"/>
+        <text x="650" y="128" fill="#fafafa" font-weight="700">pihole</text>
+        <rect x="626" y="146" width="92" height="24" rx="12" fill="#350f0c"/>
+        <text x="640" y="163" fill="#f34236" font-size="12">stopped</text>
+      </g>
+      <rect x="248" y="230" width="684" height="216" rx="16" fill="#101116"/>
+      <g font-family="ui-monospace, monospace" font-size="13">
+        <text x="272" y="262" fill="#d6d8e0">web-1 | "GET /library HTTP/1.1" 200</text>
+        <text x="272" y="288" fill="#d6d8e0">web-1 | "GET /stream/4 HTTP/1.1" 200</text>
+        <text x="272" y="314" fill="#f0c674">db-1  | WARN: slow query took 1512ms</text>
+        <text x="272" y="340" fill="#ff7b72" font-weight="700">db-1  | ERROR: connection refused</text>
+        <text x="272" y="366" fill="#d6d8e0">db-1  | recovered, retrying…</text>
+        <text x="272" y="392" fill="#d6d8e0">web-1 | "GET /library HTTP/1.1" 200</text>
+      </g>
+    </svg>
+  </figure>
+
+  <div class="grid">
+    <div class="panel">
+      <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="7" height="7" rx="1.5"/><rect x="14" y="11" width="7" height="7" rx="1.5"/><rect x="8.5" y="3" width="7" height="7" rx="1.5"/></svg>
+      <h3>Everything in one window</h3>
+      <p>Every stack, its logs, its editor and its terminal on a single page. No hunting through tabs.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <h3>A login that means it</h3>
+      <p>Server-side sessions, rate-limited sign-in, optional 2FA, encrypted settings. One secret to set, ever.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
+      <h3>Adopts what you run today</h3>
+      <p>Dockle scans your system and pulls existing compose projects and plain containers under management - nothing gets restarted.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6M14 4l-2.5 2.5a4 4 0 0 0 5.5 5.5L19.5 9.5A4 4 0 0 1 14 4zM4 17l3 3"/></svg>
+      <h3>Errors you can't miss</h3>
+      <p>Live log streaming with errors in red, a persistent activity log, and optional email alerts when something breaks.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0l-.8 12a2 2 0 0 1-2 1.9H9.8a2 2 0 0 1-2-1.9L7 7"/></svg>
+      <h3>Prune with confidence</h3>
+      <p>Clean unused images, containers, networks and build cache one-by-one or together. Volumes always show exactly what goes first.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v4l2.5 2.5"/><circle cx="12" cy="12" r="9"/></svg>
+      <h3>Backups that restore</h3>
+      <p>Daily automatic backups, one-click restore that's itself reversible, and a download-everything zip. No lock-in, ever.</p>
+    </div>
+  </div>
+
+  <h2 id="install">Install</h2>
+  <div class="two">
+    <pre><code><span class="c"># on your home server</span>
+mkdir -p /opt/dockle /opt/stacks &amp;&amp; cd /opt/dockle
+git clone https://github.com/lightmorphic/dockle.git .
+echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" &gt; .env
+docker compose up -d --build</code></pre>
+    <div class="panel">
+      <h3>Then</h3>
+      <p style="color:var(--muted-fg);margin:0">Open <strong style="color:var(--fg)">http://your-server:5001</strong>,
+      create the admin account, and adopt what's already running. Prefer Podman?
+      The runbook covers the daemonless setup in four steps.</p>
+    </div>
+  </div>
+
+  <h2>Why not just Dockge?</h2>
+  <p style="max-width:65ch">Dockge is a great idea and Dockle borrows its shape unashamedly:
+  stacks as plain compose folders, a live editor, a <code>docker run</code> converter, logs and
+  a terminal in the browser. But it hasn't seen an update in a long while, and anything that
+  holds your Docker socket deserves active maintenance and a real front door. Dockle is that
+  same everyday tool, rebuilt fresh: secure login with 2FA, encrypted settings, email alerts,
+  scheduled backups with restores that actually restore - and your stacks folder stays plain
+  compose, so you can walk away any time.</p>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Lightmorphic Dockle · free and open source · inspired by
+    <a href="https://github.com/louislam/dockge">Dockge</a> ·
+    built for home labs, not VPS hosting ·
+    <a href="https://github.com/lightmorphic/dockle">source on GitHub</a></p>
+    <p>No cookies, no tracking, no external calls - this page is just a page.</p>
+  </div>
+</footer>
+
+</body>
+</html>
