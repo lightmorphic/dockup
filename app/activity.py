@@ -10,7 +10,7 @@ import time
 from email.message import EmailMessage
 from email.utils import formatdate
 
-from . import config, db, settingsvc
+from . import db, settingsvc
 
 _email_lock = threading.Lock()
 _last_email_at = 0.0

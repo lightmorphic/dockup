@@ -10,7 +10,6 @@ the full UI can be exercised on a machine with no container runtime.
 
 import json
 import os
-import shutil
 import subprocess
 
 from . import config, settingsvc

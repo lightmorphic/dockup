@@ -5,7 +5,6 @@ door too.
 """
 
 import fcntl
-import json
 import os
 import pty
 import select
@@ -18,7 +17,7 @@ import threading
 from flask import session
 from flask_sock import Sock
 
-from . import config, runtime, stacks
+from . import runtime, stacks
 
 sock = Sock()
 
@@ -37,8 +36,17 @@ def ws_logs(ws, name):
     except ValueError:
         ws.close()
         return
+    if not d.exists():
+        ws.send(f"'{name}' hasn't been adopted into the stacks folder yet - nothing to stream.")
+        ws.close()
+        return
     rt = runtime.current()
-    proc = rt.logs_process(str(d), name)
+    try:
+        proc = rt.logs_process(str(d), name)
+    except OSError:
+        ws.send("Could not start the log stream for this stack.")
+        ws.close()
+        return
     stop = threading.Event()
 
     def watch_client():

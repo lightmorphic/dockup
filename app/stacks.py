@@ -165,6 +165,8 @@ def api_action(name, action):
         d = stack_dir(name)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    if not d.exists() and action != "delete":
+        return jsonify({"error": f"'{name}' hasn't been adopted into the stacks folder yet"}), 404
     rt = runtime.current()
 
     def generate():

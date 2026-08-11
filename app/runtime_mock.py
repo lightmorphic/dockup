@@ -5,9 +5,7 @@ disk, so the editor, converter, backups and file handling are exercised
 for real - only the engine responses are simulated.
 """
 
-import itertools
 import random
-import subprocess
 import threading
 import time
 

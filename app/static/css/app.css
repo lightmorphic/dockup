@@ -230,6 +230,9 @@ input, select, textarea {
   display: block; width: 100%;
 }
 textarea { min-height: 8rem; resize: vertical; }
+input[type="checkbox"], input[type="radio"] { width: auto; display: inline-block; }
+.check-row { display: flex; gap: 0.5rem; align-items: center; }
+.check-row.tight { font-size: 0.9375rem; font-weight: 400; }
 .code-editor {
   font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 0.875rem; line-height: 1.55;
@@ -357,6 +360,23 @@ tr:last-child td { border-bottom: none; }
   position: absolute; width: 1px; height: 1px;
   clip-path: inset(50%); overflow: hidden; white-space: nowrap;
 }
+
+/* ---- small layout utilities (kept out of inline style= so the
+   style-src 'self' CSP holds - no unsafe-inline needed) ---- */
+
+.toast-host {
+  position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+  z-index: 60; max-width: 90vw;
+}
+.hint-tight { padding: 0 0.75rem; }
+.stack-title { font-size: 1.5rem; }
+.btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.btn-row.align-center { align-items: center; }
+.hint-mt { margin-top: 0.5rem; }
+.mt-lg { margin-top: 1rem; }
+.form-grid.tight-below { margin-bottom: 1rem; }
+.nowrap { white-space: nowrap; }
+.qr-box { background: #fff; border-radius: 12px; padding: 12px; width: fit-content; }
 
 /* ---- switchable accents (Lightmorphic palette) ---- */
 

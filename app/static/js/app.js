@@ -87,7 +87,7 @@ let toastTimer;
 function toast(message, kind = "info") {
   let t = document.getElementById("toast");
   if (!t) {
-    t = el('<div id="toast" role="status" style="position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:60;max-width:90vw;"></div>');
+    t = el('<div id="toast" role="status" class="toast-host"></div>');
     document.body.appendChild(t);
   }
   t.innerHTML = `<p class="alert alert-${kind}">${kind === "danger" ? "! " : ""}${esc(message)}</p>`;
@@ -124,11 +124,12 @@ async function refreshStacks() {
 
 function renderStackList() {
   const current = location.hash;
+  const managed = stacksCache.filter(s => s.managed);
   stackListEl.innerHTML = "";
-  if (!stacksCache.length) {
-    stackListEl.appendChild(el('<li class="hint" style="padding:0 0.75rem">No stacks yet</li>'));
+  if (!managed.length) {
+    stackListEl.appendChild(el('<li class="hint hint-tight">No stacks yet</li>'));
   }
-  for (const s of stacksCache) {
+  for (const s of managed) {
     const href = `#/stack/${encodeURIComponent(s.name)}`;
     const a = el(`<a href="${href}" ${current === href ? 'class="active"' : ""}>
       <span class="status-dot ${s.status}"></span><span>${esc(s.name)}</span></a>`);
@@ -167,63 +168,61 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<h1>Stacks</h1><div class="stack-grid" id="grid"></div>
-    <div id="discover"></div>`;
+  content.innerHTML = `<h1>Stacks</h1><div class="stack-grid" id="grid"></div>`;
   const grid = document.getElementById("grid");
   await refreshStacks();
-  if (!stacksCache.length) {
+
+  let discovered = { projects: [], standalone: [] };
+  try { discovered = await api("/api/discover"); } catch (e) { /* non-fatal */ }
+
+  const managed = stacksCache.filter(s => s.managed);
+  if (!managed.length && !discovered.projects.length && !discovered.standalone.length) {
     grid.innerHTML = `<div class="panel"><h3>Nothing here yet</h3>
-      <p>Create your first stack with <strong>New stack</strong>, or adopt what's already running below.</p></div>`;
+      <p>Create your first stack with <strong>New stack</strong>.</p></div>`;
+    return;
   }
-  for (const s of stacksCache) {
-    const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)}">
-      <h3><span class="status-dot ${s.status}"></span>${esc(s.name)}</h3>
-      <span class="badge badge-${s.status}">${s.status === "running" ? "✓ " : ""}${esc(s.status)}</span>
-      <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}${s.managed ? "" : " · not in the stacks folder"}</span>
-    </div>`);
-    const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
-    card.addEventListener("click", open);
-    card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
-    grid.appendChild(card);
-  }
-  loadDiscovery();
+  const statusByName = Object.fromEntries(stacksCache.map(s => [s.name, s.status]));
+  for (const s of managed) grid.appendChild(managedCard(s));
+  for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
+  for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
 }
 
-async function loadDiscovery() {
-  const host = document.getElementById("discover");
-  if (!host) return;
-  let data;
-  try { data = await api("/api/discover"); } catch (e) { return; }
-  const found = (data.projects || []).length + (data.standalone || []).length;
-  if (!found) return;
-  const panel = el(`<div class="panel"><div class="panel-head">
-      <h2>Found on this system</h2></div>
-    <p>These are running here but aren't in Dockle's stacks folder yet. Adopting copies their
-    setup into the stacks folder so Dockle can manage them - the containers themselves aren't touched.</p>
-    <div class="table-wrap"><table>
-      <caption>Compose projects and standalone containers Dockle can adopt</caption>
-      <thead><tr><th>Name</th><th>What it is</th><th>Where it lives</th><th></th></tr></thead>
-      <tbody id="discoverRows"></tbody></table></div></div>`);
-  host.replaceChildren(panel);
-  const rows = panel.querySelector("#discoverRows");
-  for (const p of data.projects || []) {
-    const tr = el(`<tr><td>${esc(p.name)}</td>
-      <td>Compose project (${p.containers.length} container${p.containers.length === 1 ? "" : "s"})</td>
-      <td>${esc(p.workingDir || "unknown")}${p.fileReadable ? "" : ' <span class="hint">(file not readable - will rebuild)</span>'}</td>
-      <td><button class="btn">Adopt</button></td></tr>`);
-    tr.querySelector("button").addEventListener("click", () => adopt({ kind: "project", ...p }, tr));
-    rows.appendChild(tr);
-  }
-  for (const c of data.standalone || []) {
-    const tr = el(`<tr><td>${esc(c.name)}</td><td>Standalone container</td>
-      <td>${esc(c.image)}</td><td><button class="btn">Adopt</button></td></tr>`);
-    tr.querySelector("button").addEventListener("click", () => adopt({ kind: "container", name: c.name }, tr));
-    rows.appendChild(tr);
-  }
+function managedCard(s) {
+  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)}">
+    <h3><span class="status-dot ${s.status}"></span>${esc(s.name)}</h3>
+    <span class="badge badge-${s.status}">${s.status === "running" ? "✓ " : ""}${esc(s.status)}</span>
+    <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
+  </div>`);
+  const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  return card;
 }
 
-async function adopt(payload, tr) {
-  const btn = tr.querySelector("button");
+function unmanagedCard(p, status) {
+  const n = p.containers.length;
+  const card = el(`<div class="panel stack-card">
+    <h3><span class="status-dot ${status}"></span>${esc(p.name)}</h3>
+    <span class="badge badge-${status}">${status === "running" ? "✓ " : ""}${esc(status)}</span>
+    <span class="hint">${n} container${n === 1 ? "" : "s"}, not adopted</span>
+    <button class="btn btn-block adopt-btn">Adopt</button>
+  </div>`);
+  card.querySelector(".adopt-btn").addEventListener("click", () => adopt({ kind: "project", ...p }, card));
+  return card;
+}
+
+function standaloneCard(c) {
+  const card = el(`<div class="panel stack-card">
+    <h3><span class="status-dot ${c.state}"></span>${esc(c.name)}</h3>
+    <span class="hint">${esc(c.image)}, not adopted</span>
+    <button class="btn btn-block adopt-btn">Adopt</button>
+  </div>`);
+  card.querySelector(".adopt-btn").addEventListener("click", () => adopt({ kind: "container", name: c.name }, card));
+  return card;
+}
+
+async function adopt(payload, card) {
+  const btn = card.querySelector(".adopt-btn");
   btn.disabled = true; btn.textContent = "Adopting…";
   try {
     const res = await api("/api/adopt", { method: "POST", body: payload });
@@ -297,7 +296,7 @@ async function viewStack(name) {
 
   content.innerHTML = "";
   const head = el(`<div class="panel"><div class="panel-head">
-      <h1 style="font-size:1.5rem">${esc(name)}</h1>
+      <h1 class="stack-title">${esc(name)}</h1>
       <span class="badge badge-${s.status}">${s.status === "running" ? "✓ " : ""}${esc(s.status)}</span>
       <span class="spacer"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
@@ -351,7 +350,7 @@ async function viewStack(name) {
           <textarea id="editCompose" class="code-editor" spellcheck="false"></textarea></div>
         <div class="field"><label for="editEnv">.env <span class="hint">(optional)</span></label>
           <textarea id="editEnv" spellcheck="false"></textarea></div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <div class="btn-row">
           <button class="btn btn-primary" id="saveBtn">Save</button>
           <button class="btn" id="saveUpBtn">Save &amp; redeploy</button>
         </div></div>`);
@@ -371,7 +370,7 @@ async function viewStack(name) {
     },
     logs() {
       tabBody.innerHTML = `<div class="log-view" id="liveLogs" aria-live="off"></div>
-        <p class="hint" style="margin-top:0.5rem">Streaming live. Error lines show in red, warnings in amber.</p>`;
+        <p class="hint hint-mt">Streaming live. Error lines show in red, warnings in amber.</p>`;
       const view = tabBody.querySelector("#liveLogs");
       const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/logs/${encodeURIComponent(name)}`);
       ws.onmessage = (ev) => appendLog(view, ev.data);
@@ -385,7 +384,7 @@ async function viewStack(name) {
         return;
       }
       tabBody.innerHTML = "";
-      const picker = el(`<div class="form-grid" style="margin-bottom:1rem">
+      const picker = el(`<div class="form-grid tight-below">
         <div class="field"><label for="termTarget">Container</label>
         <select id="termTarget">${running.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("")}</select></div></div>`);
       const host = el('<div class="term-host"><div class="terminal" id="term"></div></div>');
@@ -551,8 +550,8 @@ async function viewActivity() {
   content.innerHTML = `<h1>Activity</h1>
     <div class="panel"><div class="panel-head">
       <h2>What Dockle has done</h2><span class="spacer"></span>
-      <label style="display:flex;gap:0.5rem;align-items:center;font-size:0.9375rem">
-        <input type="checkbox" id="errOnly" style="width:auto"> Errors only</label></div>
+      <label class="check-row tight">
+        <input type="checkbox" id="errOnly"> Errors only</label></div>
       <div id="activityRows"><p class="hint">Loading…</p></div></div>`;
   const load = async () => {
     const errorsOnly = document.getElementById("errOnly").checked;
@@ -590,7 +589,7 @@ async function viewBackups() {
       <thead><tr><th>Made</th><th>File</th><th>Size</th><th></th></tr></thead><tbody>
       ${d.backups.map(b => `<tr><td>${esc(b.made)}</td><td>${esc(b.name)}</td>
         <td>${(b.size / 1048576).toFixed(1)} MB</td>
-        <td style="white-space:nowrap">
+        <td class="nowrap">
           <a class="btn" href="/api/backup/download/${encodeURIComponent(b.name)}">Download</a>
           <button class="btn" data-restore="${esc(b.name)}">Restore</button>
         </td></tr>`).join("")}</tbody></table>`;
@@ -640,7 +639,7 @@ async function viewSettings() {
         <div class="field"><label for="setSocket">Engine socket path</label>
           <input id="setSocket" spellcheck="false">
           <span class="hint">Docker default: /var/run/docker.sock &middot; Podman: /run/podman/podman.sock (mounted into the Dockle container).</span></div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <div class="btn-row">
           <button class="btn" id="testRuntime">Test connection</button></div>
       </div></div>
     <div class="panel"><div class="panel-head"><h2>Email alerts</h2></div>
@@ -661,9 +660,9 @@ async function viewSettings() {
           <div class="field"><label for="smtpFrom">Send from</label><input id="smtpFrom" spellcheck="false" placeholder="dockle@yourdomain"></div>
           <div class="field"><label for="alertTo">Send alerts to</label><input id="alertTo" spellcheck="false"></div>
         </div>
-        <div class="field"><label style="display:flex;gap:0.5rem;align-items:center;font-weight:600">
-          <input type="checkbox" id="alertOn" style="width:auto"> Email me when an error happens</label></div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <div class="field"><label class="check-row">
+          <input type="checkbox" id="alertOn"> Email me when an error happens</label></div>
+        <div class="btn-row">
           <button class="btn" id="testSmtp">Send test email</button></div>
       </div></div>
     <div class="panel"><div class="panel-head"><h2>Backups</h2></div>
@@ -689,7 +688,7 @@ async function viewSettings() {
     <div class="panel">
       <div class="form-grid"><button class="btn btn-primary" id="saveSettings">Save settings</button></div>
     </div>
-    <p class="hint" style="margin-top:1rem">Dockle is inspired by <a href="https://github.com/louislam/dockge" rel="noopener">Dockge</a>. Built for home labs.</p>`;
+    <p class="hint mt-lg">Dockle is inspired by <a href="https://github.com/louislam/dockge" rel="noopener">Dockge</a>. Built for home labs.</p>`;
 
   const f = (id) => document.getElementById(id);
   f("setEngine").value = s["runtime.engine"];
@@ -761,19 +760,19 @@ async function renderTfa(host) {
   // The settings payload doesn't say whether 2FA is on; ask the begin/disable
   // endpoints to drive the flow and show state from what succeeds.
   host.innerHTML = `
-    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
+    <div class="btn-row align-center">
       <button class="btn" id="tfaStart">Set up 2FA</button>
       <button class="btn" id="tfaOff">Turn 2FA off</button>
       <span class="hint">Optional. Adds a six-digit code from an authenticator app at sign-in.</span>
     </div>
-    <div id="tfaFlow" style="margin-top:1rem"></div>`;
+    <div id="tfaFlow" class="mt-lg"></div>`;
   host.querySelector("#tfaStart").addEventListener("click", async () => {
     try {
       const r = await api("/api/2fa/begin", { method: "POST", body: {} });
       const flow = host.querySelector("#tfaFlow");
       flow.innerHTML = `<div class="form-grid">
         <p>Scan this with your authenticator app, then type the six-digit code it shows.</p>
-        <div style="background:#fff;border-radius:12px;padding:12px;width:fit-content">${r.qr_svg}</div>
+        <div class="qr-box">${r.qr_svg}</div>
         <p class="hint">Or enter the key by hand: <code>${esc(r.secret)}</code></p>
         <div class="field"><label for="tfaCode">Six-digit code</label><input id="tfaCode" inputmode="numeric" autocomplete="one-time-code"></div>
         <button class="btn btn-primary" id="tfaConfirm">Switch 2FA on</button></div>`;
