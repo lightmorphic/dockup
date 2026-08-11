@@ -14,6 +14,10 @@ def create_app():
         SECRET_KEY=config.SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        # Off only in mock/dev mode (plain http://localhost). In real use
+        # Dockle is only reachable through Tailscale Serve's HTTPS, so the
+        # cookie should never go out over plain HTTP.
+        SESSION_COOKIE_SECURE=not config.MOCK_MODE,
         PERMANENT_SESSION_LIFETIME=timedelta(days=config.SESSION_DAYS),
         MAX_CONTENT_LENGTH=8 * 1024 * 1024,
     )

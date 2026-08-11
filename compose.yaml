@@ -5,7 +5,9 @@ services:
     container_name: dockle
     restart: unless-stopped
     ports:
-      - "5001:5001"
+      # localhost only - Tailscale Serve is the only intended way in.
+      # Publishing 5001 without a host IP would also expose it on the LAN.
+      - "127.0.0.1:5001:5001"
     environment:
       # The one and only secret. Set it once in .env or the shell:
       #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")

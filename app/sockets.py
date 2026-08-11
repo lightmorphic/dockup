@@ -1,7 +1,10 @@
 """Websockets: live compose logs and the interactive terminal.
 
 Both check the login session before doing anything - a websocket is a
-door too.
+door too. Browsers don't apply same-origin protection to WebSockets the
+way they do to normal requests, so a same-origin check is done here
+explicitly: without it, a page on another site could open one of these
+connections in a visitor's browser and ride their session cookie in.
 """
 
 import fcntl
@@ -13,8 +16,9 @@ import struct
 import subprocess
 import termios
 import threading
+from urllib.parse import urlparse
 
-from flask import session
+from flask import request, session
 from flask_sock import Sock
 
 from . import runtime, stacks
@@ -26,9 +30,16 @@ def _authed():
     return bool(session.get("uid"))
 
 
+def _same_origin():
+    origin = request.headers.get("Origin")
+    if not origin:
+        return True  # non-browser clients don't send one; nothing to spoof
+    return urlparse(origin).netloc == request.host
+
+
 @sock.route("/ws/logs/<name>")
 def ws_logs(ws, name):
-    if not _authed():
+    if not _authed() or not _same_origin():
         ws.close()
         return
     try:
@@ -79,7 +90,7 @@ def ws_logs(ws, name):
 
 @sock.route("/ws/terminal/<container>")
 def ws_terminal(ws, container):
-    if not _authed():
+    if not _authed() or not _same_origin():
         ws.close()
         return
     if not all(c.isalnum() or c in "-_." for c in container) or not container:

@@ -12,6 +12,15 @@ echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')
 docker compose up -d --build
 ```
 
+Dockle runs as a non-root user with UID 1000 inside its container, matching
+the usual first-user account on a fresh Linux install. If your own user
+isn't UID 1000 (check with `id -u`), the container still starts fine but
+can't write to `data/` - fix it once:
+
+```bash
+sudo chown -R 1000:1000 /opt/dockle/data /opt/stacks
+```
+
 Open `http://<server-ip>:5001` and create the admin account.
 Keep a copy of the `.env` file's SECRET_KEY somewhere safe (password
 manager). It encrypts your saved settings - lose it and saved passwords
