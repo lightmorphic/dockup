@@ -168,7 +168,7 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<h1>Stacks</h1><div class="stack-grid" id="grid"></div>`;
+  content.innerHTML = `<h1>Stacks</h1><div id="adoptAllHost"></div><div class="stack-grid" id="grid"></div>`;
   const grid = document.getElementById("grid");
   await refreshStacks();
 
@@ -176,15 +176,41 @@ async function viewDashboard() {
   try { discovered = await api("/api/discover"); } catch (e) { /* non-fatal */ }
 
   const managed = stacksCache.filter(s => s.managed);
-  if (!managed.length && !discovered.projects.length && !discovered.standalone.length) {
+  const unmanagedCount = discovered.projects.length + discovered.standalone.length;
+  if (!managed.length && !unmanagedCount) {
     grid.innerHTML = `<div class="panel"><h3>Nothing here yet</h3>
       <p>Create your first stack with <strong>New stack</strong>.</p></div>`;
     return;
+  }
+  if (unmanagedCount > 1) {
+    const host = document.getElementById("adoptAllHost");
+    host.appendChild(el(`<div class="panel">
+      <div class="panel-head"><h3>${unmanagedCount} things not adopted yet</h3><span class="spacer"></span>
+        <button class="btn btn-primary" id="adoptAllBtn">Adopt all</button></div>
+      <p class="hint">Copies each one's setup into the stacks folder so Dockle can manage it - nothing running is restarted.
+      Skip anything another manager (like Arcane) already looks after: running two Docker managers over the same
+      containers can fight over the same files.</p></div>`));
+    document.getElementById("adoptAllBtn").addEventListener("click", adoptAll);
   }
   const statusByName = Object.fromEntries(stacksCache.map(s => [s.name, s.status]));
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
+}
+
+async function adoptAll() {
+  const btn = document.getElementById("adoptAllBtn");
+  btn.disabled = true; btn.textContent = "Adopting…";
+  try {
+    const res = await api("/api/adopt/all", { method: "POST", body: {} });
+    toast(`Adopted ${res.adopted} of ${res.total}.`, res.adopted === res.total ? "success" : "warning");
+    await refreshStacks();
+    location.hash = "#/";
+    viewDashboard();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Adopt all";
+    toast(e.message, "danger");
+  }
 }
 
 function managedCard(s) {

@@ -216,11 +216,22 @@ def api_action(name, action):
 @bp.get("/discover")
 def api_discover():
     """What's running on this system that Dockle doesn't manage yet?"""
+    projects, standalone, error = discover()
+    if error:
+        return jsonify({"error": error}), 502
+    return jsonify({"projects": projects, "standalone": standalone})
+
+
+def discover():
+    """Everything running that Dockle doesn't manage yet, minus anything
+    under an excluded path (another tool's territory - see settingsvc
+    adopt.exclude_paths). Returns (projects, standalone, error)."""
+    from . import settingsvc
     rt = runtime.current()
     try:
         containers = rt.ps()
     except runtime.RuntimeError_ as exc:
-        return jsonify({"error": str(exc)}), 502
+        return [], [], str(exc)
     managed = {d.name for d in config.STACKS_DIR.iterdir()
                if d.is_dir() and any((d / f).exists() for f in config.COMPOSE_FILENAMES)} \
         if config.STACKS_DIR.exists() else set()
@@ -229,15 +240,20 @@ def api_discover():
     own_id = socket.gethostname()[:12]
     own_project = next((c["project"] for c in containers if c["id"] == own_id), None)
 
+    exclude = [p.strip() for p in (settingsvc.get("adopt.exclude_paths") or "").split(",") if p.strip()]
+
     projects: dict[str, dict] = {}
     standalone = []
     for c in containers:
         if c["project"]:
             if c["project"] in managed or c["project"] == own_project:
                 continue
+            working_dir = c.get("workingDir", "")
+            if any(working_dir.startswith(prefix) for prefix in exclude):
+                continue
             entry = projects.setdefault(c["project"], {
                 "name": c["project"],
-                "workingDir": c.get("workingDir", ""),
+                "workingDir": working_dir,
                 "configFiles": c.get("configFiles", ""),
                 "containers": [],
             })
@@ -247,16 +263,12 @@ def api_discover():
     for p in projects.values():
         cf = (p["configFiles"] or "").split(",")[0]
         p["fileReadable"] = bool(cf) and Path(cf).is_file()
-    return jsonify({"projects": list(projects.values()), "standalone": standalone})
+    return list(projects.values()), standalone, None
 
 
-@bp.post("/adopt")
-def api_adopt():
-    """Bring an existing compose project or standalone container under
-    Dockle's wing: its compose file lands in the stacks folder."""
-    data = request.get_json(force=True)
-    kind = data.get("kind")
-    name = (data.get("name") or "").strip()
+def _adopt_one(kind, name, workingDir="", configFiles=""):
+    """Core of adopting a single project or standalone container. Returns
+    (result_dict, error_message) - exactly one is set."""
     rt = runtime.current()
     try:
         if kind == "project":
@@ -264,17 +276,16 @@ def api_adopt():
         else:
             target = stack_dir(composegen._safe(name).lower())
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return None, str(exc)
     if any((target / f).exists() for f in config.COMPOSE_FILENAMES):
-        return jsonify({"error": f"'{target.name}' already exists in the stacks folder"}), 409
+        return None, f"'{target.name}' already exists in the stacks folder"
 
     try:
         if kind == "project":
-            working_dir = data.get("workingDir", "")
-            config_file = (data.get("configFiles") or "").split(",")[0]
+            config_file = (configFiles or "").split(",")[0]
             if config_file and Path(config_file).is_file():
                 text = Path(config_file).read_text()
-                text = composegen.rewrite_relative_binds(text, working_dir or str(Path(config_file).parent))
+                text = composegen.rewrite_relative_binds(text, workingDir or str(Path(config_file).parent))
                 note = "Adopted from its original compose file"
                 env_src = Path(config_file).parent / ".env"
             else:
@@ -287,21 +298,56 @@ def api_adopt():
             note = "Rebuilt from the running container"
             env_src = None
         else:
-            return jsonify({"error": "Unknown adopt type"}), 400
+            return None, "Unknown adopt type"
     except runtime.RuntimeError_ as exc:
         activity.log("error", "adopt", f"Adopting '{name}' FAILED", str(exc))
-        return jsonify({"error": str(exc)}), 502
+        return None, str(exc)
 
     problem = validate_compose(text)
     if problem:
         activity.log("error", "adopt", f"Adopting '{name}' FAILED", problem)
-        return jsonify({"error": f"The rebuilt compose file didn't validate: {problem}"}), 500
+        return None, f"The rebuilt compose file didn't validate: {problem}"
     target.mkdir(parents=True, exist_ok=True)
     (target / "compose.yaml").write_text(text)
     if env_src and env_src.is_file():
         (target / ".env").write_text(env_src.read_text())
     activity.log("info", "adopt", f"Adopted '{name}' into stacks/{target.name}", note)
-    return jsonify({"ok": True, "name": target.name, "note": note})
+    return {"ok": True, "name": target.name, "note": note}, None
+
+
+@bp.post("/adopt")
+def api_adopt():
+    """Bring an existing compose project or standalone container under
+    Dockle's wing: its compose file lands in the stacks folder."""
+    data = request.get_json(force=True)
+    result, error = _adopt_one(
+        data.get("kind"), (data.get("name") or "").strip(),
+        data.get("workingDir", ""), data.get("configFiles", ""),
+    )
+    if error:
+        return jsonify({"error": error}), 400 if "already exists" in error or "Unknown" in error else 502
+    return jsonify(result)
+
+
+@bp.post("/adopt/all")
+def api_adopt_all():
+    """Adopt everything currently discoverable in one pass. Running two
+    Docker managers pointed at the same containers can fight over the same
+    files, so this only ever touches things nothing else is already
+    managing (see adopt.exclude_paths in Settings)."""
+    projects, standalone, error = discover()
+    if error:
+        return jsonify({"error": error}), 502
+    results = []
+    for p in projects:
+        result, err = _adopt_one("project", p["name"], p.get("workingDir", ""), p.get("configFiles", ""))
+        results.append({"name": p["name"], "ok": result is not None, "message": err or result["note"]})
+    for c in standalone:
+        result, err = _adopt_one("container", c["name"])
+        results.append({"name": c["name"], "ok": result is not None, "message": err or result["note"]})
+    ok_count = sum(1 for r in results if r["ok"])
+    activity.log("info", "adopt", f"Bulk adopt: {ok_count}/{len(results)} succeeded")
+    return jsonify({"results": results, "adopted": ok_count, "total": len(results)})
 
 
 def _safe_project(name):

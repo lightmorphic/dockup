@@ -23,6 +23,8 @@ SCHEMA = {
     "ui.accent": ("", False),                   # empty = brand yellow
     "backup.hour": ("3", False),                # daily backup hour, local time
     "backup.retention_days": ("14", False),
+    "adopt.exclude_paths": ("", False),          # comma-separated path prefixes to leave alone
+    "onboarding.bulk_adopt_offered": ("0", False),
 }
 
 
