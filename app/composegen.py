@@ -55,6 +55,16 @@ def containers_to_compose(inspects: list[dict]) -> str:
             svc["working_dir"] = cfg["WorkingDir"]
         if cfg.get("User"):
             svc["user"] = cfg["User"]
+        # `docker inspect` reports the actual argv the container was
+        # launched with, image default or not - reproducing it exactly
+        # here is what makes an adopted stack behave identically to the
+        # container it came from. Missing this dropped a freqtrade
+        # container's --strategy argument silently on adoption, leaving
+        # it crash-looping with no way to tell why from the compose file.
+        if cfg.get("Entrypoint"):
+            svc["entrypoint"] = list(cfg["Entrypoint"])
+        if cfg.get("Cmd"):
+            svc["command"] = list(cfg["Cmd"])
         if host.get("Privileged"):
             svc["privileged"] = True
         if host.get("CapAdd"):
