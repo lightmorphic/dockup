@@ -444,7 +444,7 @@ async function viewStack(name) {
 
   content.innerHTML = "";
   const head = el(`<div class="panel"><div class="panel-head">
-      <h1 class="stack-title">${cardDot(s.status)}${esc(name)}</h1>
+      <h1 class="stack-title">${esc(name)}</h1>
       <span class="spacer"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
