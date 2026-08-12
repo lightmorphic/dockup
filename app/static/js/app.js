@@ -204,6 +204,7 @@ const ICONS = {
   bin: '<svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0l-.8 12a2 2 0 0 1-2 1.9H9.8a2 2 0 0 1-2-1.9L7 7m3 4v6m4-6v6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   tick: '<svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  external: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
 /* ---------- sidebar / engine ---------- */
@@ -615,6 +616,29 @@ function viewNewStack() {
 
 /* ---- stack detail ---- */
 
+/* Prefers the real Tailscale Serve URL (a stack's port served there
+   over HTTPS, using the tailnet's actual name) and falls back to
+   whatever host the browser is already using to reach Dockle itself -
+   its LAN IP or hostname, whichever got the user here - over plain
+   HTTP on the stack's own published port. No port at all means
+   nothing to open, so the button stays hidden. */
+async function resolveWebUiLink(name, linkEl) {
+  let status;
+  try { status = await api(`/api/hostcompanion/stacks/${encodeURIComponent(name)}/serve`); }
+  catch (e) { return; }
+  if (!status.ports || !status.ports.length) return;
+  const port = status.ports[0];
+  let url = `http://${location.hostname}:${port}`;
+  if (status.available && status.served.includes(port)) {
+    try {
+      const host = await api("/api/hostcompanion/status");
+      if (host.tailscale?.dnsName) url = `https://${host.tailscale.dnsName}:${port}`;
+    } catch (e) { /* fall back to the plain-IP URL already set */ }
+  }
+  linkEl.href = url;
+  linkEl.classList.remove("hidden");
+}
+
 async function viewStack(name) {
   let s;
   try { s = await api(`/api/stacks/${encodeURIComponent(name)}`); }
@@ -623,6 +647,8 @@ async function viewStack(name) {
   content.innerHTML = "";
   const head = el(`<div class="panel"><div class="panel-head">
       <h1 class="stack-title">${esc(name)}</h1>
+      <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
+        target="_blank" rel="noopener" href="#">${ICONS.external}</a>
       <span class="spacer"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
@@ -635,6 +661,7 @@ async function viewStack(name) {
     <div class="log-view action-output" id="actionOut" aria-live="polite"></div>
   </div>`);
   content.appendChild(head);
+  resolveWebUiLink(name, head.querySelector("#openWebBtn"));
 
   const tabs = el(`<div class="panel">
     <div class="tabs" role="tablist">
