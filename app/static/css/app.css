@@ -358,6 +358,33 @@ tr:last-child td { border-bottom: none; }
 .term-host { background: var(--term-bg); border-radius: var(--radius); padding: 0.5rem; height: 28rem; }
 .term-host .terminal { height: 100%; }
 
+/* ---- floating progress panel ---- */
+/* A small, dismissible box for long-running background actions
+   (e.g. installing the companion) - stays pinned to the viewport so it
+   reads as "here's what's happening right now", independent of
+   scrolling, and never blocks the page underneath it. */
+.progress-panel {
+  position: fixed; top: 4.5rem; right: 1.25rem; width: 340px; max-width: calc(100vw - 2.5rem);
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--panel-radius);
+  box-shadow: var(--shadow-panel); z-index: 60; overflow: hidden;
+}
+.progress-panel-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.625rem 0.5rem 0.625rem 1rem; border-bottom: 1px solid var(--panel-border);
+  font-weight: 600; font-size: 0.9375rem;
+}
+.progress-panel-head .status-dot { flex: none; }
+.progress-panel-head .title { flex: 1; }
+.progress-panel-body {
+  background: var(--term-bg); color: #d6d8e0;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.8125rem; line-height: 1.5;
+  padding: 0.75rem 1rem; max-height: 22rem; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+}
+.progress-panel-body .log-error { color: #ff7b72; font-weight: 700; }
+.progress-panel-body .log-warn { color: #f0c674; }
+
 /* ---- activity log ---- */
 
 .activity-row { display: grid; grid-template-columns: 9.5rem 7rem 1fr; gap: 0.75rem; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--border); font-size: 0.9375rem; align-items: baseline; }

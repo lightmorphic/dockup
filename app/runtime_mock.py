@@ -209,5 +209,13 @@ class MockRuntime:
     def restore_volume_from_backup(self, volume_name, src_filename):
         pass
 
-    def install_companion(self, staging_host_dir):
-        return "dockle-companion installed and running (mock)."
+    def install_companion_stream(self, staging_host_dir):
+        yield "Installing dockle-companion (mock)..."
+        yield "dockle-companion installed and running (mock)."
+        yield "[dockle-exit:0]"
+
+    def reconnect_companion_stream(self, compose_host_path, compose_host_dir):
+        yield "Editing compose.yaml (mock)..."
+        yield "Validating config (mock)..."
+        yield "dockle-companion reconnected (mock) - no real restart in dev mode."
+        yield "[dockle-exit:0]"

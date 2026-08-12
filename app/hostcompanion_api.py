@@ -8,7 +8,7 @@ runbook.
 import shutil
 from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from . import activity, config, hostcompanion, runtime, stacks
 
@@ -101,12 +101,16 @@ def api_stack_serve_toggle(name):
 
 @bp.post("/install")
 def api_install_companion():
-    """One-click host install: stage Dockle's own bundled copy of the
-    companion source into its data dir (reachable from the host via
-    DOCKLE_DATA_HOST_PATH, the same trick backups use), then run the
-    real install.sh on the host through a short-lived container - see
-    Runtime.install_companion. No standing extra permissions for
-    Dockle's own container once this returns."""
+    """One-click host install + reconnect: stage Dockle's own bundled
+    copy of the companion source into its data dir (reachable from the
+    host via DOCKLE_DATA_HOST_PATH, the same trick backups use), run
+    the real install.sh on the host through a short-lived privileged
+    container, then uncomment the socket line in Dockle's own
+    compose.yaml and restart Dockle to reconnect - see
+    Runtime.install_companion_stream / reconnect_companion_stream. No
+    standing extra permissions for Dockle's own container once this
+    returns; the restart is why the stream ends abruptly instead of
+    with a clean final line - expected, not a failure."""
     if not config.MOCK_MODE and not config.DATA_HOST_PATH:
         return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
                                   "real path on the host - see the runbook to set it in compose.yaml."}), 400
@@ -120,14 +124,44 @@ def api_install_companion():
         return jsonify({"error": f"Couldn't stage companion files: {exc}"}), 500
 
     rt = runtime.current()
-    staging_host_dir = f"{config.DATA_HOST_PATH.rstrip('/')}/.companion-install"
-    try:
-        output = rt.install_companion(staging_host_dir)
-    except runtime.RuntimeError_ as exc:
-        activity.log("error", "companion", "Companion install failed", str(exc))
-        return jsonify({"error": str(exc)}), 400
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    data_host_path = config.DATA_HOST_PATH or str(config.DATA_DIR)
+    staging_host_dir = f"{data_host_path.rstrip('/')}/.companion-install"
+    # compose.yaml lives one level up from the data dir it mounts as
+    # ./data - true by construction for every install this project
+    # documents (DOCKLE_DATA_HOST_PATH is defined as "wherever
+    # compose.yaml's own ./data resolves to on the host").
+    compose_dir = str(Path(data_host_path).parent)
+    compose_path = f"{compose_dir}/compose.yaml"
 
-    activity.log("info", "companion", "Companion installed on the host")
-    return jsonify({"ok": True, "message": "dockle-companion installed and running.", "log": output[-2000:]})
+    def generate():
+        ok = True
+        try:
+            for line in rt.install_companion_stream(staging_host_dir):
+                if line.startswith("[dockle-exit:"):
+                    ok = line == "[dockle-exit:0]"
+                else:
+                    yield line + "\n"
+        except runtime.RuntimeError_ as exc:
+            ok = False
+            yield f"ERROR: {exc}\n"
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+
+        if not ok:
+            activity.log("error", "companion", "Companion install failed - see output panel")
+            yield "[dockle-done:error]\n"
+            return
+
+        activity.log("info", "companion", "Companion installed on the host")
+        yield "Companion installed. Reconnecting Dockle to it...\n"
+        yield "[dockle-restarting]\n"
+        try:
+            for line in rt.reconnect_companion_stream(compose_path, compose_dir):
+                if not line.startswith("[dockle-exit:"):
+                    yield line + "\n"
+        except runtime.RuntimeError_:
+            pass  # expected - Dockle's own container recreation races this request
+        yield "[dockle-done:ok]\n"
+
+    return Response(generate(), mimetype="text/plain",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})

@@ -10,6 +10,7 @@ the full UI can be exercised on a machine with no container runtime.
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 
@@ -269,9 +270,9 @@ class Runtime:
     # reason. Still a single short-lived container - nothing standing
     # on Dockle's own container afterward.
 
-    def install_companion(self, staging_host_dir: str) -> str:
-        out = self._run([
-            "run", "--rm", "--privileged", "--pid=host",
+    def install_companion_stream(self, staging_host_dir: str):
+        args = [
+            _DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host",
             "-v", "/:/host", "-v", f"{staging_host_dir}:/staging:ro",
             "alpine", "sh", "-c",
             "apk add --no-cache util-linux-misc >/dev/null && "
@@ -282,5 +283,38 @@ class Runtime:
             "nsenter --target 1 --mount --uts --ipc --net --pid -- "
             "sh /tmp/dockle-companion-install/install.sh && "
             "rm -rf /host/tmp/dockle-companion-install",
-        ], timeout=120)
-        return out
+        ]
+        proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:
+            yield line.rstrip("\n")
+        proc.wait()
+        yield f"[dockle-exit:{proc.returncode}]"
+
+    def reconnect_companion_stream(self, compose_host_path: str, compose_host_dir: str):
+        """Uncomment the companion socket line in Dockle's own compose.yaml
+        and run `docker compose up -d` for real, via the host's own
+        namespaces - not a bind-mounted view from inside Dockle's own
+        container, where compose's relative-path resolution (./data
+        etc) would produce the wrong absolute host paths. This
+        recreates Dockle's own container, so the stream (and the HTTP
+        request carrying it) ends abruptly partway through - expected,
+        not a failure. The daemon completes the restart independently
+        of whether anything is still reading this output."""
+        script = (
+            f"sed -i 's|# - /run/dockle-companion.sock:/run/dockle-companion.sock|"
+            f"- /run/dockle-companion.sock:/run/dockle-companion.sock|' /host{compose_host_path} && "
+            "apk add --no-cache util-linux-misc >/dev/null && "
+            "nsenter --target 1 --mount --uts --ipc --net --pid -- "
+            f"sh -c 'cd {shlex.quote(compose_host_dir)} && docker compose config --quiet' && "
+            "nsenter --target 1 --mount --uts --ipc --net --pid -- "
+            f"sh -c 'cd {shlex.quote(compose_host_dir)} && docker compose up -d'"
+        )
+        args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
+                "alpine", "sh", "-c", script]
+        proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:
+            yield line.rstrip("\n")
+        proc.wait()
+        yield f"[dockle-exit:{proc.returncode}]"

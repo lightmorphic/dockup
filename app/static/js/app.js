@@ -77,6 +77,34 @@ function renderPortConflictHint(view, port, companionAvailable) {
   view.scrollTop = view.scrollHeight;
 }
 
+/* A small, dismissible floating panel for narrating a long-running
+   background action (e.g. installing the companion) - pinned to the
+   viewport, closable at any time via the X, independent of whatever
+   else is on screen. Only one at a time; a new one replaces the last. */
+function openProgressPanel(title) {
+  document.querySelectorAll(".progress-panel").forEach(p => p.remove());
+  const panel = el(`<div class="progress-panel">
+    <div class="progress-panel-head">
+      <span class="status-dot warning" id="progressDot"></span>
+      <span class="title">${esc(title)}</span>
+      <button class="icon-btn" id="progressClose" aria-label="Dismiss" title="Dismiss">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+    </div>
+    <div class="progress-panel-body log-view" id="progressBody"></div>
+  </div>`);
+  document.body.appendChild(panel);
+  panel.querySelector("#progressClose").addEventListener("click", () => panel.remove());
+  const body = panel.querySelector("#progressBody");
+  const dot = panel.querySelector("#progressDot");
+  return {
+    line(text) { if (panel.isConnected) appendLog(body, text); },
+    done(ok) { if (panel.isConnected) dot.className = "status-dot " + (ok ? "running" : ""); },
+    closed() { return !panel.isConnected; },
+    close() { panel.remove(); },
+  };
+}
+
 /* Inline-tick destructive confirm: first click arms (red), second click within
    4s fires; the button then flashes a tick. Never a popup. */
 function armedAction(btn, run, label) {
@@ -703,14 +731,20 @@ async function viewStack(name) {
         tabBody.innerHTML = '<p class="hint">This stack doesn\'t publish any ports, so there\'s nothing for Tailscale Serve to front.</p>';
         return;
       }
-      tabBody.innerHTML = `<p>Expose one of this stack's ports over your tailnet at
-        <code>https://&lt;your-tailscale-name&gt;:&lt;port&gt;</code> - no LAN exposure needed.</p>
-        <div class="form-grid" id="servePorts"></div>`;
+      let dnsName = "";
+      try { dnsName = (await api("/api/hostcompanion/status")).tailscale?.dnsName || ""; } catch (e) {}
+
+      tabBody.innerHTML = '<div id="servePorts"></div>';
       const host = tabBody.querySelector("#servePorts");
+      // Each published port toggles independently, but reads as a plain
+      // fact (what's live right now, and at what real address) rather
+      // than a "pick one" prompt - most stacks publish exactly one port
+      // worth reaching, so there's rarely an actual choice to make.
       for (const port of status.ports) {
         const on = status.served.includes(port);
+        const url = dnsName ? `https://${esc(dnsName)}:${port}` : `port ${port}`;
         const row = el(`<div class="check-row"><input type="checkbox" id="serve-${port}" ${on ? "checked" : ""}>
-          <label for="serve-${port}">Port ${port}</label></div>`);
+          <label for="serve-${port}">${on ? "Exposed at" : "Not exposed - would be"} <code>${url}</code></label></div>`);
         host.appendChild(row);
         row.querySelector("input").addEventListener("change", async (e) => {
           e.target.disabled = true;
@@ -718,8 +752,8 @@ async function viewStack(name) {
             await api(`/api/hostcompanion/stacks/${encodeURIComponent(name)}/serve`, {
               method: "POST", body: { port, on: e.target.checked } });
             toast(`Serve ${e.target.checked ? "enabled" : "disabled"} for port ${port}.`, "success");
-          } catch (err) { toast(err.message, "danger"); e.target.checked = !e.target.checked; }
-          e.target.disabled = false;
+            renderTab.serve();
+          } catch (err) { toast(err.message, "danger"); e.target.checked = !e.target.checked; e.target.disabled = false; }
         });
       }
     },
@@ -1074,8 +1108,67 @@ async function viewSettings() {
   await renderHostCompanionPanel();
 }
 
+/* Streams the install: stage + host install + (on success) edit
+   compose.yaml and restart Dockle itself to reconnect. That last step
+   tears down the very container serving this request, so the fetch
+   stream ends abruptly right after "[dockle-restarting]" - expected,
+   not a failure. Poll /health (no auth needed) until Dockle answers
+   again, then refresh the panel in place. */
+async function installCompanion(btn) {
+  btn.disabled = true; btn.textContent = "Installing…";
+  const panel = openProgressPanel("Installing dockle-companion");
+  let restarting = false;
+  try {
+    const res = await fetch("/api/hostcompanion/install", { method: "POST", headers: { "X-CSRF": CSRF } });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (line === "[dockle-restarting]") { restarting = true; panel.line("Reconnecting Dockle…"); continue; }
+        if (line === "[dockle-done:ok]" || line === "[dockle-done:error]") continue;
+        if (line) panel.line(line);
+      }
+    }
+  } catch (e) {
+    if (!restarting) {
+      panel.line("ERROR: " + e.message);
+      panel.done(false);
+      btn.disabled = false; btn.textContent = "Install companion";
+      return;
+    }
+    // else: expected - the connection dropped because Dockle restarted itself
+  }
+  if (restarting) {
+    await waitForCompanionReconnect(panel);
+  } else {
+    panel.done(true);
+  }
+  if (location.hash === "#/settings") await renderHostCompanionPanel();
+}
+
+async function waitForCompanionReconnect(panel) {
+  panel.line("Waiting for Dockle to come back…");
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    if (panel.closed()) return; // dismissed - stop narrating, the restart itself still completes
+    try {
+      const res = await fetch("/health", { cache: "no-store" });
+      if (res.ok) { panel.line("Reconnected."); panel.done(true); return; }
+    } catch (e) { /* still down - keep waiting */ }
+  }
+  panel.line("Still not back after a minute - check the container directly (docker ps / docker logs dockle).");
+  panel.done(false);
+}
+
 async function renderHostCompanionPanel() {
-  const panel = el(`<div class="panel"><div class="panel-head"><h2>Host (Tailscale &amp; updates)</h2></div>
+  document.querySelectorAll(".host-companion-panel").forEach(p => p.remove());
+  const panel = el(`<div class="panel host-companion-panel"><div class="panel-head"><h2>Host (Tailscale &amp; updates)</h2></div>
     <div id="hostCompanionBody"><p class="hint">Checking…</p></div></div>`);
   content.appendChild(panel);
   const body = panel.querySelector("#hostCompanionBody");
@@ -1089,20 +1182,9 @@ async function renderHostCompanionPanel() {
       which the Docker connection alone can reach.</p>
       <div class="btn-row align-center">
         <button class="btn btn-primary" id="companionInstallBtn">Install companion</button>
-        <span class="hint">Installs a systemd service on this host. Needs one more manual step afterward - see the message it leaves you.</span>
+        <span class="hint">Installs a systemd service on this host, then reconnects Dockle to it automatically - Dockle briefly restarts itself as the last step.</span>
       </div>`;
-    body.querySelector("#companionInstallBtn").addEventListener("click", async (e) => {
-      e.target.disabled = true; e.target.textContent = "Installing…";
-      try {
-        const r = await api("/api/hostcompanion/install", { method: "POST", body: {} });
-        body.innerHTML = `<p class="alert alert-success">✓ ${esc(r.message)}</p>
-          <p>One step left: uncomment the <code>dockle-companion.sock</code> line in <code>compose.yaml</code>
-          on the host, then run <code>docker compose up -d</code> to reconnect Dockle to it.</p>`;
-      } catch (err) {
-        toast(err.message, "danger");
-        e.target.disabled = false; e.target.textContent = "Install companion";
-      }
-    });
+    body.querySelector("#companionInstallBtn").addEventListener("click", (e) => installCompanion(e.target));
     return;
   }
 
