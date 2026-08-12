@@ -51,7 +51,7 @@ Mount the host filesystem into Dockle, `chroot`/`nsenter` into it to run
   compromise, not just a Docker-scoped one. This is a large step up
   in blast radius for the whole app, not just these two features.
 
-### B. A small companion agent installed directly on the host (not in a container)
+### B. A small companion service installed directly on the host (not in a container)
 
 A tiny script/binary Charlie installs once on the host (`curl | sh`
 style, like Tailscale's own installer), running as a systemd service
@@ -82,15 +82,22 @@ commands.
 
 ## Recommendation
 
-**Option B** - a small companion host agent with a fixed, narrow command
-set - is the only one that doesn't meaningfully increase what a bug in
-Dockle could do to the host. It costs one extra install step (matching
-the existing "install Tailscale" step conceptually), but keeps the
-"Dockle's own container is not privileged" property that's been true of
-every feature so far.
+**Option B** - a small companion host service with a fixed, narrow
+command set - is the only one that doesn't meaningfully increase what a
+bug in Dockle could do to the host. It costs one extra install step
+(matching the existing "install Tailscale" step conceptually), but
+keeps the "Dockle's own container is not privileged" property that's
+been true of every feature so far.
 
-Concretely, if this gets built:
-- `dockle-agent`: a small Go or Python binary, systemd unit, listens on
+**Update: built.** Everything below shipped as `companion/` and
+`app/hostcompanion.py`, plus a one-click installer in Settings → Host
+that runs the install script via a short-lived privileged action - the
+"Dockle's own container is not privileged" property this doc argues
+for still holds afterward, since that elevated access exists only for
+the one-shot install, not as a standing capability.
+
+Concretely, as built:
+- `dockle-companion`: a small Go or Python binary, systemd unit, listens on
   a Unix socket only `root` can reach (matching how `docker.sock`
   itself is locked down)
 - Fixed command set, no arbitrary shell - each capability (update
@@ -98,14 +105,13 @@ Concretely, if this gets built:
   its own explicit RPC, not "run this string"
 - Dockle's container gets the socket bind-mounted in, same shape as
   `docker.sock` today
-- Every action the agent takes gets logged to Dockle's existing
+- Every action the companion takes gets logged to Dockle's existing
   Activity log, same as everything else
 
-This is a real, multi-day feature - new host-side install docs, a new
+This was a real, multi-day feature - new host-side install docs, a new
 service to version and update, and its own security review before it
-ships (the "run arbitrary root commands from a web UI" shape is exactly
-the kind of thing that needs care, not haste). Worth building once
-prioritised, not worth rushing into the current pass.
+shipped (the "run arbitrary root commands from a web UI" shape was
+exactly the kind of thing that needed care, not haste).
 
 ## What's NOT recommended
 

@@ -11,9 +11,9 @@ chown dockle:dockle "$DOCKLE_DATA" 2>/dev/null || true
 
 # Join the group that owns each mounted socket, whatever GID it happens
 # to have on this host - same trick for docker.sock and the optional
-# dockle-agent.sock (see agent/install.sh, only mounted in if you've
-# set that up).
-for SOCK in /var/run/docker.sock /run/dockle-agent.sock; do
+# dockle-companion.sock (see companion/install.sh, only mounted in if
+# you've set that up).
+for SOCK in /var/run/docker.sock /run/dockle-companion.sock; do
   if [ -S "$SOCK" ]; then
     SOCK_GID=$(stat -c '%g' "$SOCK")
     if ! getent group "$SOCK_GID" >/dev/null 2>&1; then

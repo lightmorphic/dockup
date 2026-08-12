@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dockle-agent: a small, narrowly-scoped root-level helper that runs
+"""dockle-companion: a small, narrowly-scoped root-level helper that runs
 directly on the host (never in a container), so Dockle can do the two
 things Docker access alone can't reach: check/apply host OS updates,
 and manage Tailscale Serve.
@@ -20,7 +20,7 @@ import re
 import socketserver
 import subprocess
 
-SOCKET_PATH = "/run/dockle-agent.sock"
+SOCKET_PATH = "/run/dockle-companion.sock"
 VERSION = "1.0.0"
 
 

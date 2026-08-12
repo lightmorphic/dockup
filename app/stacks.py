@@ -169,6 +169,64 @@ def api_save(name):
     return jsonify({"ok": True})
 
 
+_STARTING_ACTIONS = {"up", "start", "restart", "update"}
+_PORT_CONFLICT_RE = re.compile(r"bind host port (?:[\w.:]+:)?(\d+)/tcp: address already in use")
+
+
+def _tailscale_pause_ports(name, d, available):
+    """Before a stack binds its ports, pause any Tailscale Serve rule
+    already holding one of them - the exact cause of "address already
+    in use" when a stack is deleted and recreated while its old Serve
+    mapping is still live (Tailscale's own listener keeps the port even
+    though nothing is using it anymore). Returns the ports paused, to
+    resume after; does nothing if the companion isn't installed."""
+    if not available:
+        return []
+    from . import hostcompanion
+    try:
+        cp = compose_path(name)
+        compose_text = cp.read_text() if cp.exists() else ""
+        envp = d / ".env"
+        env_text = envp.read_text() if envp.exists() else ""
+        published = hostcompanion.published_ports(compose_text, env_text)
+        served = hostcompanion.tailscale_serve_list().get("ports", [])
+    except (hostcompanion.CompanionUnavailable, OSError):
+        return []
+    paused = []
+    for port in published:
+        if port not in served:
+            continue
+        try:
+            hostcompanion.tailscale_serve(port, False)
+            paused.append(port)
+        except hostcompanion.CompanionUnavailable:
+            pass
+    return paused
+
+
+def _tailscale_resume_ports(ports):
+    if not ports:
+        return
+    from . import hostcompanion
+    for port in ports:
+        try:
+            hostcompanion.tailscale_serve(port, True)
+        except hostcompanion.CompanionUnavailable:
+            pass
+
+
+def _port_conflict_hint(line, available):
+    """If this line is Docker's own port-bind-conflict error, translate
+    it into a sentinel the frontend renders as a clear explanation
+    instead of raw stderr. Fires even when the companion auto-paused
+    Serve above - e.g. a second, unrelated process could hold the port -
+    so it's a general safety net, not just a companion-missing fallback."""
+    m = _PORT_CONFLICT_RE.search(line)
+    if not m:
+        return None
+    return f"[dockle-hint:tailscale-port-conflict:{m.group(1)}:{1 if available else 0}]"
+
+
 @bp.post("/stacks/<name>/action/<action>")
 def api_action(name, action):
     if action not in ("up", "down", "stop", "start", "restart", "update", "delete"):
@@ -183,18 +241,30 @@ def api_action(name, action):
 
     def generate():
         ok = True
+        from . import hostcompanion
+        companion_available = action in _STARTING_ACTIONS and hostcompanion.is_available()
+        paused_ports = []
+
+        def run_compose(sub_action):
+            nonlocal ok
+            for line in rt.compose_stream(str(d), name, sub_action):
+                if line.startswith("[dockle-exit:"):
+                    ok = ok and line == "[dockle-exit:0]"
+                else:
+                    yield line + "\n"
+                    hint = _port_conflict_hint(line, companion_available)
+                    if hint:
+                        yield hint + "\n"
+
         try:
+            if action in _STARTING_ACTIONS:
+                paused_ports = _tailscale_pause_ports(name, d, companion_available)
+                if paused_ports:
+                    yield (f"Pausing Tailscale Serve on port(s) {', '.join(map(str, paused_ports))} "
+                           f"so this stack can bind them...\n")
             if action == "update":
-                for line in rt.compose_stream(str(d), name, "pull"):
-                    if line.startswith("[dockle-exit:"):
-                        ok = ok and line == "[dockle-exit:0]"
-                    else:
-                        yield line + "\n"
-                for line in rt.compose_stream(str(d), name, "up"):
-                    if line.startswith("[dockle-exit:"):
-                        ok = ok and line == "[dockle-exit:0]"
-                    else:
-                        yield line + "\n"
+                yield from run_compose("pull")
+                yield from run_compose("up")
             elif action == "delete":
                 if d.exists():
                     for line in rt.compose_stream(str(d), name, "down"):
@@ -205,14 +275,14 @@ def api_action(name, action):
                     shutil.rmtree(d)
                     yield f"Removed {d}\n"
             else:
-                for line in rt.compose_stream(str(d), name, action):
-                    if line.startswith("[dockle-exit:"):
-                        ok = line == "[dockle-exit:0]"
-                    else:
-                        yield line + "\n"
+                yield from run_compose(action)
         except runtime.RuntimeError_ as exc:
             ok = False
             yield f"ERROR: {exc}\n"
+        finally:
+            if paused_ports:
+                yield f"Restoring Tailscale Serve on port(s) {', '.join(map(str, paused_ports))}...\n"
+                _tailscale_resume_ports(paused_ports)
         if ok:
             if action == "update":
                 from . import updatecheck
@@ -230,23 +300,40 @@ def api_action(name, action):
 
 def _update_one(name, d, rt):
     """Pull + redeploy a single stack. Returns (ok, message)."""
+    from . import hostcompanion
+    companion_available = hostcompanion.is_available()
+    paused_ports = _tailscale_pause_ports(name, d, companion_available)
+    conflict_port = None
     try:
         ok = True
         for action in ("pull", "up"):
             for line in rt.compose_stream(str(d), name, action):
                 if line.startswith("[dockle-exit:"):
                     ok = ok and line == "[dockle-exit:0]"
+                elif not conflict_port:
+                    m = _PORT_CONFLICT_RE.search(line)
+                    if m:
+                        conflict_port = m.group(1)
         if ok:
             from . import updatecheck
             updatecheck.clear_flag(name)
             activity.log("info", "stack", f"Update completed on '{name}'")
             return True, "Updated"
+        if conflict_port:
+            detail = (f"Port {conflict_port} was still held by a Tailscale Serve rule from a previous "
+                      f"version of this stack." + ("" if companion_available else
+                      " Installing the dockle-companion (Settings → Host) lets Dockle clear this "
+                      "automatically next time."))
+            activity.log("error", "stack", f"Update FAILED on '{name}'", detail)
+            return False, f"Port {conflict_port} conflict - see Activity for details"
         activity.log("error", "stack", f"Update FAILED on '{name}'",
                      "Open the stack's output panel for the full error text.")
         return False, "Update failed - see Activity for details"
     except runtime.RuntimeError_ as exc:
         activity.log("error", "stack", f"Update FAILED on '{name}'", str(exc))
         return False, str(exc)
+    finally:
+        _tailscale_resume_ports(paused_ports)
 
 
 @bp.post("/stacks/update-all")

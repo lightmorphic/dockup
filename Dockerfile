@@ -34,6 +34,10 @@ RUN addgroup -g 1000 dockle && adduser -u 1000 -G dockle -D dockle
 WORKDIR /app
 COPY app ./app
 COPY run.py .
+# Bundled so the one-click "Install companion" button (Settings → Host)
+# can stage these onto the host without needing a separate download -
+# the same three files as a manual `companion/install.sh` run.
+COPY companion ./companion
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

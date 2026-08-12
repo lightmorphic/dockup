@@ -253,3 +253,26 @@ class Runtime:
         dest_host_dir = self._require_host_path()
         self._run(["run", "--rm", "-v", f"{volume_name}:/dest", "-v", f"{dest_host_dir}:/src:ro",
                    "alpine", "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
+
+    # -- one-click companion install --------------------------------------
+    # `install.sh` writes to /etc/systemd/system, creates a group, and
+    # runs `systemctl enable --now` - real root-on-host actions. Rather
+    # than --privileged/--pid=host (full device + namespace access), a
+    # plain `-v /:/host` bind mount plus chroot is enough: systemctl
+    # talks to systemd over a Unix socket at /run/systemd/private, which
+    # chroot exposes at the host's real path, with no namespace sharing
+    # needed. The elevation is real and scoped to this one short-lived
+    # container - nothing standing on Dockle's own container afterward.
+
+    def install_companion(self, staging_host_dir: str) -> str:
+        out = self._run([
+            "run", "--rm", "-v", "/:/host", "-v", f"{staging_host_dir}:/staging:ro",
+            "alpine", "sh", "-c",
+            "mkdir -p /host/tmp/dockle-companion-install && "
+            "cp /staging/dockle-companion.py /staging/dockle-companion.service /staging/install.sh "
+            "/host/tmp/dockle-companion-install/ && "
+            "chmod +x /host/tmp/dockle-companion-install/install.sh && "
+            "chroot /host sh /tmp/dockle-companion-install/install.sh && "
+            "rm -rf /host/tmp/dockle-companion-install",
+        ], timeout=120)
+        return out

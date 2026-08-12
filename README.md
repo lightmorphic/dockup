@@ -31,9 +31,10 @@ fresh code, different look, security first.
   volumes, not just the compose file - with download and upload for
   moving a stack's backup to another machine or keeping a copy yourself
 - Works with **Docker or Podman** - same UI, just point it at the other socket
-- Optional host agent for host OS update checks and per-stack Tailscale
-  Serve toggles - the one part of Dockle that needs root on the actual
-  server rather than just Docker access, so it's a separate install step
+- Optional dockle-companion for host OS update checks and per-stack
+  Tailscale Serve toggles - the one part of Dockle that needs root on
+  the actual server rather than just Docker access, so it's a separate
+  install step (a one-click button in Settings, or manually)
 
 ## Security
 
@@ -57,16 +58,18 @@ Open `http://<server-ip>:5001`, create the admin account, done.
 folder with a compose file, so there's no lock-in: the folder works with
 plain `docker compose` (or any other manager) at any time.
 
-### Optional: host agent (Tailscale Serve + OS updates)
+### Optional: dockle-companion (Tailscale Serve + OS updates)
 
 A second, separate step - only needed for host OS update checks and
 per-stack Tailscale Serve toggles. Everything else works without it.
+Easiest way: Settings → Host → "Install companion" (one click, once
+Dockle itself is running). Or manually:
 
 ```bash
-cd agent && sudo sh install.sh
+cd companion && sudo sh install.sh
 ```
 
-Then uncomment the agent socket line in `compose.yaml` and restart
+Then uncomment the companion socket line in `compose.yaml` and restart
 Dockle. Full steps in [runbook.md](runbook.md).
 
 ### Podman instead of Docker

@@ -208,3 +208,6 @@ class MockRuntime:
 
     def restore_volume_from_backup(self, volume_name, src_filename):
         pass
+
+    def install_companion(self, staging_host_dir):
+        return "dockle-companion installed and running (mock)."

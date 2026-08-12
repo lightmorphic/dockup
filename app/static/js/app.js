@@ -56,6 +56,27 @@ function appendLog(view, line) {
   if (stick) view.scrollTop = view.scrollHeight;
 }
 
+/* A specific, actionable explanation for Docker's "address already in
+   use" error when the real cause is Tailscale Serve still holding a
+   port from a deleted-and-recreated stack - rendered as a distinct
+   alert box instead of leaving the user to decode raw stderr. */
+function renderPortConflictHint(view, port, companionAvailable) {
+  const box = el(`<div class="alert alert-warning port-conflict-hint">
+    <p><strong>Port ${port} is stuck.</strong> Tailscale Serve is still holding it open from a
+    previous version of this stack, so Docker can't bind it.</p>
+    ${companionAvailable
+      ? `<p>The dockle-companion should clear this automatically - if you're seeing this anyway,
+         check <a href="#/settings">Settings → Host</a> that it's still running.</p>`
+      : `<p>Fix it now: <code>sudo tailscale serve --https=${port} off</code> on the host, then try
+         again. Restore it afterward with
+         <code>sudo tailscale serve --bg --https=${port} http://127.0.0.1:${port}</code>.</p>
+         <p>Or install the <a href="#/settings">dockle-companion</a> once and Dockle handles this
+         automatically from now on.</p>`}
+  </div>`);
+  view.appendChild(box);
+  view.scrollTop = view.scrollHeight;
+}
+
 /* Inline-tick destructive confirm: first click arms (red), second click within
    4s fires; the button then flashes a tick. Never a popup. */
 function armedAction(btn, run, label) {
@@ -671,11 +692,11 @@ async function viewStack(name) {
     async serve() {
       tabBody.innerHTML = '<p class="hint">Checking…</p>';
       let status;
-      try { status = await api(`/api/hostagent/stacks/${encodeURIComponent(name)}/serve`); }
+      try { status = await api(`/api/hostcompanion/stacks/${encodeURIComponent(name)}/serve`); }
       catch (e) { status = { available: false }; }
       if (!status.available) {
         tabBody.innerHTML = `<p>Not set up. Exposing this stack's ports over Tailscale Serve needs the
-          optional host agent - see Settings → Host, or <code>agent/install.sh</code> in the repo.</p>`;
+          optional dockle-companion - see Settings → Host to install it with one click.</p>`;
         return;
       }
       if (!status.ports.length) {
@@ -694,7 +715,7 @@ async function viewStack(name) {
         row.querySelector("input").addEventListener("change", async (e) => {
           e.target.disabled = true;
           try {
-            await api(`/api/hostagent/stacks/${encodeURIComponent(name)}/serve`, {
+            await api(`/api/hostcompanion/stacks/${encodeURIComponent(name)}/serve`, {
               method: "POST", body: { port, on: e.target.checked } });
             toast(`Serve ${e.target.checked ? "enabled" : "disabled"} for port ${port}.`, "success");
           } catch (err) { toast(err.message, "danger"); e.target.checked = !e.target.checked; }
@@ -733,6 +754,8 @@ async function streamAction(name, action, out, isDelete = false) {
       for (const line of lines) {
         if (line === "[dockle-done:ok]") { ok = true; continue; }
         if (line === "[dockle-done:error]") { ok = false; continue; }
+        const hint = line.match(/^\[dockle-hint:tailscale-port-conflict:(\d+):([01])\]$/);
+        if (hint) { renderPortConflictHint(out, hint[1], hint[2] === "1"); continue; }
         if (line) appendLog(out, line);
       }
     }
@@ -1048,22 +1071,38 @@ async function viewSettings() {
   });
 
   renderTfa(document.getElementById("tfaHost"));
-  await renderHostAgentPanel();
+  await renderHostCompanionPanel();
 }
 
-async function renderHostAgentPanel() {
+async function renderHostCompanionPanel() {
   const panel = el(`<div class="panel"><div class="panel-head"><h2>Host (Tailscale &amp; updates)</h2></div>
-    <div id="hostAgentBody"><p class="hint">Checking…</p></div></div>`);
+    <div id="hostCompanionBody"><p class="hint">Checking…</p></div></div>`);
   content.appendChild(panel);
-  const body = panel.querySelector("#hostAgentBody");
+  const body = panel.querySelector("#hostCompanionBody");
   let status;
-  try { status = await api("/api/hostagent/status"); } catch (e) { status = { available: false }; }
+  try { status = await api("/api/hostcompanion/status"); } catch (e) { status = { available: false }; }
 
   if (!status.available) {
     body.innerHTML = `<p>Not set up. This is entirely optional and separate from everything else Dockle
-      does - it's a small helper that runs directly on your server (not in a container) so Dockle can
-      check host OS updates and manage Tailscale Serve, neither of which the Docker connection alone
-      can reach. See <code>agent/install.sh</code> in the repo and the runbook for the one-time setup.</p>`;
+      does - it's a small helper that runs directly on your server (not in a container, called the
+      dockle-companion) so Dockle can check host OS updates and manage Tailscale Serve, neither of
+      which the Docker connection alone can reach.</p>
+      <div class="btn-row align-center">
+        <button class="btn btn-primary" id="companionInstallBtn">Install companion</button>
+        <span class="hint">Installs a systemd service on this host. Needs one more manual step afterward - see the message it leaves you.</span>
+      </div>`;
+    body.querySelector("#companionInstallBtn").addEventListener("click", async (e) => {
+      e.target.disabled = true; e.target.textContent = "Installing…";
+      try {
+        const r = await api("/api/hostcompanion/install", { method: "POST", body: {} });
+        body.innerHTML = `<p class="alert alert-success">✓ ${esc(r.message)}</p>
+          <p>One step left: uncomment the <code>dockle-companion.sock</code> line in <code>compose.yaml</code>
+          on the host, then run <code>docker compose up -d</code> to reconnect Dockle to it.</p>`;
+      } catch (err) {
+        toast(err.message, "danger");
+        e.target.disabled = false; e.target.textContent = "Install companion";
+      }
+    });
     return;
   }
 
@@ -1091,7 +1130,7 @@ async function renderHostAgentPanel() {
     body.querySelector("#osCheckBtn").addEventListener("click", async (e) => {
       e.target.disabled = true; e.target.textContent = "Checking…";
       try {
-        const r = await api("/api/hostagent/os-update-check", { method: "POST", body: {} });
+        const r = await api("/api/hostcompanion/os-update-check", { method: "POST", body: {} });
         checkedCount = r.upgradable;
         body.querySelector("#osResult").textContent = r.upgradable
           ? `${r.upgradable} package(s) can be updated.` : "Everything is up to date.";
@@ -1102,7 +1141,7 @@ async function renderHostAgentPanel() {
     body.querySelector("#osApplyBtn").addEventListener("click", async (e) => {
       e.target.disabled = true; e.target.textContent = "Applying…";
       try {
-        await api("/api/hostagent/os-update-apply", { method: "POST", body: {} });
+        await api("/api/hostcompanion/os-update-apply", { method: "POST", body: {} });
         toast("Host packages updated.", "success");
         body.querySelector("#osResult").textContent = "Up to date.";
       } catch (err) { toast(err.message, "danger"); }
@@ -1113,10 +1152,10 @@ async function renderHostAgentPanel() {
     body.querySelector("#tsInstallBtn").addEventListener("click", async (e) => {
       e.target.disabled = true; e.target.textContent = "Installing…";
       try {
-        const r = await api("/api/hostagent/tailscale/install", { method: "POST", body: {} });
+        const r = await api("/api/hostcompanion/tailscale/install", { method: "POST", body: {} });
         toast(r.message, "success");
         panel.remove();
-        await renderHostAgentPanel();
+        await renderHostCompanionPanel();
       } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Install Tailscale"; }
     });
   }

@@ -5,9 +5,6 @@ different layout; a helper container does the real file access so this
 reaches paths Dockle's own container can't see directly (see runtime.py).
 """
 
-import json
-import os
-import re
 import shutil
 import tarfile
 import time
@@ -15,31 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from . import activity, config, runtime, stacks
-
-_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-[^}]*)?\}|\$([A-Za-z_][A-Za-z0-9_]*)")
-
-
-def _parse_env(env_text: str) -> dict:
-    values = {}
-    for line in (env_text or "").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
-
-
-def _substitute(text: str, env: dict) -> str:
-    """Resolve ${VAR}/$VAR the way compose does, so a bind-mount path
-    like ${BASE}/data (very common - Arcane-managed stacks all use this)
-    gets classified and archived from its real location, not the literal
-    unexpanded string."""
-    def repl(m):
-        name = m.group(1) or m.group(2)
-        return env.get(name, os.environ.get(name, m.group(0)))
-    return _VAR_RE.sub(repl, text)
+from . import activity, config, envsub, runtime, stacks
 
 
 def _parse_mounts(compose_text: str, env_text: str = "") -> list:
@@ -51,17 +24,17 @@ def _parse_mounts(compose_text: str, env_text: str = "") -> list:
         return []
     if not isinstance(doc, dict):
         return []
-    env = _parse_env(env_text)
+    env = envsub.parse_env(env_text)
     mounts, seen = [], set()
     for service_name, svc in (doc.get("services") or {}).items():
         if not isinstance(svc, dict):
             continue
         for v in svc.get("volumes") or []:
             if isinstance(v, str):
-                source = _substitute(v.split(":")[0], env)
+                source = envsub.substitute(v.split(":")[0], env)
                 kind = "bind" if source.startswith(("/", "./", "../", "~")) else "volume"
             elif isinstance(v, dict) and v.get("type") in ("bind", "volume"):
-                kind, source = v["type"], _substitute(v.get("source", ""), env)
+                kind, source = v["type"], envsub.substitute(v.get("source", ""), env)
             else:
                 continue
             if not source or (kind, source) in seen:

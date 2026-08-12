@@ -27,7 +27,9 @@ services:
       #   - /run/podman/podman.sock:/var/run/docker.sock
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/stacks:/opt/stacks
-      # Optional: only if you've installed agent/install.sh on this host
-      # (host OS update checks + Tailscale Serve management). Uncomment
-      # once it's set up - see the runbook.
-      # - /run/dockle-agent.sock:/run/dockle-agent.sock
+      # Optional: only if you've installed the dockle-companion (host OS
+      # update checks + Tailscale Serve management, see companion/ and
+      # the runbook - Settings has a one-click installer for the host
+      # side of this; uncomment this line and restart Dockle afterward
+      # to finish connecting it).
+      # - /run/dockle-companion.sock:/run/dockle-companion.sock

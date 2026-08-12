@@ -26,7 +26,7 @@ Keep a copy of the `.env` file's SECRET_KEY somewhere safe (password
 manager). It encrypts your saved settings - lose it and saved passwords
 in Settings have to be re-entered.
 
-## Optional: the host agent (Tailscale Serve + OS updates)
+## Optional: the dockle-companion (Tailscale Serve + OS updates)
 
 Everything above is all Dockle needs to run. This second, separate step
 is only for two extra features - checking/applying host OS updates, and
@@ -35,18 +35,34 @@ Dockle that needs root on the actual server, not just Docker access.
 Skip it entirely if you don't want those two features; everything else
 works the same either way.
 
+**One click**: Settings → Host → "Install companion". This installs
+the systemd service on the host for you (a short-lived, one-time
+privileged action - nothing standing afterward beyond the service
+itself), then tells you the one remaining manual step below.
+
+**Manually**, if you'd rather:
+
 ```bash
-cd /opt/dockle/agent && sudo sh install.sh
+cd /opt/dockle/companion && sudo sh install.sh
 ```
 
-Then uncomment the agent socket line in `compose.yaml`:
+Either way, finish by uncommenting the companion socket line in
+`compose.yaml`:
 
 ```yaml
-- /run/dockle-agent.sock:/run/dockle-agent.sock
+- /run/dockle-companion.sock:/run/dockle-companion.sock
 ```
 
 and restart Dockle (`docker compose up -d`). Settings → Host and each
 stack's Serve tab go from "not set up" to working once that's done.
+
+Also worth knowing: once the companion is installed, Dockle
+automatically pauses any Tailscale Serve rule that's using a port a
+stack is about to bind to, and restores it right after - this is what
+prevents the classic "address already in use" failure when a stack you
+deleted and recreated tries to grab a port Tailscale Serve is still
+holding open. Without the companion, Dockle can't do this for you and
+will just explain what happened and how to fix it by hand.
 
 ## First steps after install
 

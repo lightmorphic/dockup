@@ -1,19 +1,22 @@
-"""Client for the optional dockle-agent host service (see agent/ in the
-repo) - the narrow, fixed-command-set helper that runs directly on the
-host for the two things the Docker socket alone can't reach: host OS
-updates and Tailscale Serve. Entirely optional; every call here reports
-a plain "not available" rather than erroring if it isn't installed.
+"""Client for the optional dockle-companion host service (see companion/
+in the repo) - the narrow, fixed-command-set helper that runs directly
+on the host for the two things the Docker socket alone can't reach:
+host OS updates and Tailscale Serve. Entirely optional; every call here
+reports a plain "not available" rather than erroring if it isn't
+installed.
 """
 
 import json
 import socket
 
-from . import config
+import yaml
 
-SOCKET_PATH = "/run/dockle-agent.sock"
+from . import config, envsub
+
+SOCKET_PATH = "/run/dockle-companion.sock"
 
 
-class AgentUnavailable(Exception):
+class CompanionUnavailable(Exception):
     pass
 
 
@@ -25,9 +28,9 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
         s.settimeout(timeout)
         s.connect(SOCKET_PATH)
     except OSError as exc:
-        raise AgentUnavailable(
-            "dockle-agent isn't reachable - not installed, or its socket "
-            "isn't mounted into Dockle's container yet. See the runbook."
+        raise CompanionUnavailable(
+            "dockle-companion isn't reachable - not installed, or its "
+            "socket isn't mounted into Dockle's container yet. See the runbook."
         ) from exc
     try:
         payload = {"cmd": cmd, **kwargs}
@@ -39,10 +42,10 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
                 break
             data += chunk
         if not data:
-            raise AgentUnavailable("dockle-agent closed the connection without responding")
+            raise CompanionUnavailable("dockle-companion closed the connection without responding")
         return json.loads(data.decode())
     except (OSError, json.JSONDecodeError) as exc:
-        raise AgentUnavailable(f"dockle-agent didn't respond properly: {exc}") from exc
+        raise CompanionUnavailable(f"dockle-companion didn't respond properly: {exc}") from exc
     finally:
         s.close()
 
@@ -50,7 +53,7 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
 def is_available() -> bool:
     try:
         return bool(_call("ping", timeout=3).get("ok"))
-    except AgentUnavailable:
+    except CompanionUnavailable:
         return False
 
 
@@ -82,7 +85,44 @@ def tailscale_serve_list() -> dict:
     return _call("tailscale_serve_list", timeout=15)
 
 
-# -- mock support, for development without the agent installed ----------
+def published_ports(compose_text: str, env_text: str = "") -> list:
+    """Host-side ports a stack publishes, straight off its own `ports:`
+    list - what Tailscale Serve would actually front. Resolves
+    ${VAR}-style ports (e.g. stirling-pdf's "${PORT}:8080") against the
+    stack's .env, the same convention Arcane-managed stacks use for
+    bind-mount paths elsewhere."""
+    try:
+        doc = yaml.safe_load(compose_text) or {}
+    except yaml.YAMLError:
+        return []
+    if not isinstance(doc, dict):
+        return []
+    env = envsub.parse_env(env_text)
+    ports, seen = [], set()
+    for svc in (doc.get("services") or {}).values():
+        if not isinstance(svc, dict):
+            continue
+        for p in svc.get("ports") or []:
+            host_port = None
+            if isinstance(p, dict):
+                host_port = p.get("published")
+            elif isinstance(p, (str, int)):
+                left = envsub.substitute(str(p), env).split("/")[0].split(":")
+                # "80" (no colon) publishes on the same port as target;
+                # "8080:80" or "127.0.0.1:8080:80" - host port is the
+                # second-to-last segment.
+                host_port = left[-2] if len(left) > 1 else left[0]
+            try:
+                port = int(host_port)
+            except (TypeError, ValueError):
+                continue
+            if port not in seen:
+                seen.add(port)
+                ports.append(port)
+    return ports
+
+
+# -- mock support, for development without the companion installed -----
 
 def _mock_call(cmd: str, **kwargs) -> dict:
     if cmd == "ping":
