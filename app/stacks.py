@@ -169,7 +169,7 @@ def api_save(name):
     return jsonify({"ok": True})
 
 
-_STARTING_ACTIONS = {"up", "start", "restart", "update"}
+_STARTING_ACTIONS = {"up", "start", "restart", "update", "redeploy"}
 _PORT_CONFLICT_RE = re.compile(r"bind host port (?:[\w.:]+:)?(\d+)/tcp: address already in use")
 
 
@@ -229,7 +229,7 @@ def _port_conflict_hint(line, available):
 
 @bp.post("/stacks/<name>/action/<action>")
 def api_action(name, action):
-    if action not in ("up", "down", "stop", "start", "restart", "update", "delete"):
+    if action not in ("up", "down", "stop", "start", "restart", "update", "redeploy", "delete"):
         return jsonify({"error": "Unknown action"}), 400
     try:
         d = stack_dir(name)

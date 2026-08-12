@@ -25,6 +25,12 @@ COMPOSE_ACTIONS = {
     "start": ["start"],
     "restart": ["restart"],
     "pull": ["pull"],
+    # Recreates every container from the compose file and whatever
+    # image is already pulled - unlike restart (which just restarts the
+    # same container process), this tears down and rebuilds it, which
+    # is what actually clears a container stuck in a bad state that a
+    # plain restart doesn't fix. No image pull, unlike Update.
+    "redeploy": ["up", "-d", "--force-recreate", "--remove-orphans"],
 }
 
 PRUNE_TARGETS = {

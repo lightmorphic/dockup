@@ -199,6 +199,7 @@ const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
   stop: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="currentColor"/></svg>',
   restart: '<svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  redeploy: '<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9.5 12a2.7 2.7 0 0 1 4.5-2M14.5 12a2.7 2.7 0 0 1-4.5 2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>',
   update: '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 17v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   bin: '<svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0l-.8 12a2 2 0 0 1-2 1.9H9.8a2 2 0 0 1-2-1.9L7 7m3 4v6m4-6v6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -540,6 +541,7 @@ async function viewStack(name) {
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
       <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
+      <button class="icon-btn" id="actRedeploy" data-tip="Redeploy (recreate containers - fixes a stuck one without pulling a new image)" aria-label="Redeploy stack">${ICONS.redeploy}</button>
       <button class="icon-btn" id="actUpdate" data-tip="Update (pull newest images)" aria-label="Update stack">${ICONS.update}</button>
       <button class="icon-btn" id="actDown" data-tip="Down (stop and remove containers)" aria-label="Take stack down">${ICONS.down}</button>
       <button class="icon-btn" id="actDelete" data-tip="Delete stack" aria-label="Delete stack">${ICONS.bin}</button>
@@ -566,6 +568,7 @@ async function viewStack(name) {
   head.querySelector("#actStart").addEventListener("click", () => runAction(s.status === "inactive" ? "up" : "start"));
   head.querySelector("#actStop").addEventListener("click", () => runAction("stop"));
   head.querySelector("#actRestart").addEventListener("click", () => runAction("restart"));
+  head.querySelector("#actRedeploy").addEventListener("click", () => runAction("redeploy"));
   head.querySelector("#actUpdate").addEventListener("click", () => runAction("update"));
   head.querySelector("#actDown").addEventListener("click", () => runAction("down"));
   const delBtn = head.querySelector("#actDelete");
