@@ -167,7 +167,14 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   box-shadow: var(--shadow-panel);
   padding: 1.5rem;
 }
-.panel + .panel, .stack-grid + .panel { margin-top: 1.25rem; }
+/* Spaces out panels stacked vertically down a page (Settings, stack
+   detail, etc). Scoped to direct children of #content specifically:
+   cards inside any grid (.stack-grid, .prune-grid, and any future one)
+   also carry the .panel class for their look, but sit nested one level
+   deeper and must NOT pick up this margin - the grid's own `gap`
+   already spaces them, and margin-top here would push every card but
+   the first out of row alignment. */
+#content > .panel + .panel, #content > .stack-grid + .panel { margin-top: 1.25rem; }
 .panel-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
 .panel-head h3, .panel-head h2 { margin: 0; }
 .panel-head .spacer { flex: 1; }
