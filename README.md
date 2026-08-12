@@ -14,7 +14,12 @@ fresh code, different look, security first.
 - Create stacks in a web editor with colour-highlighted YAML and live
   validation, or paste a `docker run ...` command and have it converted
   to compose
-- Start / stop / restart / update (pull newest images) / delete - one click
+- Start / stop / restart / redeploy (recreate from the compose file,
+  fixes a stuck container without pulling a new image) / update (pull
+  newest images) / delete - one click
+- A stack with no container shows a neutral gray status, with Archive
+  (keep the folder, restorable later) and Delete (folder and every
+  referenced image, nothing left behind) actions
 - Checks every 30 minutes for a newer image per stack and flags it on
   the card - update one or "Update all", nothing pulls on its own
 - **Adopt** what's already running, one at a time or all in one go:
@@ -31,10 +36,13 @@ fresh code, different look, security first.
   volumes, not just the compose file - with download and upload for
   moving a stack's backup to another machine or keeping a copy yourself
 - Works with **Docker or Podman** - same UI, just point it at the other socket
+- One click to open a stack's real web UI in a new tab - its Tailscale
+  Serve address if set up, otherwise the host address you're already
+  using to reach Dockle
 - Optional dockle-companion for host OS update checks and per-stack
   Tailscale Serve toggles - the one part of Dockle that needs root on
   the actual server rather than just Docker access, so it's a separate
-  install step (a one-click button in Settings, or manually)
+  install step, fully automated with one click in Settings (or manually)
 
 ## Security
 

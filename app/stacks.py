@@ -726,8 +726,13 @@ def api_stack_backup_restore(name, backup_name):
     return jsonify({"ok": True, "message": message})
 
 
+_BACKUP_FILENAME_RE = re.compile(r"^[A-Za-z0-9._-]+\.tar\.gz$")
+
+
 @bp.get("/stacks/<name>/backups/<backup_name>/download")
 def api_stack_backup_download(name, backup_name):
+    if not _BACKUP_FILENAME_RE.match(backup_name):
+        return jsonify({"error": "Not found"}), 404
     path = (config.STACK_BACKUP_DIR / backup_name).resolve()
     if path.parent != config.STACK_BACKUP_DIR.resolve() or not path.exists():
         return jsonify({"error": "Not found"}), 404

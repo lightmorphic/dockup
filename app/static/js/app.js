@@ -1150,7 +1150,7 @@ async function viewSettings() {
         <div class="field"><label for="pwCurrent">Current password</label><input id="pwCurrent" type="password" autocomplete="current-password"></div>
         <div class="field"><label for="pwNew">New password <span class="hint">(at least 12 characters)</span></label><input id="pwNew" type="password" autocomplete="new-password"></div>
         <div><button class="btn" id="pwBtn">Change password</button></div>
-        <div class="field"><label>Two-factor authentication</label><div id="tfaHost"></div></div>
+        <div class="field"><span class="field-label">Two-factor authentication</span><div id="tfaHost"></div></div>
       </div></div>
     <div class="panel">
       <div class="form-grid"><button class="btn btn-primary" id="saveSettings">Save settings</button></div>
@@ -1375,7 +1375,7 @@ async function renderTfa(host) {
       const flow = host.querySelector("#tfaFlow");
       flow.innerHTML = `<div class="form-grid">
         <p>Scan this with your authenticator app, then type the six-digit code it shows.</p>
-        <div class="qr-box">${r.qr_svg}</div>
+        <div class="qr-box">${r.qr_svg}</div><!-- real SVG markup, not text - segno-generated server-side from a freshly random secret, never user input, so left un-esc()'d -->
         <p class="hint">Or enter the key by hand: <code>${esc(r.secret)}</code></p>
         <div class="field"><label for="tfaCode">Six-digit code</label><input id="tfaCode" inputmode="numeric" autocomplete="one-time-code"></div>
         <button class="btn btn-primary" id="tfaConfirm">Switch 2FA on</button></div>`;

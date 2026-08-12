@@ -252,7 +252,7 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .form-grid .btn { justify-self: start; }
 .form-grid .btn-block { justify-self: stretch; }
 .field { display: grid; gap: 0.375rem; }
-.field label { font-size: 0.9375rem; font-weight: 600; }
+.field label, .field-label { font-size: 0.9375rem; font-weight: 600; }
 input, select, textarea {
   font: inherit; color: var(--fg);
   background: var(--bg);
@@ -289,16 +289,6 @@ input[type="checkbox"], input[type="radio"] { width: auto; display: inline-block
 .port-conflict-hint p:last-child { margin-bottom: 0; }
 .port-conflict-hint strong { font-weight: 700; }
 .port-conflict-hint code { font-size: 0.875em; }
-
-.badge {
-  display: inline-flex; align-items: center; gap: 0.375rem;
-  font-size: 0.8125rem; font-weight: 600;
-  padding: 0.125rem 0.75rem; border-radius: 999px;
-}
-.badge-running { background: var(--success-bg); color: var(--success); }
-.badge-partial { background: var(--warning-bg); color: var(--warning); }
-.badge-stopped { background: var(--danger-bg); color: var(--danger); }
-.badge-inactive { background: var(--muted); color: var(--muted-fg); }
 
 /* ---- stack dashboard ---- */
 

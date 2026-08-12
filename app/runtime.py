@@ -322,7 +322,7 @@ class Runtime:
         of whether anything is still reading this output."""
         script = (
             f"sed -i 's|# - /run/dockle-companion.sock:/run/dockle-companion.sock|"
-            f"- /run/dockle-companion.sock:/run/dockle-companion.sock|' /host{compose_host_path} && "
+            f"- /run/dockle-companion.sock:/run/dockle-companion.sock|' {shlex.quote('/host' + compose_host_path)} && "
             "apk add --no-cache util-linux-misc >/dev/null && "
             "nsenter --target 1 --mount --uts --ipc --net --pid -- "
             f"sh -c 'cd {shlex.quote(compose_host_dir)} && docker compose config --quiet' && "

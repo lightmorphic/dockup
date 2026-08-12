@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.3.0 - 2026-08-12
+
+- Companion install is now fully automated end to end: after installing
+  the host service, Dockle edits its own compose.yaml and restarts
+  itself to reconnect, with a live, dismissible progress panel showing
+  each step instead of a bare "Installing…" label
+- Redeploy action: recreates a stack's containers from the compose file
+  and whatever image is already pulled, for a container stuck in a bad
+  state that a plain restart doesn't fix
+- A stack with no container at all now shows a neutral gray status dot
+  instead of red (which means a real problem) - gray stacks get
+  Archive (move the folder aside, restorable later) and Delete (folder
+  and every referenced image, nothing left behind) actions, with
+  archived stacks listed in a collapsed section at the bottom of the
+  dashboard
+- Deleting a stack now turns off any Tailscale Serve mapping for its
+  ports for good, instead of leaving a stale rule that breaks the next
+  stack trying to bind that port
+- Fixed a real crash: deleting a stack whose folder was left root-owned
+  by a previous manager (a real state for anything adopted from
+  Arcane) threw an unhandled permission error partway through,
+  container removed but the folder stuck behind as a ghost card
+- Fixed a real bug in `composegen.py` (used when adopting a container
+  whose original compose file is missing): it wrote the container's
+  live network name as `network_mode:`, which never gets created if
+  pruned, and never captured `command`/`entrypoint` overrides at all -
+  together these could leave an adopted stack unable to restart, or
+  running with silently dropped startup arguments
+- Serve tab now shows plain status ("Exposed at https://real-host:port"
+  / "Not exposed") using the real Tailscale hostname, instead of a
+  placeholder and unlabeled port checkboxes
+- New open-web-UI icon next to the stack name: opens the real Tailscale
+  Serve URL if set up, otherwise the host address the browser is
+  already using, on the stack's own port
+- Security: login lockout was keyed partly on the client-supplied
+  `X-Forwarded-For` header, letting anyone bypass the 5-attempts limit
+  by sending a fresh fake IP on every request - fixed to use the real
+  connecting address only
+
 ## 1.2.0 - 2026-08-12
 
 - Renamed the optional host helper from `dockle-agent` to

@@ -26,7 +26,13 @@ def current_user():
 
 
 def client_ip():
-    return request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    # Never trust X-Forwarded-For here: it's client-supplied and this is
+    # the one thing login lockout is keyed on (ip, username) - honoring
+    # it let anyone bypass the 5-attempts lockout by sending a fresh
+    # fake IP on every request. Dockle sits directly behind Tailscale
+    # Serve on loopback with no configurable trusted-proxy chain, so
+    # the real connecting address is always what matters.
+    return request.remote_addr or "?"
 
 
 def _too_many_failures(ip, username):

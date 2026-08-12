@@ -29,7 +29,7 @@ SCHEMA = {
 
 
 def get(key: str) -> str:
-    default, is_secret = SCHEMA[key]
+    default, _is_secret = SCHEMA[key]
     row = db.get().execute("SELECT value, encrypted FROM settings WHERE key=?", (key,)).fetchone()
     if row is None or row["value"] is None:
         return default
@@ -67,7 +67,7 @@ def set_many(values: dict):
 def public_view() -> dict:
     """Everything the settings screen shows; secrets masked, never revealed."""
     out = {}
-    for key, (default, is_secret) in SCHEMA.items():
+    for key, (_default, is_secret) in SCHEMA.items():
         if is_secret:
             out[key] = MASK if get(key) else ""
         else:

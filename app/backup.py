@@ -5,6 +5,7 @@ download-everything zip for portability.
 
 import io
 import os
+import re
 import shutil
 import sqlite3
 import tarfile
@@ -147,8 +148,13 @@ def api_restore():
     return jsonify({"ok": True, "message": message})
 
 
+_BACKUP_FILENAME_RE = re.compile(r"^[A-Za-z0-9._-]+\.tar\.gz$")
+
+
 @bp.get("/download/<name>")
 def api_download(name):
+    if not _BACKUP_FILENAME_RE.match(name):
+        return jsonify({"error": "Not found"}), 404
     path = (config.BACKUP_DIR / name).resolve()
     if path.parent != config.BACKUP_DIR.resolve() or not path.exists():
         return jsonify({"error": "Not found"}), 404

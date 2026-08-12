@@ -38,6 +38,10 @@
   font-weight: 200 800;
   font-display: swap;
 }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
 :root {
   color-scheme: light dark;
   --bg: #ffffff; --fg: #09090b;
@@ -177,6 +181,7 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
     </svg>
   </figure>
 
+  <h2 class="visually-hidden">Features</h2>
   <div class="grid">
     <div class="panel">
       <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="7" height="7" rx="1.5"/><rect x="14" y="11" width="7" height="7" rx="1.5"/><rect x="8.5" y="3" width="7" height="7" rx="1.5"/></svg>

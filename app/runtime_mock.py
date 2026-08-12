@@ -78,7 +78,7 @@ class MockRuntime:
     def ps(self):
         rows = []
         for project, state in self.states.items():
-            for i, svc in enumerate(["web", "db"]):
+            for svc in ["web", "db"]:
                 rows.append({
                     "id": f"{abs(hash(project + svc)) % 10**12:012x}"[:12],
                     "name": f"{project}-{svc}-1",
