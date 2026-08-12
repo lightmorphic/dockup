@@ -219,8 +219,7 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<h1>Stacks</h1><div id="updateAllHost"></div><div id="adoptAllHost"></div><div class="stack-grid" id="grid"></div>`;
-  const grid = document.getElementById("grid");
+  content.innerHTML = `<h1>Stacks</h1>`;
   await refreshStacks();
 
   let discovered = { projects: [], standalone: [] };
@@ -229,30 +228,32 @@ async function viewDashboard() {
   const managed = stacksCache.filter(s => s.managed);
   const unmanagedCount = discovered.projects.length + discovered.standalone.length;
   if (!managed.length && !unmanagedCount) {
-    grid.innerHTML = `<div class="panel"><h3>Nothing here yet</h3>
-      <p>Create your first stack with <strong>New stack</strong>.</p></div>`;
+    content.appendChild(el(`<div class="panel"><h3>Nothing here yet</h3>
+      <p>Create your first stack with <strong>New stack</strong>.</p></div>`));
     return;
   }
 
   const updatable = managed.filter(s => s.updateAvailable);
   if (updatable.length) {
-    const host = document.getElementById("updateAllHost");
-    host.appendChild(el(`<div class="panel"><div class="panel-head">
+    const panel = el(`<div class="panel"><div class="panel-head">
       <h3>${updatable.length} update${updatable.length === 1 ? "" : "s"} available</h3><span class="spacer"></span>
       <button class="btn btn-primary" id="updateAllBtn">Update all</button></div>
-      <p class="hint">Pulls the newest image and redeploys each one, one after another: ${esc(updatable.map(s => s.name).join(", "))}.</p></div>`));
-    document.getElementById("updateAllBtn").addEventListener("click", updateAll);
+      <p class="hint">Pulls the newest image and redeploys each one, one after another: ${esc(updatable.map(s => s.name).join(", "))}.</p></div>`);
+    content.appendChild(panel);
+    panel.querySelector("#updateAllBtn").addEventListener("click", updateAll);
   }
 
   let onboarding = { offerBulkAdopt: false };
   try { onboarding = await api("/api/onboarding"); } catch (e) { /* non-fatal */ }
 
   if (onboarding.offerBulkAdopt && unmanagedCount > 0) {
-    renderAdoptPanel({ firstRun: true, count: unmanagedCount });
+    content.appendChild(renderAdoptPanel({ firstRun: true, count: unmanagedCount }));
   } else if (unmanagedCount > 1) {
-    renderAdoptPanel({ firstRun: false, count: unmanagedCount });
+    content.appendChild(renderAdoptPanel({ firstRun: false, count: unmanagedCount }));
   }
 
+  const grid = el('<div class="stack-grid" id="grid"></div>');
+  content.appendChild(grid);
   const statusByName = Object.fromEntries(stacksCache.map(s => [s.name, s.status]));
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
@@ -274,25 +275,25 @@ async function updateAll() {
 }
 
 function renderAdoptPanel({ firstRun, count }) {
-  const host = document.getElementById("adoptAllHost");
   const heading = firstRun ? "Welcome to Dockle" : `${count} thing${count === 1 ? "" : "s"} not adopted yet`;
   const blurb = firstRun
     ? `Found ${count} thing${count === 1 ? "" : "s"} already running on this system. Adopting copies each one's
        setup into the stacks folder so Dockle can manage it - nothing running is restarted or changed.`
     : `Copies each one's setup into the stacks folder so Dockle can manage it - nothing running is restarted.`;
-  host.appendChild(el(`<div class="panel">
+  const panel = el(`<div class="panel">
     <div class="panel-head"><h3>${esc(heading)}</h3><span class="spacer"></span>
       <button class="btn btn-primary" id="adoptAllBtn">Adopt all</button>
       ${firstRun ? '<button class="btn" id="skipAdoptBtn">Not now</button>' : ""}</div>
     <p class="hint">${blurb} Skip anything another manager (like Arcane) already looks after - running two
-    Docker managers over the same containers can fight over the same files.</p></div>`));
-  document.getElementById("adoptAllBtn").addEventListener("click", () => adoptAll(firstRun));
+    Docker managers over the same containers can fight over the same files.</p></div>`);
+  panel.querySelector("#adoptAllBtn").addEventListener("click", () => adoptAll(firstRun));
   if (firstRun) {
-    document.getElementById("skipAdoptBtn").addEventListener("click", async () => {
+    panel.querySelector("#skipAdoptBtn").addEventListener("click", async () => {
       try { await api("/api/onboarding/dismiss", { method: "POST", body: {} }); } catch (e) { /* ignore */ }
       viewDashboard();
     });
   }
+  return panel;
 }
 
 async function adoptAll(dismissOnboarding) {

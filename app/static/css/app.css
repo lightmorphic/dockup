@@ -174,7 +174,9 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    deeper and must NOT pick up this margin - the grid's own `gap`
    already spaces them, and margin-top here would push every card but
    the first out of row alignment. */
-#content > .panel + .panel, #content > .stack-grid + .panel { margin-top: 1.25rem; }
+#content > .panel + .panel,
+#content > .stack-grid + .panel,
+#content > .panel + .stack-grid { margin-top: 1.25rem; }
 .panel-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
 .panel-head h3, .panel-head h2 { margin: 0; }
 .panel-head .spacer { flex: 1; }
