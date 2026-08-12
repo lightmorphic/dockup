@@ -8,6 +8,15 @@
   border-radius: var(--radius);
   padding: 0.5rem 0;
 }
+/* CodeMirror hides its native scrollbar by pushing it 50px past the
+   .CodeMirror-scroll edge (margin-bottom: -50px in codemirror.css) and
+   relying on .CodeMirror's own height to clip it out of view. That only
+   lines up when .CodeMirror is exactly as tall as its content - our
+   min-height above stretches .CodeMirror taller than short files need,
+   so .CodeMirror-scroll (sized to content) falls short of it and the
+   "hidden" scrollbar becomes visible floating mid-box. Giving
+   .CodeMirror-scroll the same floor keeps the two in sync. */
+.CodeMirror-scroll { min-height: 22rem; }
 .CodeMirror-gutters { background: var(--term-bg); border-right: 1px solid rgba(255,255,255,.08); }
 .CodeMirror-linenumber { color: #565b70; padding: 0 0.75rem; }
 .CodeMirror-cursor { border-left: 1.5px solid var(--accent); }
