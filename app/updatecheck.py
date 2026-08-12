@@ -11,28 +11,45 @@ from . import activity, config, db, runtime, stacks
 
 CHECK_INTERVAL_SECONDS = 1800
 
+_checking_lock = threading.Lock()
+_checking = False
+
+
+def is_checking() -> bool:
+    with _checking_lock:
+        return _checking
+
 
 def check_all():
-    stacks_list, _ = stacks.list_stacks()
-    rt = runtime.current()
-    con = db.connect()
+    global _checking
+    with _checking_lock:
+        if _checking:
+            return  # already running (background timer and a manual click overlapped)
+        _checking = True
     try:
-        for s in stacks_list:
-            if not s["managed"] or s["status"] not in ("running", "partial"):
-                continue
-            try:
-                available = rt.check_stack_update(str(stacks.stack_dir(s["name"])), s["name"])
-            except runtime.RuntimeError_ as exc:
-                activity.log("warning", "update-check", f"Could not check '{s['name']}' for updates", str(exc))
-                continue
-            with con:
-                con.execute(
-                    "INSERT INTO stack_updates(name, available, checked_at) VALUES(?,?,datetime('now')) "
-                    "ON CONFLICT(name) DO UPDATE SET available=excluded.available, checked_at=excluded.checked_at",
-                    (s["name"], 1 if available else 0),
-                )
+        stacks_list, _ = stacks.list_stacks()
+        rt = runtime.current()
+        con = db.connect()
+        try:
+            for s in stacks_list:
+                if not s["managed"] or s["status"] not in ("running", "partial"):
+                    continue
+                try:
+                    available = rt.check_stack_update(str(stacks.stack_dir(s["name"])), s["name"])
+                except runtime.RuntimeError_ as exc:
+                    activity.log("warning", "update-check", f"Could not check '{s['name']}' for updates", str(exc))
+                    continue
+                with con:
+                    con.execute(
+                        "INSERT INTO stack_updates(name, available, checked_at) VALUES(?,?,datetime('now')) "
+                        "ON CONFLICT(name) DO UPDATE SET available=excluded.available, checked_at=excluded.checked_at",
+                        (s["name"], 1 if available else 0),
+                    )
+        finally:
+            con.close()
     finally:
-        con.close()
+        with _checking_lock:
+            _checking = False
 
 
 def loop(app):
@@ -58,6 +75,20 @@ def start(app):
         threading.Thread(target=_once, daemon=True).start()
         return
     threading.Thread(target=loop, args=(app,), daemon=True).start()
+
+
+def trigger_now(app):
+    """Manual override: run a check right now instead of waiting for the
+    next scheduled pass. Runs in the background - a check across many
+    stacks can take a while (each is a real `docker compose pull`)."""
+    if is_checking():
+        return False
+
+    def _run():
+        with app.app_context():
+            check_all()
+    threading.Thread(target=_run, daemon=True).start()
+    return True
 
 
 def get_flags() -> dict:

@@ -10,9 +10,12 @@ the full UI can be exercised on a machine with no container runtime.
 
 import json
 import os
+import shutil
 import subprocess
 
 from . import config, settingsvc
+
+_DOCKER_BIN = shutil.which("docker") or "docker"
 
 COMPOSE_ACTIONS = {
     "up": ["up", "-d", "--remove-orphans"],
@@ -53,11 +56,24 @@ class Runtime:
         env["DOCKER_HOST"] = f"unix://{self.socket_path}"
         return env
 
-    def _run(self, args, timeout=60, cwd=None):
+    def _compose_env(self):
+        """Same as _env(), minus PATH. `docker compose` substitutes a
+        stack's own compose.yaml variables from its .env file, but the
+        shell environment always wins over the .env file - so if a
+        stack's .env defines its own PATH variable (a real pattern in
+        imported Arcane stacks, e.g. PATH=/opt/stirling-pdf), Dockle's
+        own container PATH silently overrides it and every ${PATH}
+        reference resolves to garbage. Dropping it here is safe:
+        _DOCKER_BIN is resolved to an absolute path up front."""
+        env = self._env()
+        env.pop("PATH", None)
+        return env
+
+    def _run(self, args, timeout=60, cwd=None, compose=False):
         try:
             proc = subprocess.run(
-                ["docker", *args], capture_output=True, text=True,
-                timeout=timeout, env=self._env(), cwd=cwd,
+                [_DOCKER_BIN, *args], capture_output=True, text=True,
+                timeout=timeout, env=self._compose_env() if compose else self._env(), cwd=cwd,
             )
         except FileNotFoundError:
             raise RuntimeError_("The docker CLI is not installed in the Dockle container")
@@ -113,11 +129,11 @@ class Runtime:
 
     def compose_stream(self, stack_dir, project, action, extra_args=None):
         """Run a compose action, yielding output lines as they arrive."""
-        args = ["docker", "compose", "-p", project, *COMPOSE_ACTIONS[action]]
+        args = [_DOCKER_BIN, "compose", "-p", project, *COMPOSE_ACTIONS[action]]
         if extra_args:
             args += extra_args
         proc = subprocess.Popen(
-            args, cwd=stack_dir, env=self._env(),
+            args, cwd=stack_dir, env=self._compose_env(),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
         )
         for line in proc.stdout:
@@ -128,8 +144,8 @@ class Runtime:
     def logs_process(self, stack_dir, project, tail=200):
         """A Popen streaming `compose logs -f` for the websocket to relay."""
         return subprocess.Popen(
-            ["docker", "compose", "-p", project, "logs", "-f", "--tail", str(tail)],
-            cwd=stack_dir, env=self._env(),
+            [_DOCKER_BIN, "compose", "-p", project, "logs", "-f", "--tail", str(tail)],
+            cwd=stack_dir, env=self._compose_env(),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
         )
 
@@ -177,9 +193,13 @@ class Runtime:
     def check_stack_update(self, stack_dir, project) -> bool:
         """Quietly pull each service's image and compare against what's
         actually running. True if anything's out of date."""
-        self._run(["compose", "-p", project, "pull", "-q"], timeout=300, cwd=stack_dir)
+        # --ignore-pull-failures: locally-built services (no registry image
+        # to pull) shouldn't abort the update check for the rest of the
+        # stack's services.
+        self._run(["compose", "-p", project, "pull", "-q", "--ignore-pull-failures"],
+                   timeout=300, cwd=stack_dir, compose=True)
         out = self._run(["compose", "-p", project, "ps", "-a", "--format", "{{json .}}"],
-                        timeout=30, cwd=stack_dir)
+                        timeout=30, cwd=stack_dir, compose=True)
         for line in out.splitlines():
             if not line.strip():
                 continue

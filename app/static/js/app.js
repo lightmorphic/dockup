@@ -219,8 +219,12 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<h1>Stacks</h1>`;
+  content.innerHTML = `<div class="panel-head">
+    <h1>Stacks</h1><span class="spacer"></span>
+    <button class="btn" id="checkUpdatesBtn" data-tip="Check every stack for a newer image right now, instead of waiting for the next automatic pass">Check for updates</button>
+  </div>`;
   await refreshStacks();
+  document.getElementById("checkUpdatesBtn")?.addEventListener("click", checkUpdatesNow);
 
   let discovered = { projects: [], standalone: [] };
   try { discovered = await api("/api/discover"); } catch (e) { /* non-fatal */ }
@@ -258,6 +262,30 @@ async function viewDashboard() {
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
+}
+
+async function checkUpdatesNow() {
+  const btn = document.getElementById("checkUpdatesBtn");
+  btn.disabled = true; btn.textContent = "Checking…";
+  try {
+    const res = await api("/api/stacks/check-updates", { method: "POST", body: {} });
+    if (!res.started) {
+      toast(res.message || "A check is already running.", "info");
+      btn.disabled = false; btn.textContent = "Check for updates";
+      return;
+    }
+    // poll until the background check finishes, then reload with fresh badges
+    for (;;) {
+      await new Promise(r => setTimeout(r, 2000));
+      const status = await api("/api/stacks/check-updates/status");
+      if (!status.checking) break;
+    }
+    toast("Update check finished.", "success");
+    if ((location.hash || "#/") === "#/") viewDashboard();
+  } catch (e) {
+    toast(e.message, "danger");
+    btn.disabled = false; btn.textContent = "Check for updates";
+  }
 }
 
 async function updateAll() {

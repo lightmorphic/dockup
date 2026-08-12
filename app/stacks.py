@@ -268,6 +268,26 @@ def api_update_all():
     return jsonify({"results": results, "updated": updated, "total": len(results)})
 
 
+@bp.post("/stacks/check-updates")
+def api_check_updates_now():
+    """Manual override for the 30-minute background check - run one right
+    now instead of waiting. Runs in the background since checking every
+    stack means a real `docker compose pull` each, which can take a while."""
+    from flask import current_app
+    from . import updatecheck
+    started = updatecheck.trigger_now(current_app._get_current_object())
+    if not started:
+        return jsonify({"ok": True, "started": False, "message": "A check is already running."})
+    activity.log("info", "update-check", "Manual update check started")
+    return jsonify({"ok": True, "started": True})
+
+
+@bp.get("/stacks/check-updates/status")
+def api_check_updates_status():
+    from . import updatecheck
+    return jsonify({"checking": updatecheck.is_checking()})
+
+
 @bp.get("/discover")
 def api_discover():
     """What's running on this system that Dockle doesn't manage yet?"""
