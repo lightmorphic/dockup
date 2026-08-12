@@ -88,6 +88,12 @@ a { color: var(--link); }
 p { margin: 0 0 0.75rem; max-width: 65ch; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The router moves focus to #content on every route change so screen
+   readers announce the new page - real for accessibility, but a ring
+   around the entire main panel reads as a stray highlight rather than
+   a focus indicator. Keep the DOM focus, drop just the visible ring
+   here; every actual interactive element still gets one. */
+#content:focus-visible { outline: none; }
 
 .hint { font-size: 0.8125rem; color: var(--muted-fg); font-weight: 400; }
 
