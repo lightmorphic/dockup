@@ -60,22 +60,43 @@ def create_app():
         if endpoint in PUBLIC or endpoint.startswith("static"):
             return None
         if not session.get("uid"):
+            # TEMPORARY diagnostic, round 2: the leftover-Arcane-cookie
+            # theory is dead (this reproduced minutes after a full
+            # browser "clear site data", so there was no old cookie left
+            # to collide with). Logging exactly what came in and why it
+            # failed to decode, to catch the next occurrence with real
+            # evidence instead of guessing again.
+            import sys
+            raw_cookie = request.cookies.get("session", "")
+            decode_result = "no cookie sent"
+            if raw_cookie:
+                serializer = app.session_interface.get_signing_serializer(app)
+                try:
+                    data = serializer.loads(raw_cookie)
+                    decode_result = f"decoded OK, keys={list(data.keys())}"
+                except Exception as exc:
+                    try:
+                        _valid, payload = serializer.loads_unsafe(raw_cookie)
+                        payload_desc = f"unverified payload={payload!r}" if payload is not None else "payload unreadable too"
+                    except Exception as exc2:
+                        payload_desc = f"loads_unsafe also failed: {exc2}"
+                    decode_result = f"{type(exc).__name__}: {exc} | {payload_desc}"
+            print(
+                f"[dockle-diag2] no session on {request.method} {request.path} - "
+                f"cookie len: {len(raw_cookie)}, decode: {decode_result}, "
+                f"origin: {request.headers.get('Origin', '-')}, "
+                f"referer: {request.headers.get('Referer', '-')}, "
+                f"cookie header raw len: {len(request.headers.get('Cookie', ''))}, "
+                f"all cookie names: {list(request.cookies.keys())}, "
+                f"UA: {request.headers.get('User-Agent', '?')[:80]}",
+                file=sys.stderr, flush=True,
+            )
             if request.path.startswith("/api/") or request.path.startswith("/ws/"):
                 resp = jsonify({"error": "Not signed in"})
                 resp.status_code = 401
             else:
                 resp = redirect(url_for("auth.login"))
-            if request.cookies.get("session"):
-                # A stale cookie set at a different Path than "/" (e.g. left
-                # behind by a previous app on this same host/port, like
-                # Arcane before it was uninstalled) can coexist in the
-                # browser alongside a valid Dockle cookie, since cookies
-                # with the same name but different paths don't overwrite
-                # each other - the browser sends both, and which one Flask
-                # sees is unpredictable. Clearing the Path=/ cookie here
-                # stops any copy at that path from continuing to shadow a
-                # fresh login; a copy at another path still needs a manual
-                # "clear site data" in the browser once.
+            if raw_cookie:
                 resp.delete_cookie("session", path="/")
             return resp
         # CSRF: state-changing requests must echo the session token
