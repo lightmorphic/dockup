@@ -85,6 +85,14 @@ def tailscale_serve_list() -> dict:
     return _call("tailscale_serve_list", timeout=15)
 
 
+def reboot() -> dict:
+    return _call("reboot", timeout=15)
+
+
+def docker_restart() -> dict:
+    return _call("docker_restart", timeout=70)
+
+
 def published_ports(compose_text: str, env_text: str = "") -> list:
     """Host-side ports a stack publishes, straight off its own `ports:`
     list - what Tailscale Serve would actually front. Resolves
@@ -147,6 +155,10 @@ def _mock_call(cmd: str, **kwargs) -> dict:
         return {"ok": True, "message": f"Serve {'enabled' if on else 'disabled'} for port {port} (mock)."}
     if cmd == "tailscale_serve_list":
         return {"ok": True, "installed": True, "ports": list(_mock_call.served_ports)}
+    if cmd == "reboot":
+        return {"ok": True, "message": "Rebooting now (mock)."}
+    if cmd == "docker_restart":
+        return {"ok": True, "message": "Docker restarted (mock)."}
     return {"ok": False, "error": "Unknown command"}
 
 

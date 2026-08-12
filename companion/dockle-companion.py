@@ -142,6 +142,26 @@ def cmd_tailscale_serve(req):
     return {"ok": True, "message": f"Serve {'enabled' if on else 'disabled'} for port {port}."}
 
 
+def cmd_reboot(_req):
+    # systemctl reboot returns as soon as it's handed the request to
+    # PID 1 - the actual shutdown happens a moment later, so there's
+    # time for this response to reach Dockle before the host goes down.
+    proc = subprocess.run(["systemctl", "reboot"], capture_output=True, text=True, timeout=10)
+    if proc.returncode != 0:
+        return {"ok": False, "error": proc.stderr.strip()[:400] or "systemctl reboot failed"}
+    return {"ok": True, "message": "Rebooting now."}
+
+
+def cmd_docker_restart(_req):
+    # Containers with restart:unless-stopped (including Dockle itself)
+    # stay up through this - modern Docker keeps containerd running
+    # independently of the dockerd/API layer being restarted.
+    proc = subprocess.run(["systemctl", "restart", "docker"], capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        return {"ok": False, "error": proc.stderr.strip()[:400] or "systemctl restart docker failed"}
+    return {"ok": True, "message": "Docker restarted."}
+
+
 COMMANDS = {
     "ping": cmd_ping,
     "os_info": cmd_os_info,
@@ -151,6 +171,8 @@ COMMANDS = {
     "tailscale_install": cmd_tailscale_install,
     "tailscale_serve": cmd_tailscale_serve,
     "tailscale_serve_list": cmd_tailscale_serve_list,
+    "reboot": cmd_reboot,
+    "docker_restart": cmd_docker_restart,
 }
 
 

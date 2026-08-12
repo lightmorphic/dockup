@@ -63,6 +63,33 @@ def api_tailscale_install():
     return jsonify(result)
 
 
+@bp.post("/reboot")
+def api_reboot():
+    activity.log("warning", "host", "Host reboot requested from Dockle")
+    try:
+        result = hostcompanion.reboot()
+    except hostcompanion.CompanionUnavailable as exc:
+        return jsonify({"error": str(exc)}), 502
+    if not result.get("ok"):
+        activity.log("error", "host", "Host reboot failed", result.get("error", ""))
+        return jsonify({"error": result.get("error", "Reboot failed")}), 400
+    return jsonify(result)
+
+
+@bp.post("/docker-restart")
+def api_docker_restart():
+    activity.log("warning", "host", "Docker restart requested from Dockle")
+    try:
+        result = hostcompanion.docker_restart()
+    except hostcompanion.CompanionUnavailable as exc:
+        return jsonify({"error": str(exc)}), 502
+    if not result.get("ok"):
+        activity.log("error", "host", "Docker restart failed", result.get("error", ""))
+        return jsonify({"error": result.get("error", "Docker restart failed")}), 400
+    activity.log("info", "host", "Docker restarted on the host")
+    return jsonify(result)
+
+
 @bp.get("/stacks/<name>/serve")
 def api_stack_serve_status(name):
     try:
