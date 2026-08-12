@@ -35,21 +35,29 @@ def check_all():
         con.close()
 
 
-def loop():
+def loop(app):
     while True:
         try:
-            check_all()
+            # list_stacks()/runtime.current() read settings via flask.g,
+            # which needs an active app context - there's no request here
+            # since this runs on its own background thread.
+            with app.app_context():
+                check_all()
         except Exception as exc:  # background job - never take the app down
             activity.log("error", "update-check", "Update check pass failed", str(exc))
         time.sleep(CHECK_INTERVAL_SECONDS)
 
 
-def start():
+def start(app):
     if config.MOCK_MODE:
         # still useful to see badges in dev, just don't wait 30 minutes
-        threading.Thread(target=lambda: (time.sleep(3), check_all()), daemon=True).start()
+        def _once():
+            time.sleep(3)
+            with app.app_context():
+                check_all()
+        threading.Thread(target=_once, daemon=True).start()
         return
-    threading.Thread(target=loop, daemon=True).start()
+    threading.Thread(target=loop, args=(app,), daemon=True).start()
 
 
 def get_flags() -> dict:

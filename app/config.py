@@ -8,6 +8,13 @@ MOCK_MODE = os.environ.get("DOCKLE_MOCK") == "1"
 
 DB_PATH = DATA_DIR / "dockle.db"
 BACKUP_DIR = DATA_DIR / "backups"
+STACK_BACKUP_DIR = DATA_DIR / "stack-backups"
+
+# The real host-filesystem path of DATA_DIR, needed when Dockle asks the
+# Docker socket to start a helper container with a bind mount destined
+# for this folder - the daemon resolves that against the host, not
+# Dockle's own container, so a container-internal path won't do.
+DATA_HOST_PATH = os.environ.get("DOCKLE_DATA_HOST_PATH", "")
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 
@@ -30,4 +37,5 @@ def validate():
 def ensure_dirs():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    STACK_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     STACKS_DIR.mkdir(parents=True, exist_ok=True)

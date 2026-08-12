@@ -463,6 +463,7 @@ async function viewStack(name) {
       <button data-tab="compose">Compose</button>
       <button data-tab="logs">Logs</button>
       <button data-tab="terminal">Terminal</button>
+      <button data-tab="backup">Backup</button>
     </div>
     <div id="tabBody"></div></div>`);
   content.appendChild(tabs);
@@ -556,6 +557,73 @@ async function viewStack(name) {
       };
       open(running[0].name);
       picker.querySelector("#termTarget").addEventListener("change", e => open(e.target.value));
+    },
+    async backup() {
+      tabBody.innerHTML = `<div class="panel-head">
+          <h3>Backups</h3><span class="spacer"></span>
+          <label class="btn" for="bkUploadInput">Upload a backup</label>
+          <input type="file" id="bkUploadInput" accept=".gz,.tar.gz" class="visually-hidden">
+          <button class="btn btn-primary" id="backupNowBtn">Back up now</button></div>
+        <p>Archives this stack's compose file, its .env, and its actual data - bind-mounted folders
+        and named volumes read straight from where they already live, nothing moved. Restoring
+        puts everything back to exactly the same place. Download a backup to keep a copy on your
+        own drive, or upload one back in (from this machine or another) to restore from it.</p>
+        <div class="table-wrap" id="stackBkWrap"><p class="hint">Loading…</p></div>`;
+      const loadList = async () => {
+        const wrap = tabBody.querySelector("#stackBkWrap");
+        const d = await api(`/api/stacks/${encodeURIComponent(name)}/backups`);
+        if (!d.backups.length) { wrap.innerHTML = '<p class="hint">No backups of this stack yet.</p>'; return; }
+        wrap.innerHTML = `<table><caption>Backups of '${esc(name)}', newest first</caption>
+          <thead><tr><th>Made</th><th>File</th><th>Size</th><th></th></tr></thead><tbody>
+          ${d.backups.map(b => `<tr><td>${esc(b.made)}</td><td>${esc(b.name)}</td>
+            <td>${(b.size / 1048576).toFixed(1)} MB</td>
+            <td class="nowrap">
+              <a class="btn" href="/api/stacks/${encodeURIComponent(name)}/backups/${encodeURIComponent(b.name)}/download">Download</a>
+              <button class="btn" data-restore="${esc(b.name)}">Restore</button>
+            </td></tr>`).join("")}</tbody></table>`;
+        wrap.querySelectorAll("[data-restore]").forEach(btn => {
+          let armed = false;
+          btn.addEventListener("click", async () => {
+            if (!armed) {
+              armed = true; btn.textContent = "Really restore?"; btn.classList.add("btn-danger");
+              setTimeout(() => { armed = false; btn.textContent = "Restore"; btn.classList.remove("btn-danger"); }, 5000);
+              return;
+            }
+            btn.disabled = true;
+            try {
+              const res = await api(`/api/stacks/${encodeURIComponent(name)}/backups/${encodeURIComponent(btn.dataset.restore)}/restore`, { method: "POST", body: {} });
+              toast(res.message, "success");
+            } catch (e) { toast(e.message, "danger"); }
+            btn.disabled = false; armed = false; btn.textContent = "Restore"; btn.classList.remove("btn-danger");
+          });
+        });
+      };
+      tabBody.querySelector("#backupNowBtn").addEventListener("click", async (e) => {
+        e.target.disabled = true; e.target.textContent = "Backing up…";
+        try {
+          const r = await api(`/api/stacks/${encodeURIComponent(name)}/backups`, { method: "POST", body: {} });
+          toast(`Backup made: ${r.name}`, "success");
+          await loadList();
+        } catch (err) { toast(err.message, "danger"); }
+        e.target.disabled = false; e.target.textContent = "Back up now";
+      });
+      tabBody.querySelector("#bkUploadInput").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (!file) return;
+        const form = new FormData();
+        form.append("file", file);
+        try {
+          const res = await fetch(`/api/stacks/${encodeURIComponent(name)}/backups/upload`, {
+            method: "POST", headers: { "X-CSRF": CSRF }, body: form,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Upload failed");
+          toast(`Uploaded ${data.name} - it's in the list below, ready to restore.`, "success");
+          await loadList();
+        } catch (err) { toast(err.message, "danger"); }
+      });
+      await loadList();
     },
   };
 

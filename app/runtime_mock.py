@@ -193,3 +193,18 @@ class MockRuntime:
         # to show in mock mode without needing a real registry
         time.sleep(0.3)
         return abs(hash(project)) % 3 == 0
+
+    def archive_path_to_backup(self, host_source, dest_filename):
+        import tarfile
+        from . import config
+        with tarfile.open(config.STACK_BACKUP_DIR / dest_filename, "w:gz"):
+            pass  # empty archive - mock has no real bind-mount data to read
+
+    def archive_volume_to_backup(self, volume_name, dest_filename):
+        self.archive_path_to_backup(volume_name, dest_filename)
+
+    def restore_path_from_backup(self, host_dest, src_filename):
+        pass
+
+    def restore_volume_from_backup(self, volume_name, src_filename):
+        pass

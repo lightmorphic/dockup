@@ -195,3 +195,41 @@ class Runtime:
             if running_id and latest_id and running_id != latest_id:
                 return True
         return False
+
+    # -- per-stack data backup/restore ------------------------------------
+    # A short-lived helper container does the actual file access, mounting
+    # the source and Dockle's own backup folder side by side - the daemon
+    # resolves both against the real host filesystem, so this reaches
+    # bind-mount paths Dockle's own container can't see directly, and
+    # named volumes wherever Docker actually stores them. Nothing is ever
+    # relocated - everything restores to exactly the path it came from.
+
+    def _require_host_path(self):
+        if not config.DATA_HOST_PATH:
+            raise RuntimeError_(
+                "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+                "real path on the host - see the runbook to set it in compose.yaml."
+            )
+        return f"{config.DATA_HOST_PATH.rstrip('/')}/stack-backups"
+
+    def archive_path_to_backup(self, host_source: str, dest_filename: str):
+        dest_host_dir = self._require_host_path()
+        self._run(["run", "--rm", "-v", f"{host_source}:/src:ro", "-v", f"{dest_host_dir}:/dest",
+                   "alpine", "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
+
+    def archive_volume_to_backup(self, volume_name: str, dest_filename: str):
+        dest_host_dir = self._require_host_path()
+        self._run(["run", "--rm", "-v", f"{volume_name}:/src:ro", "-v", f"{dest_host_dir}:/dest",
+                   "alpine", "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
+
+    def restore_path_from_backup(self, host_dest: str, src_filename: str):
+        dest_host_dir = self._require_host_path()
+        # bind-mounting a path that doesn't exist yet needs it created
+        # first - do both in one helper container.
+        self._run(["run", "--rm", "-v", f"{host_dest}:/dest", "-v", f"{dest_host_dir}:/src:ro",
+                   "alpine", "sh", "-c", f"mkdir -p /dest && tar xzf /src/{src_filename} -C /dest"], timeout=900)
+
+    def restore_volume_from_backup(self, volume_name: str, src_filename: str):
+        dest_host_dir = self._require_host_path()
+        self._run(["run", "--rm", "-v", f"{volume_name}:/dest", "-v", f"{dest_host_dir}:/src:ro",
+                   "alpine", "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)

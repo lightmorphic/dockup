@@ -19,7 +19,12 @@ def create_app():
         # cookie should never go out over plain HTTP.
         SESSION_COOKIE_SECURE=not config.MOCK_MODE,
         PERMANENT_SESSION_LIFETIME=timedelta(days=config.SESSION_DAYS),
+        # Most requests are small (JSON, compose text) - 8MB covers those
+        # comfortably. Uploading a stack backup with real data needs far
+        # more room, handled per-request below rather than raising this
+        # globally.
         MAX_CONTENT_LENGTH=8 * 1024 * 1024,
+        MAX_FORM_MEMORY_SIZE=8 * 1024 * 1024,
     )
 
     from . import db
@@ -38,6 +43,15 @@ def create_app():
     sock.init_app(app)
 
     PUBLIC = {"auth.login", "auth.setup", "views.health", "views.favicon", "static"}
+
+    @app.before_request
+    def raise_limit_for_backup_uploads():
+        # Restoring real app data needs far more room than the 8MB
+        # default meant for JSON/compose bodies. Scoped to this one
+        # endpoint rather than raised globally.
+        if request.endpoint == "stacks.api_stack_backup_upload":
+            request.max_content_length = 4 * 1024 * 1024 * 1024  # 4GB
+            request.max_form_memory_size = 8 * 1024 * 1024
 
     @app.before_request
     def require_login():
@@ -80,6 +94,6 @@ def create_app():
     backup_mod.start_scheduler()
 
     from . import updatecheck
-    updatecheck.start()
+    updatecheck.start(app)
 
     return app

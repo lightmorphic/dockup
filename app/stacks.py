@@ -6,6 +6,8 @@ actions live here.
 import re
 import shutil
 import socket
+import tarfile
+import time
 from pathlib import Path
 
 import yaml
@@ -422,3 +424,70 @@ def api_validate():
     data = request.get_json(force=True)
     problem = validate_compose(data.get("compose", ""))
     return jsonify({"ok": problem is None, "error": problem})
+
+
+@bp.get("/stacks/<name>/backups")
+def api_stack_backups_list(name):
+    from . import stackbackup
+    try:
+        stack_dir(name)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"backups": stackbackup.list_backups(name)})
+
+
+@bp.post("/stacks/<name>/backups")
+def api_stack_backup_run(name):
+    from . import stackbackup
+    try:
+        path = stackbackup.backup_stack(name)
+    except (ValueError, runtime.RuntimeError_) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "name": path.name})
+
+
+@bp.post("/stacks/<name>/backups/<backup_name>/restore")
+def api_stack_backup_restore(name, backup_name):
+    from . import stackbackup
+    try:
+        message = stackbackup.restore_stack(name, backup_name)
+    except (ValueError, runtime.RuntimeError_) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "message": message})
+
+
+@bp.get("/stacks/<name>/backups/<backup_name>/download")
+def api_stack_backup_download(name, backup_name):
+    path = (config.STACK_BACKUP_DIR / backup_name).resolve()
+    if path.parent != config.STACK_BACKUP_DIR.resolve() or not path.exists():
+        return jsonify({"error": "Not found"}), 404
+    from flask import send_file
+    return send_file(path, as_attachment=True)
+
+
+@bp.post("/stacks/<name>/backups/upload")
+def api_stack_backup_upload(name):
+    """Bring in a backup file from elsewhere - downloaded earlier, or
+    moved from another machine - so it can be restored the same way as
+    one Dockle made itself."""
+    try:
+        stack_dir(name)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "No file received"}), 400
+    if not f.filename.endswith(".tar.gz"):
+        return jsonify({"error": "That doesn't look like a Dockle stack backup (.tar.gz)"}), 400
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dest = config.STACK_BACKUP_DIR / f"{name}-uploaded-{stamp}.tar.gz"
+    f.save(dest)
+    try:
+        with tarfile.open(dest, "r:gz") as tar:
+            if "./manifest.json" not in tar.getnames() and "manifest.json" not in tar.getnames():
+                raise ValueError("missing manifest.json")
+    except (tarfile.TarError, ValueError):
+        dest.unlink(missing_ok=True)
+        return jsonify({"error": "That file doesn't look like a Dockle stack backup"}), 400
+    activity.log("info", "backup", f"Backup file uploaded for '{name}'", dest.name)
+    return jsonify({"ok": True, "name": dest.name})

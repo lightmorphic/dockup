@@ -13,6 +13,14 @@ services:
       #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting Dockle}
       TZ: ${TZ:-Europe/London}
+      # Dockle asks the Docker socket to spin up short-lived helper
+      # containers for backups (tar a volume, tar a bind-mount path).
+      # The daemon resolves bind-mount sources against the HOST
+      # filesystem, not Dockle's own container - so Dockle needs to
+      # know its own data folder's real host path, not just where it
+      # sees it internally (/app/data). Set this if you move compose.yaml
+      # somewhere other than /opt/dockle.
+      DOCKLE_DATA_HOST_PATH: ${DOCKLE_DATA_HOST_PATH:-/opt/dockle/data}
     volumes:
       - ./data:/app/data
       # Docker host: keep this line. Podman host: swap it for

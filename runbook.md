@@ -51,6 +51,26 @@ stacks folder plus Dockle's own database.
 - Restored stacks aren't restarted automatically - press play on each
   when you're ready.
 
+## Back up one stack, including its real data
+
+Open a stack → **Backup** tab → **Back up now**. Unlike the daily backup
+above (which only covers compose files), this also archives the stack's
+actual data - bind-mounted folders and named volumes, read straight from
+wherever they already live. Restoring puts everything back to exactly
+the same place, nothing gets relocated.
+
+This needs Dockle to know its own real path on the host, since it asks
+Docker to start small helper containers that mount both the stack's data
+and Dockle's own backup folder side by side. If you installed Dockle
+somewhere other than `/opt/dockle`, set this in `.env`:
+
+```
+DOCKLE_DATA_HOST_PATH=/wherever/you/put/dockle/data
+```
+
+If it's missing or wrong, per-stack backups fail with a clear error
+telling you to set it - the daily/global backup above doesn't need it.
+
 ## Roll back Dockle itself
 
 Dockle's code is in git. To go back to the previous working version:
