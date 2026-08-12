@@ -162,6 +162,7 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--danger); }
 .status-dot.running { background: var(--success); }
 .status-dot.warning { background: var(--warning); }
+.status-dot.inactive { background: var(--muted-fg); }
 
 .content {
   grid-area: main;
@@ -263,6 +264,10 @@ textarea { min-height: 8rem; resize: vertical; }
 input[type="checkbox"], input[type="radio"] { width: auto; display: inline-block; }
 .check-row { display: flex; gap: 0.5rem; align-items: center; }
 .check-row.tight { font-size: 0.9375rem; font-weight: 400; }
+.check-row.archived-row { padding: 0.5rem 0; border-bottom: 1px solid var(--panel-border); }
+.check-row.archived-row:last-child { border-bottom: none; }
+.hidden { display: none; }
+.card-actions { margin-top: 0.75rem; }
 .code-editor {
   font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 0.875rem; line-height: 1.55;

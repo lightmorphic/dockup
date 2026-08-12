@@ -137,6 +137,9 @@ class MockRuntime:
             })
         return out
 
+    def remove_image(self, image):
+        pass
+
     def compose_stream(self, stack_dir, project, action, extra_args=None):
         steps = {
             "up": ["Network created", "Container web-1  Started", "Container db-1  Started"],
@@ -193,6 +196,11 @@ class MockRuntime:
         # to show in mock mode without needing a real registry
         time.sleep(0.3)
         return abs(hash(project)) % 3 == 0
+
+    def force_remove_dir(self, parent_host_path, dirname):
+        import shutil as _shutil
+        from pathlib import Path as _Path
+        _shutil.rmtree(_Path(parent_host_path) / dirname, ignore_errors=True)
 
     def archive_path_to_backup(self, host_source, dest_filename):
         import tarfile

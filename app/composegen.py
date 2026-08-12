@@ -8,6 +8,7 @@ import yaml
 
 def containers_to_compose(inspects: list[dict]) -> str:
     services = {}
+    networks_top = {}
     for ins in inspects:
         name = (ins.get("Name") or "app").lstrip("/")
         cfg = ins.get("Config") or {}
@@ -62,8 +63,17 @@ def containers_to_compose(inspects: list[dict]) -> str:
             svc["devices"] = [f"{d.get('PathOnHost')}:{d.get('PathInContainer')}"
                               for d in host["Devices"]]
         net_mode = host.get("NetworkMode") or ""
-        if net_mode and net_mode not in ("default", "bridge") and not net_mode.startswith("container:"):
-            svc["network_mode"] = net_mode
+        if net_mode and net_mode not in ("default", "bridge", "host", "none") and not net_mode.startswith("container:"):
+            # A custom bridge network, not a special mode - `network_mode:`
+            # here would tell Docker to attach to an *existing* network by
+            # that literal name and never create it, which breaks the
+            # moment that network is ever pruned or missing (the exact
+            # "network not found" failure this fixes). Declaring it as a
+            # real networks: entry with an explicit name lets compose
+            # create it if needed, same as it would for a stack that was
+            # never adopted in the first place.
+            svc["networks"] = [net_mode]
+            networks_top[net_mode] = {"name": net_mode}
 
         services[service_name] = svc
 
@@ -77,6 +87,8 @@ def containers_to_compose(inspects: list[dict]) -> str:
     doc: dict = {"services": services}
     if volumes_top:
         doc["volumes"] = volumes_top
+    if networks_top:
+        doc["networks"] = networks_top
     return yaml.safe_dump(doc, sort_keys=False, default_flow_style=False, width=120)
 
 

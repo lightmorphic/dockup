@@ -18,6 +18,7 @@ from . import activity, composeconv, composegen, config, runtime
 bp = Blueprint("stacks", __name__, url_prefix="/api")
 
 NAME_RE = re.compile(config.STACK_NAME_RE)
+ARCHIVE_DIR = config.STACKS_DIR / ".archived"
 
 
 def stack_dir(name):
@@ -25,6 +26,15 @@ def stack_dir(name):
         raise ValueError("Stack names are lowercase letters, numbers, - and _ only")
     d = (config.STACKS_DIR / name).resolve()
     if d.parent != config.STACKS_DIR.resolve():
+        raise ValueError("Invalid stack name")
+    return d
+
+
+def archived_stack_dir(name):
+    if not NAME_RE.match(name or ""):
+        raise ValueError("Stack names are lowercase letters, numbers, - and _ only")
+    d = (ARCHIVE_DIR / name).resolve()
+    if d.parent != ARCHIVE_DIR.resolve():
         raise ValueError("Invalid stack name")
     return d
 
@@ -55,6 +65,8 @@ def list_stacks():
     stacks = {}
     if config.STACKS_DIR.exists():
         for d in sorted(config.STACKS_DIR.iterdir()):
+            if d.name.startswith("."):
+                continue  # .archived and any other dotfile/dir aren't stacks
             if d.is_dir() and any((d / f).exists() for f in config.COMPOSE_FILENAMES):
                 stacks[d.name] = {"name": d.name, "managed": True, "containers": []}
     for project, cs in by_project.items():
@@ -242,7 +254,7 @@ def api_action(name, action):
     def generate():
         ok = True
         from . import hostcompanion
-        companion_available = action in _STARTING_ACTIONS and hostcompanion.is_available()
+        companion_available = (action in _STARTING_ACTIONS or action == "delete") and hostcompanion.is_available()
         paused_ports = []
 
         def run_compose(sub_action):
@@ -267,12 +279,30 @@ def api_action(name, action):
                 yield from run_compose("up")
             elif action == "delete":
                 if d.exists():
+                    # Permanent, not a pause: a deleted stack's ports
+                    # should stop being served, not just quiet down and
+                    # come back - a stale Serve rule left running here is
+                    # exactly what caused the "address already in use"
+                    # failure this project chased down earlier.
+                    cleared_ports = _tailscale_pause_ports(name, d, companion_available)
+                    if cleared_ports:
+                        yield (f"Turning off Tailscale Serve on port(s) {', '.join(map(str, cleared_ports))} "
+                               f"- this stack is being deleted...\n")
                     for line in rt.compose_stream(str(d), name, "down"):
                         if line.startswith("[dockle-exit:"):
                             ok = line == "[dockle-exit:0]"
                         else:
                             yield line + "\n"
-                    shutil.rmtree(d)
+                    try:
+                        shutil.rmtree(d)
+                    except OSError:
+                        # A stack folder left root-owned by whatever
+                        # managed it before Dockle (a real, hit case for
+                        # anything adopted from a previous tool) can't be
+                        # removed by Dockle's own non-root process -
+                        # fall back to a throwaway root container, the
+                        # same trick used for backup/restore.
+                        rt.force_remove_dir(str(d.parent), d.name)
                     yield f"Removed {d}\n"
             else:
                 yield from run_compose(action)
@@ -296,6 +326,139 @@ def api_action(name, action):
 
     return Response(generate(), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+def _purge_images(compose_text: str, env_text: str = "") -> list:
+    """Best-effort: remove every image a compose file references. Used
+    when a stack (already container-less) is being deleted for good -
+    "nothing left of that" - never blocks on failure, since another
+    stack might legitimately share the same image."""
+    from . import envsub
+    try:
+        doc = yaml.safe_load(compose_text) or {}
+    except yaml.YAMLError:
+        return []
+    if not isinstance(doc, dict):
+        return []
+    env = envsub.parse_env(env_text)
+    images, seen = [], set()
+    for svc in (doc.get("services") or {}).values():
+        if not isinstance(svc, dict) or not svc.get("image"):
+            continue
+        image = envsub.substitute(str(svc["image"]), env)
+        if image not in seen:
+            seen.add(image)
+            images.append(image)
+    rt = runtime.current()
+    removed = []
+    for image in images:
+        try:
+            rt.remove_image(image)
+            removed.append(image)
+        except runtime.RuntimeError_:
+            pass  # in use elsewhere, or already gone - fine either way
+    return removed
+
+
+@bp.post("/stacks/<name>/purge")
+def api_purge(name):
+    """Delete a container-less stack for good, straight from the main
+    list (no need to archive first): folder, compose file, and every
+    image it referenced - nothing left behind."""
+    d = stack_dir(name)
+    if not d.exists():
+        return jsonify({"error": f"'{name}' doesn't exist"}), 404
+    result, _ = list_stacks()
+    match = next((s for s in result if s["name"] == name), None)
+    if match and match["containers"]:
+        return jsonify({"error": "This stack still has containers - stop and remove them first"}), 400
+    cp = compose_path(name)
+    compose_text = cp.read_text() if cp.exists() else ""
+    envp = d / ".env"
+    env_text = envp.read_text() if envp.exists() else ""
+    removed_images = _purge_images(compose_text, env_text)
+    try:
+        shutil.rmtree(d)
+    except OSError:
+        rt = runtime.current()
+        rt.force_remove_dir(str(d.parent), d.name)
+    detail = f"Removed image(s): {', '.join(removed_images)}" if removed_images else ""
+    activity.log("info", "stack", f"Purged '{name}'", detail)
+    return jsonify({"ok": True, "removedImages": removed_images})
+
+
+@bp.post("/stacks/<name>/archive")
+def api_archive(name):
+    """Archive a container-less stack: keep the folder (compose file,
+    .env, anything else in it) but move it out of the main list, so it
+    can come back later without re-typing the config from scratch."""
+    d = stack_dir(name)
+    if not d.exists():
+        return jsonify({"error": f"'{name}' doesn't exist"}), 404
+    result, _ = list_stacks()
+    match = next((s for s in result if s["name"] == name), None)
+    if match and match["containers"]:
+        return jsonify({"error": "This stack still has containers - stop and remove them first"}), 400
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    dest = archived_stack_dir(name)
+    if dest.exists():
+        return jsonify({"error": f"An archived stack named '{name}' already exists"}), 400
+    try:
+        shutil.move(str(d), str(dest))
+    except OSError as exc:
+        return jsonify({"error": f"Couldn't archive: {exc}"}), 500
+    activity.log("info", "stack", f"Archived '{name}'")
+    return jsonify({"ok": True})
+
+
+@bp.get("/archived")
+def api_archived_list():
+    if not ARCHIVE_DIR.exists():
+        return jsonify({"stacks": []})
+    names = sorted(p.name for p in ARCHIVE_DIR.iterdir() if p.is_dir())
+    return jsonify({"stacks": names})
+
+
+@bp.post("/archived/<name>/restore")
+def api_archived_restore(name):
+    src = archived_stack_dir(name)
+    if not src.exists():
+        return jsonify({"error": f"'{name}' isn't archived"}), 404
+    dest = stack_dir(name)
+    if dest.exists():
+        return jsonify({"error": f"A stack named '{name}' already exists"}), 400
+    try:
+        shutil.move(str(src), str(dest))
+    except OSError as exc:
+        return jsonify({"error": f"Couldn't restore: {exc}"}), 500
+    activity.log("info", "stack", f"Restored '{name}' from archive")
+    return jsonify({"ok": True})
+
+
+@bp.post("/archived/<name>/purge")
+def api_archived_purge(name):
+    """Delete an archived stack for good: folder, compose file, and
+    every image it referenced - nothing left behind."""
+    d = archived_stack_dir(name)
+    if not d.exists():
+        return jsonify({"error": f"'{name}' isn't archived"}), 404
+    cp = None
+    for fname in config.COMPOSE_FILENAMES:
+        if (d / fname).exists():
+            cp = d / fname
+            break
+    compose_text = cp.read_text() if cp else ""
+    envp = d / ".env"
+    env_text = envp.read_text() if envp.exists() else ""
+    removed_images = _purge_images(compose_text, env_text)
+    try:
+        shutil.rmtree(d)
+    except OSError:
+        rt = runtime.current()
+        rt.force_remove_dir(str(d.parent), d.name)
+    detail = f"Removed image(s): {', '.join(removed_images)}" if removed_images else ""
+    activity.log("info", "stack", f"Purged archived stack '{name}'", detail)
+    return jsonify({"ok": True, "removedImages": removed_images})
 
 
 def _update_one(name, d, rt):

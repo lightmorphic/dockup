@@ -312,6 +312,53 @@ async function viewDashboard() {
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
+
+  await renderArchivedSection();
+}
+
+async function renderArchivedSection() {
+  let archived = { stacks: [] };
+  try { archived = await api("/api/archived"); } catch (e) { /* non-fatal */ }
+  if (!archived.stacks.length) return;
+
+  const panel = el(`<div class="panel">
+    <div class="panel-head"><h3>Archived (${archived.stacks.length})</h3><span class="spacer"></span>
+      <button class="btn" id="archivedToggle">Show</button></div>
+    <div id="archivedBody" class="hidden"></div>
+  </div>`);
+  content.appendChild(panel);
+  const toggle = panel.querySelector("#archivedToggle");
+  const body = panel.querySelector("#archivedBody");
+  toggle.addEventListener("click", () => {
+    const showing = !body.classList.contains("hidden");
+    body.classList.toggle("hidden", showing);
+    toggle.textContent = showing ? "Show" : "Hide";
+  });
+
+  for (const name of archived.stacks) {
+    const row = el(`<div class="check-row archived-row">
+      <span>${esc(name)}</span><span class="spacer"></span>
+      <button class="btn" id="restoreBtn">Restore</button>
+      <button class="btn btn-danger" id="purgeBtn">Delete</button>
+    </div>`);
+    body.appendChild(row);
+    row.querySelector("#restoreBtn").addEventListener("click", async (e) => {
+      e.target.disabled = true; e.target.textContent = "Restoring…";
+      try {
+        await api(`/api/archived/${encodeURIComponent(name)}/restore`, { method: "POST", body: {} });
+        toast(`'${name}' restored.`, "success");
+        await refreshStacks();
+        viewDashboard();
+      } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Restore"; }
+    });
+    const purgeBtn = row.querySelector("#purgeBtn");
+    purgeBtn.dataset.tipOrig = "Delete";
+    armedAction(purgeBtn, async () => {
+      const res = await api(`/api/archived/${encodeURIComponent(name)}/purge`, { method: "POST", body: {} });
+      toast(res.removedImages.length ? `'${name}' deleted, image(s) removed.` : `'${name}' deleted.`, "success");
+      viewDashboard();
+    }, "permanently delete this archived stack and its image - nothing kept");
+  }
 }
 
 async function checkUpdatesNow() {
@@ -398,9 +445,12 @@ const STATUS_TIPS = {
   partial: "Container is down",
   stopped: "Container is down",
   exited: "Container is down",
-  inactive: "Container is down",
+  inactive: "No container - ready to archive or delete",
 };
-const STATUS_DOT_CLASS = { running: "running", warning: "warning" };
+// "inactive" (no container at all) isn't a problem the way stopped/
+// partial/exited are - it gets its own neutral gray rather than
+// falling through to the base rule's red.
+const STATUS_DOT_CLASS = { running: "running", warning: "warning", inactive: "inactive" };
 
 function cardDot(status) {
   const cls = STATUS_DOT_CLASS[status] || "";
@@ -412,14 +462,50 @@ const UPDATE_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 1
 
 function managedCard(s) {
   const label = `Open stack ${s.name} - ${STATUS_TIPS[s.status] || s.status}${s.updateAvailable ? ", update available" : ""}`;
+  const inactive = s.status === "inactive";
   const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="${esc(label)}">
     ${s.updateAvailable ? `<span class="update-flag" data-tip="Update available - open the stack and press Update">${UPDATE_ICON}</span>` : ""}
     <h3>${cardDot(s.status)}<span>${esc(s.name)}</span></h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
+    ${inactive ? `<div class="btn-row card-actions">
+      <button class="btn" id="archiveBtn">Archive</button>
+      <button class="btn btn-danger" id="purgeBtn">Delete</button>
+    </div>` : ""}
   </div>`);
   const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
   card.addEventListener("click", open);
   card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+
+  if (inactive) {
+    const archiveBtn = card.querySelector("#archiveBtn");
+    const purgeBtn = card.querySelector("#purgeBtn");
+    // Both buttons sit inside the card's own "open on click/Enter/Space"
+    // region - stop these events reaching that handler, or using them
+    // navigates to the stack page instead of (or as well as) archiving/
+    // deleting it.
+    [archiveBtn, purgeBtn].forEach(b => b.addEventListener("keydown", e => e.stopPropagation()));
+    archiveBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      archiveBtn.disabled = true; archiveBtn.textContent = "Archiving…";
+      try {
+        await api(`/api/stacks/${encodeURIComponent(s.name)}/archive`, { method: "POST", body: {} });
+        toast(`'${s.name}' archived.`, "success");
+        await refreshStacks();
+        if ((location.hash || "#/") === "#/") viewDashboard();
+      } catch (err) {
+        toast(err.message, "danger");
+        archiveBtn.disabled = false; archiveBtn.textContent = "Archive";
+      }
+    });
+    purgeBtn.dataset.tipOrig = "Delete";
+    purgeBtn.addEventListener("click", e => e.stopPropagation());
+    armedAction(purgeBtn, async () => {
+      const res = await api(`/api/stacks/${encodeURIComponent(s.name)}/purge`, { method: "POST", body: {} });
+      toast(res.removedImages.length ? `'${s.name}' deleted, image(s) removed.` : `'${s.name}' deleted.`, "success");
+      await refreshStacks();
+      if ((location.hash || "#/") === "#/") viewDashboard();
+    }, "permanently delete this stack and its image - nothing kept");
+  }
   return card;
 }
 

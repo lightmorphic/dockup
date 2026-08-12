@@ -132,6 +132,9 @@ class Runtime:
         out = self._run(["inspect", *names], timeout=60)
         return json.loads(out)
 
+    def remove_image(self, image: str):
+        self._run(["rmi", image], timeout=60)
+
     # -- compose ---------------------------------------------------------
 
     def compose_stream(self, stack_dir, project, action, extra_args=None):
@@ -222,6 +225,16 @@ class Runtime:
             if running_id and latest_id and running_id != latest_id:
                 return True
         return False
+
+    def force_remove_dir(self, parent_host_path: str, dirname: str):
+        """Remove a stack's folder via a throwaway root container when
+        Dockle's own non-root process can't - a real, hit-in-production
+        case for stacks adopted from a previous manager (Arcane) that
+        left the folder root-owned. /opt/stacks is mounted at the same
+        path in both Dockle's container and the host, so no host-path
+        translation is needed here unlike the backup helpers below."""
+        self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
+                   "alpine", "rm", "-rf", f"/target/{dirname}"], timeout=60)
 
     # -- per-stack data backup/restore ------------------------------------
     # A short-lived helper container does the actual file access, mounting
