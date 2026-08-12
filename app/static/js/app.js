@@ -443,6 +443,20 @@ function viewNewStack() {
   const cm = attachYamlEditor(document.getElementById("composeText"));
   const envCm = attachCodeEditor(document.getElementById("envText"));
 
+  // Block disallowed characters at the source instead of complaining
+  // later: anything typed or pasted that isn't lowercase/digit/-/_ just
+  // never appears in the box (uppercase letters are folded to lowercase
+  // rather than dropped, so pasting "Jellyfin" still gives "jellyfin").
+  const nameInput = document.getElementById("stackName");
+  nameInput.addEventListener("input", () => {
+    const cleaned = nameInput.value.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if (nameInput.value !== cleaned) {
+      const pos = nameInput.selectionStart - (nameInput.value.length - cleaned.length);
+      nameInput.value = cleaned;
+      nameInput.setSelectionRange(Math.max(0, pos), Math.max(0, pos));
+    }
+  });
+
   document.getElementById("convertBtn").addEventListener("click", async () => {
     try {
       const res = await api("/api/convert", { method: "POST", body: { command: document.getElementById("runCmd").value } });
