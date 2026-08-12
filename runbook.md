@@ -26,6 +26,28 @@ Keep a copy of the `.env` file's SECRET_KEY somewhere safe (password
 manager). It encrypts your saved settings - lose it and saved passwords
 in Settings have to be re-entered.
 
+## Optional: the host agent (Tailscale Serve + OS updates)
+
+Everything above is all Dockle needs to run. This second, separate step
+is only for two extra features - checking/applying host OS updates, and
+turning Tailscale Serve on/off per stack - and it's the one part of
+Dockle that needs root on the actual server, not just Docker access.
+Skip it entirely if you don't want those two features; everything else
+works the same either way.
+
+```bash
+cd /opt/dockle/agent && sudo sh install.sh
+```
+
+Then uncomment the agent socket line in `compose.yaml`:
+
+```yaml
+- /run/dockle-agent.sock:/run/dockle-agent.sock
+```
+
+and restart Dockle (`docker compose up -d`). Settings → Host and each
+stack's Serve tab go from "not set up" to working once that's done.
+
 ## First steps after install
 
 1. **Settings → Email alerts**: fill in SMTP and press *Send test email*.

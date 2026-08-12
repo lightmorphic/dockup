@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0 - 2026-08-12
+
+- Per-stack backup/restore including real data (bind mounts and named
+  volumes, not just the compose file), with download and upload
+- CodeMirror-based YAML editor with live validation, matching plain
+  editor for `.env` files
+- Update checking every 30 minutes with an icon badge and "Update all";
+  status dots now reflect container health (red/yellow/green), not just
+  running/stopped
+- Bulk "Adopt all" plus a one-time first-run prompt
+- Optional `dockle-agent` host companion: host OS update checks/apply on
+  Debian/Ubuntu, and per-stack Tailscale Serve toggles - a separate,
+  narrowly-scoped install since it needs root on the host itself
+- Security hardening: container runs as non-root, port bound to
+  localhost only, WebSocket Origin checks, secure session cookies,
+  pip/setuptools stripped from the shipped image
+
 ## 1.0.0 - 2026-08-12
 
 First release.

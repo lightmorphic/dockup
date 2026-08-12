@@ -11,12 +11,15 @@ fresh code, different look, security first.
 ## What it does
 
 - All your compose stacks on one dashboard, live status, one window
-- Create stacks in a web editor, or paste a `docker run ...` command and
-  have it converted to compose
+- Create stacks in a web editor with colour-highlighted YAML and live
+  validation, or paste a `docker run ...` command and have it converted
+  to compose
 - Start / stop / restart / update (pull newest images) / delete - one click
-- **Adopt** what's already running: Dockle scans the system for compose
-  projects and standalone containers it doesn't manage and pulls their
-  setup into the stacks folder
+- Checks every 30 minutes for a newer image per stack and flags it on
+  the card - update one or "Update all", nothing pulls on its own
+- **Adopt** what's already running, one at a time or all in one go:
+  Dockle scans the system for compose projects and standalone containers
+  it doesn't manage and pulls their setup into the stacks folder
 - Live log streaming with errors highlighted in red
 - Web terminal into any running container
 - Prune unused images, containers, networks, volumes and build cache -
@@ -24,7 +27,13 @@ fresh code, different look, security first.
 - Persistent activity log, optional email alerts on errors
 - Daily backups with one-click (reversible) restore, plus a
   download-everything zip
+- **Per-stack backup including real data** - bind mounts and named
+  volumes, not just the compose file - with download and upload for
+  moving a stack's backup to another machine or keeping a copy yourself
 - Works with **Docker or Podman** - same UI, just point it at the other socket
+- Optional host agent for host OS update checks and per-stack Tailscale
+  Serve toggles - the one part of Dockle that needs root on the actual
+  server rather than just Docker access, so it's a separate install step
 
 ## Security
 
@@ -47,6 +56,18 @@ Open `http://<server-ip>:5001`, create the admin account, done.
 `/opt/stacks` is the recommended stacks folder - each stack is a plain
 folder with a compose file, so there's no lock-in: the folder works with
 plain `docker compose` (or any other manager) at any time.
+
+### Optional: host agent (Tailscale Serve + OS updates)
+
+A second, separate step - only needed for host OS update checks and
+per-stack Tailscale Serve toggles. Everything else works without it.
+
+```bash
+cd agent && sudo sh install.sh
+```
+
+Then uncomment the agent socket line in `compose.yaml` and restart
+Dockle. Full steps in [runbook.md](runbook.md).
 
 ### Podman instead of Docker
 
