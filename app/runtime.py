@@ -256,23 +256,31 @@ class Runtime:
 
     # -- one-click companion install --------------------------------------
     # `install.sh` writes to /etc/systemd/system, creates a group, and
-    # runs `systemctl enable --now` - real root-on-host actions. Rather
-    # than --privileged/--pid=host (full device + namespace access), a
-    # plain `-v /:/host` bind mount plus chroot is enough: systemctl
-    # talks to systemd over a Unix socket at /run/systemd/private, which
-    # chroot exposes at the host's real path, with no namespace sharing
-    # needed. The elevation is real and scoped to this one short-lived
-    # container - nothing standing on Dockle's own container afterward.
+    # runs `systemctl enable --now` - real root-on-host actions. Tried a
+    # lighter `-v /:/host` + chroot first (no --privileged/--pid=host),
+    # but systemctl failed with "Failed to connect to system scope bus
+    # via local transport: No data available" - sd-bus validates the
+    # connecting process's *actual* PID namespace against systemd's own
+    # (PID 1's), and chroot only changes filesystem path resolution, not
+    # namespace membership, so the credential check fails. Actually
+    # joining the host's PID namespace via nsenter (which needs
+    # --pid=host + --privileged for CAP_SYS_PTRACE/CAP_SYS_ADMIN) is
+    # what real host-systemd-management tools use for exactly this
+    # reason. Still a single short-lived container - nothing standing
+    # on Dockle's own container afterward.
 
     def install_companion(self, staging_host_dir: str) -> str:
         out = self._run([
-            "run", "--rm", "-v", "/:/host", "-v", f"{staging_host_dir}:/staging:ro",
+            "run", "--rm", "--privileged", "--pid=host",
+            "-v", "/:/host", "-v", f"{staging_host_dir}:/staging:ro",
             "alpine", "sh", "-c",
+            "apk add --no-cache util-linux-misc >/dev/null && "
             "mkdir -p /host/tmp/dockle-companion-install && "
             "cp /staging/dockle-companion.py /staging/dockle-companion.service /staging/install.sh "
             "/host/tmp/dockle-companion-install/ && "
             "chmod +x /host/tmp/dockle-companion-install/install.sh && "
-            "chroot /host sh /tmp/dockle-companion-install/install.sh && "
+            "nsenter --target 1 --mount --uts --ipc --net --pid -- "
+            "sh /tmp/dockle-companion-install/install.sh && "
             "rm -rf /host/tmp/dockle-companion-install",
         ], timeout=120)
         return out
