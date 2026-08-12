@@ -95,26 +95,30 @@ function toast(message, kind = "info") {
   toastTimer = setTimeout(() => t.innerHTML = "", 5000);
 }
 
-/* YAML editor: wraps a plain textarea with CodeMirror for syntax
-   colouring, then debounces calls to the server's own compose
-   validator (the single source of truth for "is this valid compose",
-   already used on save) to show inline feedback as you type. */
-function attachYamlEditor(textareaEl) {
+/* Code editor: wraps a plain textarea with CodeMirror so every text
+   field in the app (compose YAML, .env) shares the same look - dark,
+   monospace, line numbers. YAML mode additionally debounces calls to
+   the server's own compose validator (the single source of truth for
+   "is this valid compose", already used on save) for inline feedback. */
+function attachCodeEditor(textareaEl, { mode = null, validate = false } = {}) {
   const frame = document.createElement("div");
   frame.className = "editor-frame";
   textareaEl.parentNode.insertBefore(frame, textareaEl);
   frame.appendChild(textareaEl);
+
+  const cm = CodeMirror.fromTextArea(textareaEl, {
+    mode, lineNumbers: true, matchBrackets: true,
+    styleActiveLine: true, tabSize: 2, indentUnit: 2,
+    viewportMargin: Infinity,
+  });
+
+  if (!validate) return cm;
+
   const status = document.createElement("div");
   status.className = "editor-status";
   status.setAttribute("role", "status");
   status.innerHTML = '<span class="dot"></span><span class="msg">Checking…</span>';
   frame.appendChild(status);
-
-  const cm = CodeMirror.fromTextArea(textareaEl, {
-    mode: "yaml", lineNumbers: true, matchBrackets: true,
-    styleActiveLine: true, tabSize: 2, indentUnit: 2,
-    viewportMargin: Infinity,
-  });
 
   let timer, requestSeq = 0;
   const setStatus = (cls, msg) => {
@@ -136,6 +140,10 @@ function attachYamlEditor(textareaEl) {
   cm.on("change", () => { clearTimeout(timer); timer = setTimeout(check, 600); });
   check();
   return cm;
+}
+
+function attachYamlEditor(textareaEl) {
+  return attachCodeEditor(textareaEl, { mode: "yaml", validate: true });
 }
 
 const ICONS = {
@@ -211,7 +219,7 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<h1>Stacks</h1><div id="adoptAllHost"></div><div class="stack-grid" id="grid"></div>`;
+  content.innerHTML = `<h1>Stacks</h1><div id="updateAllHost"></div><div id="adoptAllHost"></div><div class="stack-grid" id="grid"></div>`;
   const grid = document.getElementById("grid");
   await refreshStacks();
 
@@ -224,6 +232,16 @@ async function viewDashboard() {
     grid.innerHTML = `<div class="panel"><h3>Nothing here yet</h3>
       <p>Create your first stack with <strong>New stack</strong>.</p></div>`;
     return;
+  }
+
+  const updatable = managed.filter(s => s.updateAvailable);
+  if (updatable.length) {
+    const host = document.getElementById("updateAllHost");
+    host.appendChild(el(`<div class="panel"><div class="panel-head">
+      <h3>${updatable.length} update${updatable.length === 1 ? "" : "s"} available</h3><span class="spacer"></span>
+      <button class="btn btn-primary" id="updateAllBtn">Update all</button></div>
+      <p class="hint">Pulls the newest image and redeploys each one, one after another: ${esc(updatable.map(s => s.name).join(", "))}.</p></div>`));
+    document.getElementById("updateAllBtn").addEventListener("click", updateAll);
   }
 
   let onboarding = { offerBulkAdopt: false };
@@ -239,6 +257,20 @@ async function viewDashboard() {
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
+}
+
+async function updateAll() {
+  const btn = document.getElementById("updateAllBtn");
+  btn.disabled = true; btn.textContent = "Updating…";
+  try {
+    const res = await api("/api/stacks/update-all", { method: "POST", body: {} });
+    toast(`Updated ${res.updated} of ${res.total}.`, res.updated === res.total ? "success" : "warning");
+    await refreshStacks();
+    viewDashboard();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Update all";
+    toast(e.message, "danger");
+  }
 }
 
 function renderAdoptPanel({ firstRun, count }) {
@@ -283,23 +315,28 @@ async function adoptAll(dismissOnboarding) {
 
 const STATUS_TIPS = {
   running: "Container is running",
-  partial: "Some containers are running, some aren't",
+  warning: "Warnings - check the log",
+  partial: "Container is down",
   stopped: "Container is down",
   exited: "Container is down",
-  inactive: "Not deployed",
+  inactive: "Container is down",
 };
+const STATUS_DOT_CLASS = { running: "running", warning: "warning" };
 
 function cardDot(status) {
-  const cls = status === "running" ? "running" : "down";
+  const cls = STATUS_DOT_CLASS[status] || "";
   const tip = STATUS_TIPS[status] || "Container is down";
   return `<span class="status-dot ${cls}" data-tip="${esc(tip)}" tabindex="0" aria-label="${esc(tip)}"></span>`;
 }
 
+const UPDATE_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 17v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" stroke="currentColor" stroke-width="2.25" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 function managedCard(s) {
-  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)} - ${esc(STATUS_TIPS[s.status] || s.status)}">
-    <h3>${cardDot(s.status)}${esc(s.name)}</h3>
+  const label = `Open stack ${s.name} - ${STATUS_TIPS[s.status] || s.status}${s.updateAvailable ? ", update available" : ""}`;
+  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="${esc(label)}">
+    ${s.updateAvailable ? `<span class="update-flag" data-tip="Update available - open the stack and press Update">${UPDATE_ICON}</span>` : ""}
+    <h3>${cardDot(s.status)}<span>${esc(s.name)}</span></h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
-    ${s.updateAvailable ? '<span class="badge badge-partial" data-tip="A newer image is available - open the stack and press Update">Update available</span>' : ""}
   </div>`);
   const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
   card.addEventListener("click", open);
@@ -310,7 +347,7 @@ function managedCard(s) {
 function unmanagedCard(p, status) {
   const n = p.containers.length;
   const card = el(`<div class="panel stack-card">
-    <h3>${cardDot(status)}${esc(p.name)}</h3>
+    <h3>${cardDot(status)}<span>${esc(p.name)}</span></h3>
     <span class="hint">${n} container${n === 1 ? "" : "s"}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);
@@ -320,7 +357,7 @@ function unmanagedCard(p, status) {
 
 function standaloneCard(c) {
   const card = el(`<div class="panel stack-card">
-    <h3>${cardDot(c.state)}${esc(c.name)}</h3>
+    <h3>${cardDot(c.state)}<span>${esc(c.name)}</span></h3>
     <span class="hint">${esc(c.image)}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);
@@ -375,6 +412,7 @@ function viewNewStack() {
     </div></div>`;
 
   const cm = attachYamlEditor(document.getElementById("composeText"));
+  const envCm = attachCodeEditor(document.getElementById("envText"));
 
   document.getElementById("convertBtn").addEventListener("click", async () => {
     try {
@@ -388,7 +426,7 @@ function viewNewStack() {
     try {
       await api("/api/stacks", { method: "POST", body: {
         name, compose: cm.getValue(),
-        env: document.getElementById("envText").value } });
+        env: envCm.getValue() } });
       toast(`Stack '${name}' created.`, "success");
       await refreshStacks();
       location.hash = `#/stack/${encodeURIComponent(name)}`;
@@ -405,8 +443,7 @@ async function viewStack(name) {
 
   content.innerHTML = "";
   const head = el(`<div class="panel"><div class="panel-head">
-      <h1 class="stack-title">${esc(name)}</h1>
-      <span class="badge badge-${s.status}">${s.status === "running" ? "✓ " : ""}${esc(s.status)}</span>
+      <h1 class="stack-title">${cardDot(s.status)}${esc(name)}</h1>
       <span class="spacer"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
@@ -467,10 +504,11 @@ async function viewStack(name) {
       form.querySelector("#editCompose").value = s.compose;
       const cm = attachYamlEditor(form.querySelector("#editCompose"));
       form.querySelector("#editEnv").value = s.env;
+      const envCm = attachCodeEditor(form.querySelector("#editEnv"));
       const save = async () => {
         await api(`/api/stacks/${encodeURIComponent(name)}`, { method: "PUT", body: {
           compose: cm.getValue(),
-          env: form.querySelector("#editEnv").value } });
+          env: envCm.getValue() } });
         toast("Saved.", "success");
       };
       form.querySelector("#saveBtn").addEventListener("click", () => save().catch(e => toast(e.message, "danger")));

@@ -56,3 +56,15 @@ def get_flags() -> dict:
     con = db.get()
     rows = con.execute("SELECT name, available FROM stack_updates").fetchall()
     return {r["name"]: bool(r["available"]) for r in rows}
+
+
+def clear_flag(name: str):
+    """Call after a stack is successfully updated/redeployed, so the
+    badge doesn't sit stale until the next 30-minute check."""
+    con = db.get()
+    with con:
+        con.execute(
+            "INSERT INTO stack_updates(name, available, checked_at) VALUES(?,0,datetime('now')) "
+            "ON CONFLICT(name) DO UPDATE SET available=0, checked_at=excluded.checked_at",
+            (name,),
+        )

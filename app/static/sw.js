@@ -1,12 +1,18 @@
 /* Dockle service worker: keep a copy of the static shell so the app still
    opens if the network blips. Network first, so updates always win;
    API calls never touch the cache - stale container states would mislead. */
-const CACHE = "dockle-static-v2";
+const CACHE = "dockle-static-v3";
 const ASSETS = [
   "/static/css/app.css",
+  "/static/css/editor.css",
   "/static/js/app.js",
   "/static/vendor/xterm.js",
   "/static/vendor/xterm.css",
+  "/static/vendor/codemirror/codemirror.js",
+  "/static/vendor/codemirror/codemirror.css",
+  "/static/vendor/codemirror/yaml.js",
+  "/static/vendor/codemirror/matchbrackets.js",
+  "/static/vendor/codemirror/active-line.js",
   "/static/fonts/Manrope-VariableFont_wght.ttf",
   "/static/icons/dockle.svg",
 ];
@@ -27,7 +33,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method === "GET" && url.pathname.startsWith("/static/")) {
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: "no-store" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));

@@ -61,8 +61,14 @@ def list_stacks():
 
     for s in stacks.values():
         states = {c["state"] for c in s["containers"]}
+        has_warning = any(
+            c["state"] == "restarting" or (c["state"] == "running" and "unhealthy" in c.get("status", "").lower())
+            for c in s["containers"]
+        )
         if not s["containers"]:
             s["status"] = "inactive"
+        elif has_warning and "running" in states:
+            s["status"] = "warning"
         elif states == {"running"}:
             s["status"] = "running"
         elif "running" in states:
@@ -206,6 +212,9 @@ def api_action(name, action):
             ok = False
             yield f"ERROR: {exc}\n"
         if ok:
+            if action == "update":
+                from . import updatecheck
+                updatecheck.clear_flag(name)
             activity.log("info", "stack", f"{action.capitalize()} completed on '{name}'")
             yield "[dockle-done:ok]\n"
         else:
@@ -215,6 +224,46 @@ def api_action(name, action):
 
     return Response(generate(), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+def _update_one(name, d, rt):
+    """Pull + redeploy a single stack. Returns (ok, message)."""
+    try:
+        ok = True
+        for action in ("pull", "up"):
+            for line in rt.compose_stream(str(d), name, action):
+                if line.startswith("[dockle-exit:"):
+                    ok = ok and line == "[dockle-exit:0]"
+        if ok:
+            from . import updatecheck
+            updatecheck.clear_flag(name)
+            activity.log("info", "stack", f"Update completed on '{name}'")
+            return True, "Updated"
+        activity.log("error", "stack", f"Update FAILED on '{name}'",
+                     "Open the stack's output panel for the full error text.")
+        return False, "Update failed - see Activity for details"
+    except runtime.RuntimeError_ as exc:
+        activity.log("error", "stack", f"Update FAILED on '{name}'", str(exc))
+        return False, str(exc)
+
+
+@bp.post("/stacks/update-all")
+def api_update_all():
+    """Pull + redeploy every managed stack that has an update flagged."""
+    from . import updatecheck
+    flags = updatecheck.get_flags()
+    result, _ = list_stacks()
+    due = [s for s in result if s["managed"] and flags.get(s["name"])]
+    if not due:
+        return jsonify({"results": [], "updated": 0, "total": 0})
+    rt = runtime.current()
+    results = []
+    for s in due:
+        ok, message = _update_one(s["name"], stack_dir(s["name"]), rt)
+        results.append({"name": s["name"], "ok": ok, "message": message})
+    updated = sum(1 for r in results if r["ok"])
+    activity.log("info", "stack", f"Update all: {updated}/{len(results)} succeeded")
+    return jsonify({"results": results, "updated": updated, "total": len(results)})
 
 
 @bp.get("/discover")
