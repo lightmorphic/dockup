@@ -9,13 +9,19 @@ set -e
 mkdir -p "$DOCKLE_DATA" "$DOCKLE_STACKS"
 chown dockle:dockle "$DOCKLE_DATA" 2>/dev/null || true
 
-if [ -S /var/run/docker.sock ]; then
-  SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
-  if ! getent group "$SOCK_GID" >/dev/null 2>&1; then
-    addgroup -g "$SOCK_GID" dockersock
+# Join the group that owns each mounted socket, whatever GID it happens
+# to have on this host - same trick for docker.sock and the optional
+# dockle-agent.sock (see agent/install.sh, only mounted in if you've
+# set that up).
+for SOCK in /var/run/docker.sock /run/dockle-agent.sock; do
+  if [ -S "$SOCK" ]; then
+    SOCK_GID=$(stat -c '%g' "$SOCK")
+    if ! getent group "$SOCK_GID" >/dev/null 2>&1; then
+      addgroup -g "$SOCK_GID" "grp$SOCK_GID"
+    fi
+    GROUP_NAME=$(getent group "$SOCK_GID" | cut -d: -f1)
+    adduser dockle "$GROUP_NAME" >/dev/null 2>&1 || true
   fi
-  GROUP_NAME=$(getent group "$SOCK_GID" | cut -d: -f1)
-  adduser dockle "$GROUP_NAME" >/dev/null 2>&1 || true
-fi
+done
 
 exec su-exec dockle "$@"

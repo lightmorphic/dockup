@@ -464,6 +464,7 @@ async function viewStack(name) {
       <button data-tab="logs">Logs</button>
       <button data-tab="terminal">Terminal</button>
       <button data-tab="backup">Backup</button>
+      <button data-tab="serve">Serve</button>
     </div>
     <div id="tabBody"></div></div>`);
   content.appendChild(tabs);
@@ -624,6 +625,40 @@ async function viewStack(name) {
         } catch (err) { toast(err.message, "danger"); }
       });
       await loadList();
+    },
+    async serve() {
+      tabBody.innerHTML = '<p class="hint">Checking…</p>';
+      let status;
+      try { status = await api(`/api/hostagent/stacks/${encodeURIComponent(name)}/serve`); }
+      catch (e) { status = { available: false }; }
+      if (!status.available) {
+        tabBody.innerHTML = `<p>Not set up. Exposing this stack's ports over Tailscale Serve needs the
+          optional host agent - see Settings → Host, or <code>agent/install.sh</code> in the repo.</p>`;
+        return;
+      }
+      if (!status.ports.length) {
+        tabBody.innerHTML = '<p class="hint">This stack doesn\'t publish any ports, so there\'s nothing for Tailscale Serve to front.</p>';
+        return;
+      }
+      tabBody.innerHTML = `<p>Expose one of this stack's ports over your tailnet at
+        <code>https://&lt;your-tailscale-name&gt;:&lt;port&gt;</code> - no LAN exposure needed.</p>
+        <div class="form-grid" id="servePorts"></div>`;
+      const host = tabBody.querySelector("#servePorts");
+      for (const port of status.ports) {
+        const on = status.served.includes(port);
+        const row = el(`<div class="check-row"><input type="checkbox" id="serve-${port}" ${on ? "checked" : ""}>
+          <label for="serve-${port}">Port ${port}</label></div>`);
+        host.appendChild(row);
+        row.querySelector("input").addEventListener("change", async (e) => {
+          e.target.disabled = true;
+          try {
+            await api(`/api/hostagent/stacks/${encodeURIComponent(name)}/serve`, {
+              method: "POST", body: { port, on: e.target.checked } });
+            toast(`Serve ${e.target.checked ? "enabled" : "disabled"} for port ${port}.`, "success");
+          } catch (err) { toast(err.message, "danger"); e.target.checked = !e.target.checked; }
+          e.target.disabled = false;
+        });
+      }
     },
   };
 
@@ -971,6 +1006,78 @@ async function viewSettings() {
   });
 
   renderTfa(document.getElementById("tfaHost"));
+  await renderHostAgentPanel();
+}
+
+async function renderHostAgentPanel() {
+  const panel = el(`<div class="panel"><div class="panel-head"><h2>Host (Tailscale &amp; updates)</h2></div>
+    <div id="hostAgentBody"><p class="hint">Checking…</p></div></div>`);
+  content.appendChild(panel);
+  const body = panel.querySelector("#hostAgentBody");
+  let status;
+  try { status = await api("/api/hostagent/status"); } catch (e) { status = { available: false }; }
+
+  if (!status.available) {
+    body.innerHTML = `<p>Not set up. This is entirely optional and separate from everything else Dockle
+      does - it's a small helper that runs directly on your server (not in a container) so Dockle can
+      check host OS updates and manage Tailscale Serve, neither of which the Docker connection alone
+      can reach. See <code>agent/install.sh</code> in the repo and the runbook for the one-time setup.</p>`;
+    return;
+  }
+
+  const os = status.os || {};
+  const ts = status.tailscale || {};
+  body.innerHTML = `<div class="form-grid">
+    <div>
+      <h3>Host OS updates</h3>
+      <p class="hint">${esc(os.name || "Unknown OS")}${os.supported ? "" : " - not Debian/Ubuntu, updates aren't available here"}</p>
+      ${os.supported ? `<div class="btn-row">
+        <button class="btn" id="osCheckBtn">Check for updates</button>
+        <button class="btn btn-primary" id="osApplyBtn" disabled>Apply updates</button></div>
+      <p class="hint" id="osResult"></p>` : ""}
+    </div>
+    <div>
+      <h3>Tailscale</h3>
+      ${!ts.installed
+        ? '<p class="hint">Not installed on this host.</p><button class="btn" id="tsInstallBtn">Install Tailscale</button>'
+        : `<p class="hint">${ts.running ? "✓ Running" : "Installed, not running"}${ts.dnsName ? ` - <code>${esc(ts.dnsName)}</code>` : ""}</p>`}
+    </div>
+  </div>`;
+
+  if (os.supported) {
+    let checkedCount = 0;
+    body.querySelector("#osCheckBtn").addEventListener("click", async (e) => {
+      e.target.disabled = true; e.target.textContent = "Checking…";
+      try {
+        const r = await api("/api/hostagent/os-update-check", { method: "POST", body: {} });
+        checkedCount = r.upgradable;
+        body.querySelector("#osResult").textContent = r.upgradable
+          ? `${r.upgradable} package(s) can be updated.` : "Everything is up to date.";
+        body.querySelector("#osApplyBtn").disabled = r.upgradable === 0;
+      } catch (err) { toast(err.message, "danger"); }
+      e.target.disabled = false; e.target.textContent = "Check for updates";
+    });
+    body.querySelector("#osApplyBtn").addEventListener("click", async (e) => {
+      e.target.disabled = true; e.target.textContent = "Applying…";
+      try {
+        await api("/api/hostagent/os-update-apply", { method: "POST", body: {} });
+        toast("Host packages updated.", "success");
+        body.querySelector("#osResult").textContent = "Up to date.";
+      } catch (err) { toast(err.message, "danger"); }
+      e.target.disabled = true; e.target.textContent = "Apply updates";
+    });
+  }
+  if (!ts.installed) {
+    body.querySelector("#tsInstallBtn").addEventListener("click", async (e) => {
+      e.target.disabled = true; e.target.textContent = "Installing…";
+      try {
+        const r = await api("/api/hostagent/tailscale/install", { method: "POST", body: {} });
+        toast(r.message, "success");
+        panel.remove();
+        await renderHostAgentPanel();
+      } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Install Tailscale"; }
+    });
+  }
 }
 
 async function renderTfa(host) {

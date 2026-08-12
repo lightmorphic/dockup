@@ -31,13 +31,14 @@ def create_app():
     db.init()
     app.teardown_appcontext(db.close)
 
-    from . import auth, backup, maintenance, settings_api, stacks, views
+    from . import auth, backup, hostagent_api, maintenance, settings_api, stacks, views
     app.register_blueprint(views.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(stacks.bp)
     app.register_blueprint(maintenance.bp)
     app.register_blueprint(settings_api.bp)
     app.register_blueprint(backup.bp)
+    app.register_blueprint(hostagent_api.bp)
 
     from .sockets import sock
     sock.init_app(app)
