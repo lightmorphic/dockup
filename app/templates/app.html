@@ -26,6 +26,12 @@
     </a>
     <span class="engine-badge" id="engineBadge" role="status">checking…</span>
     <span class="spacer"></span>
+    <button class="icon-btn hidden" id="topbarDockerRestartBtn" data-tip="Restart Docker" aria-label="Restart Docker">
+      <svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="icon-btn hidden" id="topbarRebootBtn" data-tip="Reboot server" aria-label="Reboot server">
+      <svg viewBox="0 0 24 24"><path d="M12 3v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
     <form method="post" action="/logout" class="inline-form">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out">

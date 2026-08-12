@@ -205,7 +205,6 @@ const ICONS = {
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   tick: '<svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  power: '<svg viewBox="0 0 24 24"><path d="M12 3v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
 };
 
 /* ---------- sidebar / engine ---------- */
@@ -1322,15 +1321,8 @@ async function renderHostCompanionPanel() {
         ? '<p class="hint">Not installed on this host.</p><button class="btn" id="tsInstallBtn">Install Tailscale</button>'
         : `<p class="hint">${ts.running ? "✓ Running" : "Installed, not running"}${ts.dnsName ? ` - <code>${esc(ts.dnsName)}</code>` : ""}</p>`}
     </div>
-    <div>
-      <h3>Host power</h3>
-      <div class="btn-row">
-        <button class="icon-btn" id="dockerRestartBtn" data-tip="Restart Docker" aria-label="Restart Docker">${ICONS.restart}</button>
-        <button class="icon-btn" id="rebootBtn" data-tip="Reboot server" aria-label="Reboot server">${ICONS.power}</button>
-      </div>
-      <p class="hint">Click twice to confirm. Restarting Docker briefly disconnects Dockle (comes back on its own); rebooting takes the whole server down for a minute or two.</p>
-    </div>
-  </div>`;
+  </div>
+  <p class="hint mt-lg">Restart Docker and Reboot server are up in the top bar, next to Sign out.</p>`;
 
   if (os.supported) {
     let checkedCount = 0;
@@ -1366,15 +1358,27 @@ async function renderHostCompanionPanel() {
       } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Install Tailscale"; }
     });
   }
+}
 
-  const dockerRestartBtn = body.querySelector("#dockerRestartBtn");
+/* Top bar's Restart Docker / Reboot server buttons - checked once at
+   boot (not per-route, the top bar is static markup) and shown only
+   if the companion is actually installed, since both need real host
+   access the Docker socket alone can't reach. */
+async function initHostPowerButtons() {
+  let status;
+  try { status = await api("/api/hostcompanion/status"); } catch (e) { return; }
+  if (!status.available) return;
+
+  const dockerRestartBtn = document.getElementById("topbarDockerRestartBtn");
+  dockerRestartBtn.classList.remove("hidden");
   dockerRestartBtn.dataset.tipOrig = "Restart Docker";
   armedAction(dockerRestartBtn, async () => {
     const r = await api("/api/hostcompanion/docker-restart", { method: "POST", body: {} });
     toast(r.message, "success");
   }, "restart Docker on the host");
 
-  const rebootBtn = body.querySelector("#rebootBtn");
+  const rebootBtn = document.getElementById("topbarRebootBtn");
+  rebootBtn.classList.remove("hidden");
   rebootBtn.dataset.tipOrig = "Reboot server";
   armedAction(rebootBtn, async () => {
     const r = await api("/api/hostcompanion/reboot", { method: "POST", body: {} });
@@ -1449,5 +1453,6 @@ applyTheme();
 applyAccent(localStorage.getItem("dockle-accent") || "");
 refreshStacks().then(route);
 setInterval(() => { if ((location.hash || "#/") === "#/") refreshStacks(); }, 15000);
+initHostPowerButtons();
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/static/sw.js");
