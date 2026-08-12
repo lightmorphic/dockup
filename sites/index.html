@@ -225,6 +225,20 @@ docker compose up -d --build</code></pre>
     </div>
   </div>
 
+  <h3>Optional: the host agent</h3>
+  <div class="two">
+    <pre><code><span class="c"># only if you want the two features below</span>
+cd agent &amp;&amp; sudo sh install.sh</code></pre>
+    <div class="panel">
+      <h3>Why you'd want it</h3>
+      <p style="color:var(--muted-fg);margin:0">Unlocks host OS update checks and per-stack
+      <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockle can't
+      do through the Docker socket alone. It's the sole part of Dockle that needs root on the actual
+      server rather than just Docker access, which is why it's a separate step you opt into, not
+      something bundled in by default. Skip it entirely and everything else works exactly the same.</p>
+    </div>
+  </div>
+
   <h2>Why not just Dockge?</h2>
   <p style="max-width:65ch">Dockge is a great idea and Dockle borrows its shape unashamedly:
   stacks as plain compose folders, a live editor, a <code>docker run</code> converter, logs and
