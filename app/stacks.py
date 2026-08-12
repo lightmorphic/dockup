@@ -87,9 +87,13 @@ def validate_compose(text):
 
 @bp.get("/stacks")
 def api_list():
-    stacks, engine_error = list_stacks()
+    from . import updatecheck
+    result, engine_error = list_stacks()
+    flags = updatecheck.get_flags()
+    for s in result:
+        s["updateAvailable"] = flags.get(s["name"], False)
     rt = runtime.current()
-    return jsonify({"stacks": stacks, "engine": rt.ping(), "engineError": engine_error})
+    return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error})
 
 
 @bp.get("/stacks/<name>")

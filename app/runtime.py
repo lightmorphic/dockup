@@ -173,3 +173,25 @@ class Runtime:
 
     def pull_image_updates(self, stack_dir, project):
         return self.compose_stream(stack_dir, project, "pull")
+
+    def check_stack_update(self, stack_dir, project) -> bool:
+        """Quietly pull each service's image and compare against what's
+        actually running. True if anything's out of date."""
+        self._run(["compose", "-p", project, "pull", "-q"], timeout=300, cwd=stack_dir)
+        out = self._run(["compose", "-p", project, "ps", "-a", "--format", "{{json .}}"],
+                        timeout=30, cwd=stack_dir)
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            c = json.loads(line)
+            name, image_ref = c.get("Name"), c.get("Image")
+            if not name or not image_ref:
+                continue
+            try:
+                running_id = self._run(["inspect", name, "--format", "{{.Image}}"], timeout=15).strip()
+                latest_id = self._run(["image", "inspect", image_ref, "--format", "{{.Id}}"], timeout=15).strip()
+            except RuntimeError_:
+                continue
+            if running_id and latest_id and running_id != latest_id:
+                return True
+        return False

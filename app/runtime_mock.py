@@ -187,3 +187,9 @@ class MockRuntime:
 
     def pull_image_updates(self, stack_dir, project):
         return self.compose_stream(stack_dir, project, "pull")
+
+    def check_stack_update(self, stack_dir, project) -> bool:
+        # deterministic per project name, so the dashboard has something
+        # to show in mock mode without needing a real registry
+        time.sleep(0.3)
+        return abs(hash(project)) % 3 == 0

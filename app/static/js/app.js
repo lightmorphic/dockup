@@ -95,6 +95,49 @@ function toast(message, kind = "info") {
   toastTimer = setTimeout(() => t.innerHTML = "", 5000);
 }
 
+/* YAML editor: wraps a plain textarea with CodeMirror for syntax
+   colouring, then debounces calls to the server's own compose
+   validator (the single source of truth for "is this valid compose",
+   already used on save) to show inline feedback as you type. */
+function attachYamlEditor(textareaEl) {
+  const frame = document.createElement("div");
+  frame.className = "editor-frame";
+  textareaEl.parentNode.insertBefore(frame, textareaEl);
+  frame.appendChild(textareaEl);
+  const status = document.createElement("div");
+  status.className = "editor-status";
+  status.setAttribute("role", "status");
+  status.innerHTML = '<span class="dot"></span><span class="msg">Checking…</span>';
+  frame.appendChild(status);
+
+  const cm = CodeMirror.fromTextArea(textareaEl, {
+    mode: "yaml", lineNumbers: true, matchBrackets: true,
+    styleActiveLine: true, tabSize: 2, indentUnit: 2,
+    viewportMargin: Infinity,
+  });
+
+  let timer, requestSeq = 0;
+  const setStatus = (cls, msg) => {
+    status.className = "editor-status " + cls;
+    status.querySelector(".msg").textContent = msg;
+  };
+  const check = async () => {
+    const seq = ++requestSeq;
+    const text = cm.getValue();
+    if (!text.trim()) { setStatus("", "Empty"); return; }
+    try {
+      const res = await api("/api/validate", { method: "POST", body: { compose: text } });
+      if (seq !== requestSeq) return; // a newer edit already superseded this check
+      res.ok ? setStatus("ok", "Looks good") : setStatus("bad", res.error);
+    } catch (e) {
+      if (seq === requestSeq) setStatus("", "Couldn't check right now");
+    }
+  };
+  cm.on("change", () => { clearTimeout(timer); timer = setTimeout(check, 600); });
+  check();
+  return cm;
+}
+
 const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
   stop: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="currentColor"/></svg>',
@@ -182,27 +225,52 @@ async function viewDashboard() {
       <p>Create your first stack with <strong>New stack</strong>.</p></div>`;
     return;
   }
-  if (unmanagedCount > 1) {
-    const host = document.getElementById("adoptAllHost");
-    host.appendChild(el(`<div class="panel">
-      <div class="panel-head"><h3>${unmanagedCount} things not adopted yet</h3><span class="spacer"></span>
-        <button class="btn btn-primary" id="adoptAllBtn">Adopt all</button></div>
-      <p class="hint">Copies each one's setup into the stacks folder so Dockle can manage it - nothing running is restarted.
-      Skip anything another manager (like Arcane) already looks after: running two Docker managers over the same
-      containers can fight over the same files.</p></div>`));
-    document.getElementById("adoptAllBtn").addEventListener("click", adoptAll);
+
+  let onboarding = { offerBulkAdopt: false };
+  try { onboarding = await api("/api/onboarding"); } catch (e) { /* non-fatal */ }
+
+  if (onboarding.offerBulkAdopt && unmanagedCount > 0) {
+    renderAdoptPanel({ firstRun: true, count: unmanagedCount });
+  } else if (unmanagedCount > 1) {
+    renderAdoptPanel({ firstRun: false, count: unmanagedCount });
   }
+
   const statusByName = Object.fromEntries(stacksCache.map(s => [s.name, s.status]));
   for (const s of managed) grid.appendChild(managedCard(s));
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
 }
 
-async function adoptAll() {
+function renderAdoptPanel({ firstRun, count }) {
+  const host = document.getElementById("adoptAllHost");
+  const heading = firstRun ? "Welcome to Dockle" : `${count} thing${count === 1 ? "" : "s"} not adopted yet`;
+  const blurb = firstRun
+    ? `Found ${count} thing${count === 1 ? "" : "s"} already running on this system. Adopting copies each one's
+       setup into the stacks folder so Dockle can manage it - nothing running is restarted or changed.`
+    : `Copies each one's setup into the stacks folder so Dockle can manage it - nothing running is restarted.`;
+  host.appendChild(el(`<div class="panel">
+    <div class="panel-head"><h3>${esc(heading)}</h3><span class="spacer"></span>
+      <button class="btn btn-primary" id="adoptAllBtn">Adopt all</button>
+      ${firstRun ? '<button class="btn" id="skipAdoptBtn">Not now</button>' : ""}</div>
+    <p class="hint">${blurb} Skip anything another manager (like Arcane) already looks after - running two
+    Docker managers over the same containers can fight over the same files.</p></div>`));
+  document.getElementById("adoptAllBtn").addEventListener("click", () => adoptAll(firstRun));
+  if (firstRun) {
+    document.getElementById("skipAdoptBtn").addEventListener("click", async () => {
+      try { await api("/api/onboarding/dismiss", { method: "POST", body: {} }); } catch (e) { /* ignore */ }
+      viewDashboard();
+    });
+  }
+}
+
+async function adoptAll(dismissOnboarding) {
   const btn = document.getElementById("adoptAllBtn");
   btn.disabled = true; btn.textContent = "Adopting…";
   try {
     const res = await api("/api/adopt/all", { method: "POST", body: {} });
+    if (dismissOnboarding) {
+      try { await api("/api/onboarding/dismiss", { method: "POST", body: {} }); } catch (e) { /* ignore */ }
+    }
     toast(`Adopted ${res.adopted} of ${res.total}.`, res.adopted === res.total ? "success" : "warning");
     await refreshStacks();
     location.hash = "#/";
@@ -231,6 +299,7 @@ function managedCard(s) {
   const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)} - ${esc(STATUS_TIPS[s.status] || s.status)}">
     <h3>${cardDot(s.status)}${esc(s.name)}</h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
+    ${s.updateAvailable ? '<span class="badge badge-partial" data-tip="A newer image is available - open the stack and press Update">Update available</span>' : ""}
   </div>`);
   const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
   card.addEventListener("click", open);
@@ -305,10 +374,12 @@ function viewNewStack() {
       <button class="btn" id="convertBtn">Convert to compose</button>
     </div></div>`;
 
+  const cm = attachYamlEditor(document.getElementById("composeText"));
+
   document.getElementById("convertBtn").addEventListener("click", async () => {
     try {
       const res = await api("/api/convert", { method: "POST", body: { command: document.getElementById("runCmd").value } });
-      document.getElementById("composeText").value = res.compose;
+      cm.setValue(res.compose);
       toast("Converted - check the compose file, then create the stack.", "success");
     } catch (e) { toast(e.message, "danger"); }
   });
@@ -316,7 +387,7 @@ function viewNewStack() {
     const name = document.getElementById("stackName").value.trim();
     try {
       await api("/api/stacks", { method: "POST", body: {
-        name, compose: document.getElementById("composeText").value,
+        name, compose: cm.getValue(),
         env: document.getElementById("envText").value } });
       toast(`Stack '${name}' created.`, "success");
       await refreshStacks();
@@ -374,7 +445,7 @@ async function viewStack(name) {
     overview() {
       const rows = (s.containers || []).map(c => `<tr>
         <td>${esc(c.name)}</td><td>${esc(c.service || "-")}</td><td>${esc(c.image)}</td>
-        <td><span class="badge badge-${c.state === "running" ? "running" : "stopped"}">${c.state === "running" ? "✓ " : ""}${esc(c.state)}</span></td>
+        <td>${cardDot(c.state)}</td>
         <td class="hint">${esc(c.status)}</td></tr>`).join("");
       tabBody.innerHTML = `<div class="table-wrap"><table>
         <caption>Containers in this stack</caption>
@@ -394,10 +465,11 @@ async function viewStack(name) {
         </div></div>`);
       tabBody.appendChild(form);
       form.querySelector("#editCompose").value = s.compose;
+      const cm = attachYamlEditor(form.querySelector("#editCompose"));
       form.querySelector("#editEnv").value = s.env;
       const save = async () => {
         await api(`/api/stacks/${encodeURIComponent(name)}`, { method: "PUT", body: {
-          compose: form.querySelector("#editCompose").value,
+          compose: cm.getValue(),
           env: form.querySelector("#editEnv").value } });
         toast("Saved.", "success");
       };

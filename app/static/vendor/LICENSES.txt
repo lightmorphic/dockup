@@ -1,1 +1,2 @@
 xterm.js v5.5.0 - https://github.com/xtermjs/xterm.js - MIT licence
+CodeMirror 5.65.16 - https://codemirror.net/5/ - MIT licence

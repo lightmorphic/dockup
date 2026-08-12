@@ -79,4 +79,7 @@ def create_app():
     from . import backup as backup_mod
     backup_mod.start_scheduler()
 
+    from . import updatecheck
+    updatecheck.start()
+
     return app

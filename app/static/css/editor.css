@@ -1,0 +1,37 @@
+/* CodeMirror wrapped in the house look - solid panel, no CM default theme. */
+
+.CodeMirror {
+  height: auto; min-height: 22rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.875rem; line-height: 1.55;
+  background: var(--term-bg); color: #d6d8e0;
+  border-radius: var(--radius);
+  padding: 0.5rem 0;
+}
+.CodeMirror-gutters { background: var(--term-bg); border-right: 1px solid rgba(255,255,255,.08); }
+.CodeMirror-linenumber { color: #565b70; padding: 0 0.75rem; }
+.CodeMirror-cursor { border-left: 1.5px solid var(--accent); }
+.CodeMirror-selected { background: rgba(251, 199, 17, 0.18); }
+.CodeMirror-activeline-background { background: rgba(255,255,255,.04); }
+.CodeMirror-matchingbracket { color: var(--accent) !important; font-weight: 700; }
+
+/* YAML token colours - Lightmorphic palette, not CM's defaults.
+   Matched against .CodeMirror to outrank codemirror.css's own
+   .cm-s-default rules at equal specificity (source order then wins). */
+.CodeMirror .cm-atom { color: #f59bc5; }          /* pink - keys ("image:", "ports:") */
+.CodeMirror .cm-number { color: #8ce1eb; }         /* cyan - bare numbers */
+.CodeMirror .cm-string { color: #aedbb0; }         /* green - quoted values */
+.CodeMirror .cm-comment { color: #8a8fa5; font-style: italic; }
+.CodeMirror .cm-meta { color: #6a6f85; }           /* subtle - colons, punctuation */
+.CodeMirror .cm-tag { color: #fde694; }            /* yellow */
+.CodeMirror .cm-variable, .CodeMirror .cm-property { color: #fafafa; }
+
+.editor-frame { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.editor-status {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8125rem; font-weight: 600; padding: 0.375rem 0.75rem;
+  border-top: 1px solid var(--border); background: var(--muted); color: var(--muted-fg);
+}
+.editor-status.ok { color: var(--success); }
+.editor-status.bad { color: var(--danger); }
+.editor-status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }

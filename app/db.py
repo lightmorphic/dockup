@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     success INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_attempts ON login_attempts(ip, username, ts);
+CREATE TABLE IF NOT EXISTS stack_updates (
+    name TEXT PRIMARY KEY,
+    available INTEGER NOT NULL DEFAULT 0,
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
