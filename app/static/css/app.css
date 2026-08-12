@@ -206,13 +206,21 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 
 /* tooltips: background-coloured pill with outline */
 [data-tip] { position: relative; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after {
+[data-tip]::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   background: var(--bg); color: var(--fg);
   border: 1px solid var(--border); border-radius: 999px;
   padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600;
   white-space: nowrap; pointer-events: none; z-index: 30;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+}
+/* native tooltips don't appear instantly - a short hover delay before
+   showing, but hide promptly once the pointer leaves */
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  opacity: 1; visibility: visible;
+  transition-delay: 0.5s;
 }
 
 /* ---- forms: equal gaps, full-width fields ---- */

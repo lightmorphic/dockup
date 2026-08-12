@@ -213,10 +213,23 @@ async function adoptAll() {
   }
 }
 
+const STATUS_TIPS = {
+  running: "Container is running",
+  partial: "Some containers are running, some aren't",
+  stopped: "Container is down",
+  exited: "Container is down",
+  inactive: "Not deployed",
+};
+
+function cardDot(status) {
+  const cls = status === "running" ? "running" : "down";
+  const tip = STATUS_TIPS[status] || "Container is down";
+  return `<span class="status-dot ${cls}" data-tip="${esc(tip)}" tabindex="0" aria-label="${esc(tip)}"></span>`;
+}
+
 function managedCard(s) {
-  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)}">
-    <h3><span class="status-dot ${s.status}"></span>${esc(s.name)}</h3>
-    <span class="badge badge-${s.status}">${s.status === "running" ? "✓ " : ""}${esc(s.status)}</span>
+  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open stack ${esc(s.name)} - ${esc(STATUS_TIPS[s.status] || s.status)}">
+    <h3>${cardDot(s.status)}${esc(s.name)}</h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
   </div>`);
   const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
@@ -228,8 +241,7 @@ function managedCard(s) {
 function unmanagedCard(p, status) {
   const n = p.containers.length;
   const card = el(`<div class="panel stack-card">
-    <h3><span class="status-dot ${status}"></span>${esc(p.name)}</h3>
-    <span class="badge badge-${status}">${status === "running" ? "✓ " : ""}${esc(status)}</span>
+    <h3>${cardDot(status)}${esc(p.name)}</h3>
     <span class="hint">${n} container${n === 1 ? "" : "s"}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);
@@ -239,7 +251,7 @@ function unmanagedCard(p, status) {
 
 function standaloneCard(c) {
   const card = el(`<div class="panel stack-card">
-    <h3><span class="status-dot ${c.state}"></span>${esc(c.name)}</h3>
+    <h3>${cardDot(c.state)}${esc(c.name)}</h3>
     <span class="hint">${esc(c.image)}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);
