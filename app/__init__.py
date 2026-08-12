@@ -12,6 +12,12 @@ def create_app():
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY=config.SECRET_KEY,
+        # Not Flask's default "session": browsers scope cookies by hostname
+        # only, ignoring the port - so on a homelab where many apps share
+        # one hostname on different ports (e.g. via Tailscale Serve), any
+        # other Flask app using the default name overwrites ours every
+        # time it's open in another tab, silently logging Dockle out.
+        SESSION_COOKIE_NAME="dockle_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         # Off only in mock/dev mode (plain http://localhost). In real use
@@ -60,45 +66,9 @@ def create_app():
         if endpoint in PUBLIC or endpoint.startswith("static"):
             return None
         if not session.get("uid"):
-            # TEMPORARY diagnostic, round 2: the leftover-Arcane-cookie
-            # theory is dead (this reproduced minutes after a full
-            # browser "clear site data", so there was no old cookie left
-            # to collide with). Logging exactly what came in and why it
-            # failed to decode, to catch the next occurrence with real
-            # evidence instead of guessing again.
-            import sys
-            raw_cookie = request.cookies.get("session", "")
-            decode_result = "no cookie sent"
-            if raw_cookie:
-                serializer = app.session_interface.get_signing_serializer(app)
-                try:
-                    data = serializer.loads(raw_cookie)
-                    decode_result = f"decoded OK, keys={list(data.keys())}"
-                except Exception as exc:
-                    try:
-                        _valid, payload = serializer.loads_unsafe(raw_cookie)
-                        payload_desc = f"unverified payload={payload!r}" if payload is not None else "payload unreadable too"
-                    except Exception as exc2:
-                        payload_desc = f"loads_unsafe also failed: {exc2}"
-                    decode_result = f"{type(exc).__name__}: {exc} | {payload_desc}"
-            print(
-                f"[dockle-diag2] no session on {request.method} {request.path} - "
-                f"cookie len: {len(raw_cookie)}, decode: {decode_result}, "
-                f"origin: {request.headers.get('Origin', '-')}, "
-                f"referer: {request.headers.get('Referer', '-')}, "
-                f"cookie header raw len: {len(request.headers.get('Cookie', ''))}, "
-                f"all cookie names: {list(request.cookies.keys())}, "
-                f"UA: {request.headers.get('User-Agent', '?')[:80]}",
-                file=sys.stderr, flush=True,
-            )
             if request.path.startswith("/api/") or request.path.startswith("/ws/"):
-                resp = jsonify({"error": "Not signed in"})
-                resp.status_code = 401
-            else:
-                resp = redirect(url_for("auth.login"))
-            if raw_cookie:
-                resp.delete_cookie("session", path="/")
-            return resp
+                return jsonify({"error": "Not signed in"}), 401
+            return redirect(url_for("auth.login"))
         # CSRF: state-changing requests must echo the session token
         if request.method in ("POST", "PUT", "DELETE") and not request.path.startswith("/ws/"):
             token = request.headers.get("X-CSRF") or request.form.get("csrf")
