@@ -47,4 +47,7 @@ HEALTHCHECK --interval=60s --timeout=5s --start-period=15s \
   CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:5001/health',timeout=4)"
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["gunicorn", "-w", "1", "--threads", "32", "-b", "0.0.0.0:5001", "run:app"]
+CMD ["gunicorn", "-w", "1", "--threads", "32", "-b", "0.0.0.0:5001", \
+     "--access-logfile", "-", "--error-logfile", "-", \
+     "--access-logformat", "%(t)s %(h)s \"%(r)s\" %(s)s rt=%(L)s", \
+     "run:app"]

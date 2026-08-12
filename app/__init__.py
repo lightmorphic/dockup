@@ -60,6 +60,34 @@ def create_app():
         if endpoint in PUBLIC or endpoint.startswith("static"):
             return None
         if not session.get("uid"):
+            # TEMPORARY diagnostic for the recurring "logs out on its own"
+            # report - decodes the incoming cookie server-side to find the
+            # exact failure reason. Never logs the cookie's actual value.
+            import sys
+            raw_cookie = request.cookies.get("session", "")
+            decode_result = "no cookie sent"
+            if raw_cookie:
+                serializer = app.session_interface.get_signing_serializer(app)
+                try:
+                    data = serializer.loads(raw_cookie)
+                    decode_result = f"decoded OK, keys={list(data.keys())}"
+                except Exception as exc:
+                    # loads_unsafe reads the payload even when the signature
+                    # doesn't check out - forensic only, never trusted for auth.
+                    try:
+                        _valid, payload = serializer.loads_unsafe(raw_cookie)
+                        payload_desc = f"unverified payload={payload!r}" if payload is not None else "payload unreadable too"
+                    except Exception as exc2:
+                        payload_desc = f"loads_unsafe also failed: {exc2}"
+                    decode_result = f"{type(exc).__name__}: {exc} | {payload_desc}"
+            print(
+                f"[dockle-diag] no session on {request.method} {request.path} - "
+                f"cookie len: {len(raw_cookie)}, decode: {decode_result}, "
+                f"origin: {request.headers.get('Origin', '-')}, "
+                f"referer: {request.headers.get('Referer', '-')}, "
+                f"UA: {request.headers.get('User-Agent', '?')[:80]}",
+                file=sys.stderr, flush=True,
+            )
             if request.path.startswith("/api/") or request.path.startswith("/ws/"):
                 return jsonify({"error": "Not signed in"}), 401
             return redirect(url_for("auth.login"))
