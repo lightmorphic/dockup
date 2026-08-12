@@ -213,6 +213,21 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
       <h3>Backups that restore</h3>
       <p>Daily automatic backups, one-click restore that's itself reversible, and a download-everything zip. No lock-in, ever.</p>
     </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9.5 12a2.7 2.7 0 0 1 4.5-2M14.5 12a2.7 2.7 0 0 1-4.5 2"/></svg>
+      <h3>Redeploy a stuck container</h3>
+      <p>Recreates a stack from its compose file and whatever image's already pulled - fixes a wedged container without a full re-pull.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2M3 7h18l-1 12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2L3 7z"/></svg>
+      <h3>Archive, don't just delete</h3>
+      <p>A stack with nothing running can be archived - config kept, out of the way - or deleted for good along with every image it used.</p>
+    </div>
+    <div class="panel">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"/></svg>
+      <h3>One click to the real thing</h3>
+      <p>Open a stack's actual web UI in a new tab - its Tailscale Serve address if set up, otherwise whatever address got you to Dockle.</p>
+    </div>
   </div>
 
   <h2 id="install">Install</h2>
@@ -232,7 +247,8 @@ docker compose up -d --build</code></pre>
 
   <h3>Optional: the dockle-companion</h3>
   <div class="two">
-    <pre><code><span class="c"># or just click "Install companion" in Settings once Dockle is up</span>
+    <pre><code><span class="c"># one click in Settings does the whole thing - installs and reconnects</span>
+<span class="c"># or, manually:</span>
 cd companion &amp;&amp; sudo sh install.sh</code></pre>
     <div class="panel">
       <h3>Why you'd want it</h3>
@@ -252,6 +268,14 @@ cd companion &amp;&amp; sudo sh install.sh</code></pre>
   same everyday tool, rebuilt fresh: secure login with 2FA, encrypted settings, email alerts,
   scheduled backups with restores that actually restore - and your stacks folder stays plain
   compose, so you can walk away any time.</p>
+
+  <h2>Need something built?</h2>
+  <div class="panel">
+    <p style="color:var(--muted-fg);margin:0 0 1.25rem">Lightmorphic is the small studio behind
+    Dockle and a handful of other self-hosted, no-lock-in tools. If you've got a web app, an
+    internal tool, or a self-hosted service that needs building, get in touch and we'll take a look.</p>
+    <a class="btn" href="https://code.lightmorphic.co.uk">Get in touch at code.lightmorphic.co.uk</a>
+  </div>
 
 </main>
 
