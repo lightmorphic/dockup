@@ -212,17 +212,17 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .btn-danger { background: var(--danger); color: #fff; border-color: transparent; }
 .btn-danger:hover { filter: brightness(0.92); }
 .btn-block { width: 100%; }
-.btn-icon-square { padding: 0.5rem; width: 44px; flex: none; }
+.btn-icon-square { padding: 0.5rem; width: 44px; flex: none; border-radius: 50%; }
 .flex-1 { flex: 1; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; padding: 0;
-  border-radius: var(--radius); border: 1px solid transparent;
-  background: transparent; color: var(--fg); cursor: pointer;
+  border-radius: 50%; border: 1px solid transparent;
+  background: var(--muted); color: var(--fg); cursor: pointer;
 }
-.icon-btn:hover { background: var(--muted); }
+.icon-btn:hover { background: var(--border); }
 .icon-btn svg { width: 19px; height: 19px; }
 .icon-btn.confirming { background: var(--danger); color: #fff; }
 .icon-btn.success-flash { background: var(--success); color: #fff; }
