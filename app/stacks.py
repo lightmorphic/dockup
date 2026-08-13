@@ -107,13 +107,38 @@ def validate_compose(text):
 
 @bp.get("/stacks")
 def api_list():
-    from . import updatecheck
+    from . import hostcompanion, updatecheck
     result, engine_error = list_stacks()
     flags = updatecheck.get_flags()
+
+    # One companion round-trip for the whole list, not one per stack -
+    # every card's "open web UI" link and served-port state comes from
+    # this single check.
+    served_ports, dns_name = [], ""
+    try:
+        if hostcompanion.is_available():
+            served_ports = hostcompanion.tailscale_serve_list().get("ports", [])
+            dns_name = hostcompanion.tailscale_status().get("dnsName", "")
+    except hostcompanion.CompanionUnavailable:
+        pass
+
     for s in result:
         s["updateAvailable"] = flags.get(s["name"], False)
+        ports = []
+        if s["managed"]:
+            try:
+                cp = compose_path(s["name"])
+                compose_text = cp.read_text() if cp.exists() else ""
+                envp = stack_dir(s["name"]) / ".env"
+                env_text = envp.read_text() if envp.exists() else ""
+                ports = hostcompanion.published_ports(compose_text, env_text)
+            except (ValueError, OSError):
+                pass
+        s["ports"] = ports
+        s["served"] = [p for p in ports if p in served_ports]
+
     rt = runtime.current()
-    return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error})
+    return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error, "dnsName": dns_name})
 
 
 @bp.get("/stacks/<name>")
@@ -557,6 +582,24 @@ def _update_one(name, d, rt):
         return False, str(exc)
     finally:
         _tailscale_resume_ports(paused_ports)
+
+
+@bp.post("/stacks/<name>/quick-update")
+def api_quick_update(name):
+    """One-click update straight from a dashboard card - same pull +
+    redeploy _update_one already does for Update all, just for a
+    single stack without needing the stack detail page's live output."""
+    try:
+        d = stack_dir(name)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not d.exists():
+        return jsonify({"error": f"'{name}' hasn't been adopted into the stacks folder yet"}), 404
+    rt = runtime.current()
+    ok, message = _update_one(name, d, rt)
+    if not ok:
+        return jsonify({"error": message}), 400
+    return jsonify({"ok": True, "message": message})
 
 
 @bp.post("/stacks/update-all")

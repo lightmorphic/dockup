@@ -8,6 +8,7 @@ const engineBadge = document.getElementById("engineBadge");
 
 let stacksCache = [];
 let liveSockets = [];
+let dashboardDnsName = "";
 
 /* ---------- helpers ---------- */
 
@@ -213,6 +214,7 @@ async function refreshStacks() {
   try {
     const data = await api("/api/stacks");
     stacksCache = data.stacks;
+    dashboardDnsName = data.dnsName || "";
     const e = data.engine || {};
     engineBadge.textContent = e.ok ? `✓ ${e.engine} ${e.version}` : "! engine unreachable";
     engineBadge.className = "engine-badge " + (e.ok ? "ok" : "bad");
@@ -442,16 +444,20 @@ async function adoptAll(dismissOnboarding) {
 
 const STATUS_TIPS = {
   running: "Container is running",
+  update: "Update available - click to update",
   warning: "Warnings - check the log",
   partial: "Container is down",
   stopped: "Container is down",
   exited: "Container is down",
   inactive: "No container - ready to archive or delete",
 };
-// "inactive" (no container at all) isn't a problem the way stopped/
-// partial/exited are - it gets its own neutral gray rather than
-// falling through to the base rule's red.
-const STATUS_DOT_CLASS = { running: "running", warning: "warning", inactive: "inactive" };
+// Three colors on a dashboard card: green (good), yellow (update
+// ready - click it), red (everything else that isn't simply running,
+// including health warnings - a single "something needs attention"
+// signal rather than a separate shade for each cause). "inactive" (no
+// container at all) is the one exception - not a problem, its own
+// neutral gray.
+const STATUS_DOT_CLASS = { running: "running", update: "update", inactive: "inactive" };
 
 function cardDot(status) {
   const cls = STATUS_DOT_CLASS[status] || "";
@@ -459,23 +465,65 @@ function cardDot(status) {
   return `<span class="status-dot ${cls}" data-tip="${esc(tip)}" tabindex="0" aria-label="${esc(tip)}"></span>`;
 }
 
-const UPDATE_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 17v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" stroke="currentColor" stroke-width="2.25" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
 function managedCard(s) {
-  const label = `Open stack ${s.name} - ${STATUS_TIPS[s.status] || s.status}${s.updateAvailable ? ", update available" : ""}`;
+  const updateReady = !!s.updateAvailable;
+  const effectiveStatus = updateReady ? "update" : s.status;
+  const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
+  const port = s.ports && s.ports.length ? s.ports[0] : null;
+  // Only offer to open it when something's actually running to answer -
+  // the port is real either way (straight off the compose file), but a
+  // link to a dead container is just a broken tab.
+  const reachable = s.status === "running" || s.status === "partial";
+  const webUrl = port && reachable
+    ? (s.served && s.served.includes(port) && dashboardDnsName
+        ? `https://${dashboardDnsName}:${port}`
+        : `http://${location.hostname}:${port}`)
+    : null;
   const inactive = s.status === "inactive";
+  const label = `Open stack ${s.name} - ${dotTip}`;
   const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="${esc(label)}">
-    ${s.updateAvailable ? `<span class="update-flag" data-tip="Update available - open the stack and press Update">${UPDATE_ICON}</span>` : ""}
-    <h3>${cardDot(s.status)}<span>${esc(s.name)}</span></h3>
-    <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}</span>
-    ${inactive ? `<div class="btn-row card-actions">
-      <button class="btn" id="archiveBtn">Archive</button>
-      <button class="btn btn-danger" id="purgeBtn">Delete</button>
+    <h3><span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" data-tip="${esc(dotTip)}"
+      ${updateReady ? 'role="button"' : ""} tabindex="0" aria-label="${esc(dotTip)}"></span><span>${esc(s.name)}</span></h3>
+    <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}${port ? ` · port ${port}` : ""}</span>
+    ${webUrl || inactive ? `<div class="btn-row card-actions">
+      ${webUrl ? `<a class="icon-btn" href="${esc(webUrl)}" target="_blank" rel="noopener" data-tip="Open web UI" aria-label="Open web UI">${ICONS.external}</a>` : ""}
+      ${inactive ? `<button class="btn" id="archiveBtn">Archive</button>
+      <button class="btn btn-danger" id="purgeBtn">Delete</button>` : ""}
     </div>` : ""}
   </div>`);
   const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
   card.addEventListener("click", open);
   card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+
+  const webLink = card.querySelector("a.icon-btn");
+  if (webLink) {
+    webLink.addEventListener("click", e => e.stopPropagation());
+    webLink.addEventListener("keydown", e => e.stopPropagation());
+  }
+
+  if (updateReady) {
+    const dot = card.querySelector(".status-dot");
+    const runUpdate = async (e) => {
+      e.stopPropagation();
+      dot.classList.add("busy");
+      dot.dataset.tip = "Updating…";
+      try {
+        const r = await api(`/api/stacks/${encodeURIComponent(s.name)}/quick-update`, { method: "POST", body: {} });
+        toast(r.message || `'${s.name}' updated.`, "success");
+        await refreshStacks();
+        if ((location.hash || "#/") === "#/") viewDashboard();
+      } catch (err) {
+        toast(err.message, "danger");
+        dot.classList.remove("busy");
+        dot.dataset.tip = "Update available - click to update";
+      }
+    };
+    dot.addEventListener("click", runUpdate);
+    dot.addEventListener("keydown", e => {
+      e.stopPropagation();
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); runUpdate(e); }
+    });
+  }
 
   if (inactive) {
     const archiveBtn = card.querySelector("#archiveBtn");
