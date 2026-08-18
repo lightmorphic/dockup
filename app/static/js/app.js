@@ -637,7 +637,7 @@ const COMPOSE_TEMPLATE = `services:
     container_name: my-app
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8001:80"
 `;
 
 function viewNewStack() {
