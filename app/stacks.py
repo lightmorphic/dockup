@@ -102,6 +102,80 @@ def validate_compose(text):
     return None
 
 
+_LIVE_PORT_RE = re.compile(r":(\d+)->")
+
+
+def _declared_ports_by_stack(exclude=""):
+    """port -> stack name, from every OTHER managed stack's own compose
+    file. Checked even if that stack isn't currently running, since the
+    whole point is to catch a collision before either side is deployed."""
+    from . import hostcompanion
+    result = {}
+    if not config.STACKS_DIR.exists():
+        return result
+    for d in sorted(config.STACKS_DIR.iterdir()):
+        if d.name.startswith(".") or d.name == exclude:
+            continue
+        if not d.is_dir() or not any((d / f).exists() for f in config.COMPOSE_FILENAMES):
+            continue
+        try:
+            cp = compose_path(d.name)
+            compose_text = cp.read_text() if cp.exists() else ""
+            envp = d / ".env"
+            env_text = envp.read_text() if envp.exists() else ""
+            ports = hostcompanion.published_ports(compose_text, env_text)
+        except OSError:
+            continue
+        for p in ports:
+            result.setdefault(p, d.name)
+    return result
+
+
+def _live_bound_ports(exclude_names=frozenset()):
+    """port -> container name, from every running container's actual
+    port binding right now - catches anything Dockle doesn't manage
+    (adopted elsewhere, started with a bare `docker run`) that a
+    compose-file-only comparison would miss."""
+    result = {}
+    try:
+        containers = runtime.current().ps()
+    except runtime.RuntimeError_:
+        return result
+    for c in containers:
+        if c["state"] != "running" or c["name"] in exclude_names:
+            continue
+        for m in _LIVE_PORT_RE.finditer(c.get("ports", "")):
+            result.setdefault(int(m.group(1)), c["name"])
+    return result
+
+
+def check_port_conflicts(name, compose_text, env_text):
+    """Ports this compose file would publish that collide with another
+    managed stack's declared ports, or with any container's actual live
+    binding right now. Returns [{"port": int, "with": str}, ...]."""
+    from . import hostcompanion
+    try:
+        ports = hostcompanion.published_ports(compose_text, env_text)
+    except Exception:
+        return []
+    if not ports:
+        return []
+    declared = _declared_ports_by_stack(exclude=name)
+    own_containers = set()
+    if name:
+        try:
+            own_containers = {c["name"] for c in runtime.current().ps() if c.get("project") == name}
+        except runtime.RuntimeError_:
+            pass
+    live = _live_bound_ports(exclude_names=own_containers)
+    conflicts = []
+    for p in ports:
+        source = declared.get(p) or live.get(p)
+        if source and source != name:
+            conflicts.append({"port": p, "with": source})
+    return conflicts
+
+
 # -- API ----------------------------------------------------------------
 
 
@@ -143,6 +217,7 @@ def api_list():
 
 @bp.get("/stacks/<name>")
 def api_get(name):
+    from . import updatecheck
     d = stack_dir(name)
     cp = compose_path(name)
     envp = d / ".env"
@@ -157,6 +232,7 @@ def api_get(name):
         "env": envp.read_text() if envp.exists() else "",
         "status": (match or {}).get("status", "inactive"),
         "containers": (match or {}).get("containers", []),
+        "updateAvailable": updatecheck.get_flags().get(name, False),
     })
 
 
@@ -641,6 +717,25 @@ def api_check_updates_status():
     return jsonify({"checking": updatecheck.is_checking()})
 
 
+@bp.post("/stacks/<name>/check-update")
+def api_check_update_one(name):
+    """Force an update check for just this stack, from its own detail
+    page - a real `docker compose pull` against this stack only, not
+    the full sweep."""
+    from . import updatecheck
+    try:
+        d = stack_dir(name)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not d.exists():
+        return jsonify({"error": f"'{name}' hasn't been adopted into the stacks folder yet"}), 404
+    try:
+        available = updatecheck.check_one(name)
+    except runtime.RuntimeError_ as exc:
+        return jsonify({"error": str(exc)}), 502
+    return jsonify({"ok": True, "available": available})
+
+
 @bp.get("/discover")
 def api_discover():
     """What's running on this system that Dockle doesn't manage yet?"""
@@ -795,8 +890,12 @@ def api_convert():
 @bp.post("/validate")
 def api_validate():
     data = request.get_json(force=True)
-    problem = validate_compose(data.get("compose", ""))
-    return jsonify({"ok": problem is None, "error": problem})
+    compose_text = data.get("compose", "")
+    problem = validate_compose(compose_text)
+    conflicts = []
+    if problem is None:
+        conflicts = check_port_conflicts(data.get("name", ""), compose_text, data.get("env", ""))
+    return jsonify({"ok": problem is None, "error": problem, "portConflicts": conflicts})
 
 
 @bp.get("/stacks/<name>/backups")

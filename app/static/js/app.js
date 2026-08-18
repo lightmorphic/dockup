@@ -150,7 +150,7 @@ function toast(message, kind = "info") {
    monospace, line numbers. YAML mode additionally debounces calls to
    the server's own compose validator (the single source of truth for
    "is this valid compose", already used on save) for inline feedback. */
-function attachCodeEditor(textareaEl, { mode = null, validate = false } = {}) {
+function attachCodeEditor(textareaEl, { mode = null, validate = false, getName = null, getEnv = null } = {}) {
   const frame = document.createElement("div");
   frame.className = "editor-frame";
   textareaEl.parentNode.insertBefore(frame, textareaEl);
@@ -163,6 +163,8 @@ function attachCodeEditor(textareaEl, { mode = null, validate = false } = {}) {
   });
 
   if (!validate) return cm;
+
+  cm.recheck = () => check();
 
   const status = document.createElement("div");
   status.className = "editor-status";
@@ -179,10 +181,20 @@ function attachCodeEditor(textareaEl, { mode = null, validate = false } = {}) {
     const seq = ++requestSeq;
     const text = cm.getValue();
     if (!text.trim()) { setStatus("", "Empty"); return; }
+    const body = { compose: text };
+    if (getName) body.name = getName();
+    if (getEnv) body.env = getEnv();
     try {
-      const res = await api("/api/validate", { method: "POST", body: { compose: text } });
+      const res = await api("/api/validate", { method: "POST", body });
       if (seq !== requestSeq) return; // a newer edit already superseded this check
-      res.ok ? setStatus("ok", "Looks good") : setStatus("bad", res.error);
+      if (!res.ok) { setStatus("bad", res.error); return; }
+      if (res.portConflicts && res.portConflicts.length) {
+        const msg = res.portConflicts
+          .map(c => `port ${c.port} is already used by '${c.with}'`).join("; ");
+        setStatus("warn", `Looks good, but ${msg}`);
+      } else {
+        setStatus("ok", "Looks good");
+      }
     } catch (e) {
       if (seq === requestSeq) setStatus("", "Couldn't check right now");
     }
@@ -192,8 +204,8 @@ function attachCodeEditor(textareaEl, { mode = null, validate = false } = {}) {
   return cm;
 }
 
-function attachYamlEditor(textareaEl) {
-  return attachCodeEditor(textareaEl, { mode: "yaml", validate: true });
+function attachYamlEditor(textareaEl, opts = {}) {
+  return attachCodeEditor(textareaEl, { mode: "yaml", validate: true, ...opts });
 }
 
 const ICONS = {
@@ -206,6 +218,7 @@ const ICONS = {
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   tick: '<svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
 };
 
 /* ---------- sidebar / engine ---------- */
@@ -625,14 +638,20 @@ function viewNewStack() {
       <button class="btn" id="convertBtn">Convert to compose</button>
     </div></div>`;
 
-  const cm = attachYamlEditor(document.getElementById("composeText"));
-  const envCm = attachCodeEditor(document.getElementById("envText"));
+  let envCm; // assigned below; referenced by cm's live port-conflict check
+  const nameInput = document.getElementById("stackName");
+  const cm = attachYamlEditor(document.getElementById("composeText"), {
+    getName: () => nameInput.value.trim(),
+    getEnv: () => envCm ? envCm.getValue() : "",
+  });
+  envCm = attachCodeEditor(document.getElementById("envText"));
+  let envTimer;
+  envCm.on("change", () => { clearTimeout(envTimer); envTimer = setTimeout(() => cm.recheck(), 600); });
 
   // Block disallowed characters at the source instead of complaining
   // later: anything typed or pasted that isn't lowercase/digit/-/_ just
   // never appears in the box (uppercase letters are folded to lowercase
   // rather than dropped, so pasting "Jellyfin" still gives "jellyfin").
-  const nameInput = document.getElementById("stackName");
   nameInput.addEventListener("input", () => {
     const cleaned = nameInput.value.toLowerCase().replace(/[^a-z0-9_-]/g, "");
     if (nameInput.value !== cleaned) {
@@ -640,6 +659,7 @@ function viewNewStack() {
       nameInput.value = cleaned;
       nameInput.setSelectionRange(Math.max(0, pos), Math.max(0, pos));
     }
+    cm.recheck();
   });
 
   document.getElementById("convertBtn").addEventListener("click", async () => {
@@ -693,10 +713,16 @@ async function viewStack(name) {
   catch (e) { content.innerHTML = `<p class="alert alert-danger">! ${esc(e.message)}</p>`; return; }
 
   content.innerHTML = "";
+  const effectiveStatus = s.updateAvailable ? "update" : s.status;
+  const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
   const head = el(`<div class="panel"><div class="panel-head">
+      <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
+        data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
       <h1 class="stack-title">${esc(name)}</h1>
       <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
         target="_blank" rel="noopener" href="#">${ICONS.external}</a>
+      <button class="icon-btn" id="checkUpdateBtn" data-tip="Check this stack for an update right now"
+        aria-label="Check for an update">${ICONS.search}</button>
       <span class="spacer"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
@@ -710,6 +736,26 @@ async function viewStack(name) {
   </div>`);
   content.appendChild(head);
   resolveWebUiLink(name, head.querySelector("#openWebBtn"));
+
+  const checkBtn = head.querySelector("#checkUpdateBtn");
+  const statusDot = head.querySelector("#stackStatusDot");
+  checkBtn.addEventListener("click", async () => {
+    checkBtn.disabled = true;
+    try {
+      const res = await api(`/api/stacks/${encodeURIComponent(name)}/check-update`, { method: "POST", body: {} });
+      s.updateAvailable = res.available;
+      const eff = res.available ? "update" : s.status;
+      const tip = STATUS_TIPS[eff] || "Container is down";
+      statusDot.className = `status-dot ${STATUS_DOT_CLASS[eff] || ""}`;
+      statusDot.dataset.tip = tip;
+      statusDot.setAttribute("aria-label", tip);
+      toast(res.available ? "An update is available." : "Already up to date.", res.available ? "info" : "success");
+    } catch (e) {
+      toast(e.message, "danger");
+    } finally {
+      checkBtn.disabled = false;
+    }
+  });
 
   const tabs = el(`<div class="panel">
     <div class="tabs" role="tablist">
@@ -760,9 +806,15 @@ async function viewStack(name) {
         </div></div>`);
       tabBody.appendChild(form);
       form.querySelector("#editCompose").value = s.compose;
-      const cm = attachYamlEditor(form.querySelector("#editCompose"));
       form.querySelector("#editEnv").value = s.env;
-      const envCm = attachCodeEditor(form.querySelector("#editEnv"));
+      let envCm; // assigned below; referenced by cm's live port-conflict check
+      const cm = attachYamlEditor(form.querySelector("#editCompose"), {
+        getName: () => name,
+        getEnv: () => envCm ? envCm.getValue() : "",
+      });
+      envCm = attachCodeEditor(form.querySelector("#editEnv"));
+      let envTimer;
+      envCm.on("change", () => { clearTimeout(envTimer); envTimer = setTimeout(() => cm.recheck(), 600); });
       const save = async () => {
         await api(`/api/stacks/${encodeURIComponent(name)}`, { method: "PUT", body: {
           compose: cm.getValue(),

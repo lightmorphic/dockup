@@ -123,6 +123,7 @@ class Runtime:
                 "service": labels.get("com.docker.compose.service", ""),
                 "workingDir": labels.get("com.docker.compose.project.working_dir", ""),
                 "configFiles": labels.get("com.docker.compose.project.config_files", ""),
+                "ports": c.get("Ports", ""),
             })
         return rows
 

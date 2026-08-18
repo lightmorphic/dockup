@@ -42,5 +42,6 @@
   border-top: 1px solid var(--border); background: var(--muted); color: var(--muted-fg);
 }
 .editor-status.ok { color: var(--success); }
+.editor-status.warn { color: var(--warning); }
 .editor-status.bad { color: var(--danger); }
 .editor-status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }

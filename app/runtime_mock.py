@@ -87,7 +87,7 @@ class MockRuntime:
                     "status": "Up 2 hours" if state == "running" else "Exited (0) 10 minutes ago",
                     "project": project,
                     "service": svc,
-                    "workingDir": "", "configFiles": "",
+                    "workingDir": "", "configFiles": "", "ports": "",
                 })
         if not self.adopted("homeassistant"):
             rows.append({

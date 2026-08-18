@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.4.0 - 2026-08-18
+
+- Port-conflict warnings: creating or editing a compose file now checks
+  every port it publishes against every other managed stack's declared
+  ports and every container's actual live binding, and shows an inline
+  warning before you ever hit deploy - instead of finding out from a
+  failed "address already in use" after the fact
+- Stack detail page: a status dot (green running, yellow update ready,
+  red an issue, gray no container) next to the title, plus a button to
+  force an update check for just that one stack without waiting for
+  the dashboard's full sweep
+- Reboot server and Restart Docker actions, moved to the top bar next
+  to Sign out
+- Redeploy failures caused by a network that predates Dockle managing
+  a stack now self-heal automatically instead of failing every time
+- Dashboard cards show the stack's port and an open-web-UI link, and
+  the status dot itself doubles as a one-click update button when
+  yellow
+- Icon buttons are circular across the app, matching the house style
+- Container runtime hardened: capabilities dropped to only what the
+  entrypoint's privilege drop needs, no-new-privileges, a process and
+  memory ceiling, and rotated logs
+
 ## 1.3.0 - 2026-08-12
 
 - Companion install is now fully automated end to end: after installing

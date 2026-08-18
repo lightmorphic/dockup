@@ -52,6 +52,21 @@ def check_all():
             _checking = False
 
 
+def check_one(name: str) -> bool:
+    """Check a single stack right now, for the "force a check" control on
+    its own detail page - doesn't touch the shared _checking lock, since
+    it's a targeted one-stack pull rather than the full sweep."""
+    available = runtime.current().check_stack_update(str(stacks.stack_dir(name)), name)
+    con = db.get()
+    with con:
+        con.execute(
+            "INSERT INTO stack_updates(name, available, checked_at) VALUES(?,?,datetime('now')) "
+            "ON CONFLICT(name) DO UPDATE SET available=excluded.available, checked_at=excluded.checked_at",
+            (name, 1 if available else 0),
+        )
+    return available
+
+
 def loop(app):
     while True:
         try:
