@@ -27,6 +27,11 @@
   --radius: 0.875rem;
   --panel-radius: 1.375rem;
   --term-bg: #101116;
+
+  /* tooltip/alert bubble: always inverted from the page - dark bubble
+     on a light page, light bubble on a dark page - so it pops regardless
+     of theme, the same way a native OS tooltip does. */
+  --tip-bg: #1c1c1f;  --tip-fg: #fafafa;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +46,7 @@
     --success: #4bae4f;  --success-bg: #102611;
     --warning: #ffc006;  --warning-bg: #382a01;
     --info: #2295f1;     --info-bg: #072135;
+    --tip-bg: #fafafa;  --tip-fg: #1c1c1f;
   }
   .logo-navy { fill: #fafafa; }
 }
@@ -56,6 +62,7 @@
   --success: #4bae4f;  --success-bg: #102611;
   --warning: #ffc006;  --warning-bg: #382a01;
   --info: #2295f1;     --info-bg: #072135;
+  --tip-bg: #fafafa;  --tip-fg: #1c1c1f;
 }
 :root[data-theme="dark"] .logo-navy { fill: #fafafa; }
 
@@ -70,6 +77,7 @@
   --success: #38813a;  --success-bg: #f2f9f3;
   --warning: #8f6c03;  --warning-bg: #fffbee;
   --info: #1b74bc;     --info-bg: #f0f8fe;
+  --tip-bg: #1c1c1f;  --tip-fg: #fafafa;
 }
 :root[data-theme="light"] .logo-navy { fill: #111827; }
 
@@ -230,32 +238,47 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .icon-btn.update-ready { color: var(--warning); }
 .icon-btn.busy { animation: dot-pulse 1s ease-in-out infinite; }
 
-/* tooltips: informational, not an action - muted surface + plain
-   foreground text, never the accent colour */
+/* tooltip/alert bubble: dark-on-light or light-on-dark (always inverted
+   from the page, see --tip-bg/--tip-fg), with a small arrow pointing
+   down at whatever element it's attached to. The single mechanism for
+   both hover-help tooltips and contextual action alerts (replacing the
+   old bottom-of-page toast) - severity, when there is one, is a text
+   colour on the same neutral bubble, not a different background. */
 [data-tip] { position: relative; }
 [data-tip]::after {
   content: attr(data-tip);
-  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-  background: var(--muted); color: var(--fg);
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  background: var(--tip-bg); color: var(--tip-fg);
   border: none; border-radius: var(--radius);
   box-shadow: var(--shadow-panel);
   padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600;
-  white-space: nowrap; pointer-events: none; z-index: 30;
+  white-space: nowrap; pointer-events: none; z-index: 60;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+}
+[data-tip]::before {
+  content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: var(--tip-bg);
+  pointer-events: none; z-index: 60;
   opacity: 0; visibility: hidden;
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
 /* native tooltips don't appear instantly - a short hover delay before
    showing, but hide promptly once the pointer leaves */
-[data-tip]:hover::after, [data-tip]:focus-visible::after {
+[data-tip]:hover::after, [data-tip]:focus-visible::after,
+[data-tip]:hover::before, [data-tip]:focus-visible::before {
   opacity: 1; visibility: visible;
   transition-delay: 0.5s;
 }
 /* forced open from JS - e.g. the result of a click, not a hover - so it
    needs to appear instantly, no hover delay */
-[data-tip].tip-visible::after {
+[data-tip].tip-visible::after, [data-tip].tip-visible::before {
   opacity: 1; visibility: visible;
   transition-delay: 0s;
 }
+[data-tip].tip-danger::after { color: var(--danger); }
+[data-tip].tip-success::after { color: var(--success); }
+[data-tip].tip-warning::after { color: var(--warning); }
 
 /* ---- forms: equal gaps, full-width fields ---- */
 
@@ -437,10 +460,6 @@ tr:last-child td { border-bottom: none; }
 /* ---- small layout utilities (kept out of inline style= so the
    style-src 'self' CSP holds - no unsafe-inline needed) ---- */
 
-.toast-host {
-  position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
-  z-index: 60; max-width: 90vw;
-}
 .hint-tight { padding: 0 0.75rem; }
 .stack-title { font-size: 1.5rem; }
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }

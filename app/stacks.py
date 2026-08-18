@@ -484,11 +484,29 @@ def api_action(name, action):
                     if cleared_ports:
                         yield (f"Turning off Tailscale Serve on port(s) {', '.join(map(str, cleared_ports))} "
                                f"- this stack is being deleted...\n")
-                    for line in rt.compose_stream(str(d), name, "down"):
-                        if line.startswith("[dockle-exit:"):
-                            ok = line == "[dockle-exit:0]"
+                    # 45s cap: a container stuck because its bind-mount
+                    # source vanished out from under it (deleted by
+                    # hand while running, say) can hang a graceful
+                    # `down` forever otherwise - a delete must always
+                    # be able to finish, so a hang here falls back to
+                    # forcefully removing the containers instead of
+                    # leaving the stack stuck in Dockle for good.
+                    hung = False
+                    for line in rt.compose_stream(str(d), name, "down", timeout=45):
+                        if line == "[dockle-timeout]":
+                            hung = True
+                        elif line.startswith("[dockle-exit:"):
+                            ok = hung or line == "[dockle-exit:0]"
                         else:
                             yield line + "\n"
+                    if hung:
+                        yield ("`down` didn't finish within 45s - forcefully removing "
+                               "the container(s) instead...\n")
+                        try:
+                            rt.force_remove_containers(name)
+                            yield "Forced removal complete.\n"
+                        except runtime.RuntimeError_ as exc:
+                            yield f"Forced removal also failed: {exc}\n"
 
                     # Every trace of the container/image, unconditionally -
                     # unlike the data below, a cached image is never
@@ -499,6 +517,7 @@ def api_action(name, action):
                         yield f"Removed image(s): {', '.join(removed_images)}\n"
 
                     if delete_data and mounts:
+                        bind_parents = set()
                         for m in mounts:
                             # Best-effort: a problem wiping one mount
                             # (in use elsewhere, permission denied, a
@@ -510,11 +529,27 @@ def api_action(name, action):
                                 if m["type"] == "bind":
                                     src = Path(m["source"])
                                     rt.force_remove_dir(str(src.parent), src.name)
+                                    bind_parents.add(src.parent)
                                 else:
                                     rt.remove_volume(m["source"])
                                 yield f"Deleted data: {m['source']}\n"
                             except Exception as exc:
                                 yield f"Couldn't delete data '{m['source']}': {exc}\n"
+                        # Clean up each mount's now-likely-empty parent
+                        # too (e.g. /opt/<stack> once data/media/backup
+                        # are gone) - rmdir only succeeds if it's
+                        # genuinely empty, so this never touches
+                        # anything not actually cleared above. Floored
+                        # at 3 path parts ('/', 'opt', name) so this can
+                        # never reach /opt itself even if something
+                        # were misconfigured.
+                        for parent in bind_parents:
+                            if len(parent.parts) < 3:
+                                continue
+                            try:
+                                rt.rmdir_if_empty(str(parent.parent), parent.name)
+                            except Exception:
+                                pass
 
                     try:
                         shutil.rmtree(d)

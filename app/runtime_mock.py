@@ -143,7 +143,7 @@ class MockRuntime:
     def remove_volume(self, name):
         pass
 
-    def compose_stream(self, stack_dir, project, action, extra_args=None):
+    def compose_stream(self, stack_dir, project, action, extra_args=None, timeout=None):
         steps = {
             "up": ["Network created", "Container web-1  Started", "Container db-1  Started"],
             "down": ["Container web-1  Removed", "Container db-1  Removed", "Network removed"],
@@ -162,6 +162,9 @@ class MockRuntime:
         elif action == "stop":
             self.states[project] = "exited"
         yield "[dockle-exit:0]"
+
+    def force_remove_containers(self, project):
+        self.states.pop(project, None)
 
     def logs_process(self, stack_dir, project, tail=200):
         return _FakeLogsProc(project)

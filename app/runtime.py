@@ -12,7 +12,9 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import subprocess
+import threading
 
 from . import config, settingsvc
 
@@ -147,19 +149,63 @@ class Runtime:
 
     # -- compose ---------------------------------------------------------
 
-    def compose_stream(self, stack_dir, project, action, extra_args=None):
-        """Run a compose action, yielding output lines as they arrive."""
+    def compose_stream(self, stack_dir, project, action, extra_args=None, timeout=None):
+        """Run a compose action, yielding output lines as they arrive.
+
+        If timeout (seconds) is given and the process is still running
+        when it elapses, it's killed and a [dockle-timeout] marker is
+        yielded before the exit line - a container stuck because its
+        bind-mount source vanished out from under it (e.g. deleted by
+        hand while running) can hang `compose down` indefinitely
+        otherwise, and a caller that needs this to always finish (like
+        deleting a stack) can fall back to a more forceful cleanup on
+        seeing that marker instead of hanging the whole request."""
         args = [_DOCKER_BIN, "compose", "-p", project, *COMPOSE_ACTIONS[action]]
         if extra_args:
             args += extra_args
         proc = subprocess.Popen(
             args, cwd=stack_dir, env=self._compose_env(),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+            start_new_session=True,  # own process group, so a timeout kill
+            # below can take out the whole tree - killing just the direct
+            # child leaves any grandchild still holding the stdout pipe
+            # open, which would keep this generator blocked forever
+            # despite the "kill" appearing to have happened.
         )
-        for line in proc.stdout:
-            yield line.rstrip("\n")
+        timed_out = [False]
+        timer = None
+        if timeout:
+            def _on_timeout():
+                timed_out[0] = True
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass  # already exited between the timer firing and this running
+            timer = threading.Timer(timeout, _on_timeout)
+            timer.start()
+        try:
+            for line in proc.stdout:
+                yield line.rstrip("\n")
+        finally:
+            if timer:
+                timer.cancel()
         proc.wait()
+        if timed_out[0]:
+            yield "[dockle-timeout]"
         yield f"[dockle-exit:{proc.returncode}]"
+
+    def force_remove_containers(self, project: str):
+        """Forcefully remove every container belonging to this compose
+        project, bypassing graceful stop entirely - the fallback when
+        `compose down` can't finish on its own. Also drops the
+        project's default network, same as a normal `down` would."""
+        names = [c["name"] for c in self.ps() if c["project"] == project]
+        if names:
+            self._run(["rm", "-f", *names], timeout=30)
+        try:
+            self._run(["network", "rm", f"{project}_default"], timeout=15)
+        except RuntimeError_:
+            pass  # never created, external, or already gone - all fine
 
     def logs_process(self, stack_dir, project, tail=200):
         """A Popen streaming `compose logs -f` for the websocket to relay."""
@@ -261,6 +307,19 @@ class Runtime:
         translation is needed here unlike the backup helpers below."""
         self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
                    "alpine", "rm", "-rf", f"/target/{dirname}"], timeout=60)
+
+    def rmdir_if_empty(self, parent_host_path: str, dirname: str):
+        """Remove a directory only if it's genuinely empty - `rmdir`
+        fails safely otherwise, unlike force_remove_dir's rm -rf. Used
+        after deleting a stack's declared data mounts, to clean up the
+        now-likely-empty parent (e.g. /opt/<stack>) those mounts lived
+        under - otherwise it's left behind as an empty husk, which
+        Docker itself creates as a side effect of bind-mounting a path
+        that didn't exist yet (a real case: the mount's own parent can
+        vanish - deleted by hand, or never created - between when the
+        stack stopped and when this cleanup runs)."""
+        self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
+                   "alpine", "rmdir", f"/target/{dirname}"], timeout=30)
 
     # -- per-stack data backup/restore ------------------------------------
     # A short-lived helper container does the actual file access, mounting

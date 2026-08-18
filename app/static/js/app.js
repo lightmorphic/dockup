@@ -128,21 +128,35 @@ function armedAction(btn, run, label) {
       setTimeout(() => location.hash = "#/", 700);
     } catch (e) {
       btn.disabled = false;
-      toast(e.message, "danger");
+      popAlert(btn, e.message, "danger");
     }
   });
 }
 
-let toastTimer;
-function toast(message, kind = "info") {
-  let t = document.getElementById("toast");
-  if (!t) {
-    t = el('<div id="toast" role="status" class="toast-host"></div>');
-    document.body.appendChild(t);
-  }
-  t.innerHTML = `<p class="alert alert-${kind}">${kind === "danger" ? "! " : ""}${esc(message)}</p>`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.innerHTML = "", 5000);
+/* The one mechanism for every contextual alert in the app: a bubble
+   anchored to whatever element the message is actually about, with an
+   arrow pointing at it - never a generic toast lost at the bottom of
+   the page. Reuses the [data-tip] tooltip CSS (forced open instead of
+   waiting for hover), and restores whatever hover tooltip the element
+   already had once the alert fades. */
+function popAlert(el, message, kind = "info", ms = 3500) {
+  if (!el) return;
+  // Capture whatever tooltip the element is resting at right now (its
+  // normal hover text, or "" if it has none) - but only on the first
+  // call of a sequence, so a caller that legitimately changes the
+  // resting tooltip mid-flow (e.g. the update button's own state)
+  // isn't clobbered back to a stale value once this fades.
+  if (!el._tipTimer) el._tipRestingValue = el.dataset.tip ?? "";
+  el.dataset.tip = message;
+  el.classList.remove("tip-danger", "tip-success", "tip-warning");
+  if (kind === "danger" || kind === "success" || kind === "warning") el.classList.add(`tip-${kind}`);
+  el.classList.add("tip-visible");
+  clearTimeout(el._tipTimer);
+  el._tipTimer = setTimeout(() => {
+    el.classList.remove("tip-visible", "tip-danger", "tip-success", "tip-warning");
+    el.dataset.tip = el._tipRestingValue;
+    el._tipTimer = null;
+  }, ms);
 }
 
 /* Code editor: wraps a plain textarea with CodeMirror so every text
@@ -364,16 +378,18 @@ async function renderArchivedSection() {
       e.target.disabled = true; e.target.textContent = "Restoring…";
       try {
         await api(`/api/archived/${encodeURIComponent(name)}/restore`, { method: "POST", body: {} });
-        toast(`'${name}' restored.`, "success");
+        popAlert(e.target, `'${name}' restored.`, "success");
         await refreshStacks();
+        await new Promise(r => setTimeout(r, 900)); // let the confirmation actually be seen before the view changes
         viewDashboard();
-      } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Restore"; }
+      } catch (err) { popAlert(e.target, err.message, "danger"); e.target.disabled = false; e.target.textContent = "Restore"; }
     });
     const purgeBtn = row.querySelector("#purgeBtn");
     purgeBtn.dataset.tipOrig = "Delete";
     armedAction(purgeBtn, async () => {
       const res = await api(`/api/archived/${encodeURIComponent(name)}/purge`, { method: "POST", body: {} });
-      toast(res.removedImages.length ? `'${name}' deleted, image(s) removed.` : `'${name}' deleted.`, "success");
+      popAlert(purgeBtn, res.removedImages.length ? `'${name}' deleted, image(s) removed.` : `'${name}' deleted.`, "success");
+      await new Promise(r => setTimeout(r, 900));
       viewDashboard();
     }, "permanently delete this archived stack and its image - nothing kept");
   }
@@ -385,7 +401,7 @@ async function checkUpdatesNow() {
   try {
     const res = await api("/api/stacks/check-updates", { method: "POST", body: {} });
     if (!res.started) {
-      toast(res.message || "A check is already running.", "info");
+      popAlert(btn, res.message || "A check is already running.", "info");
       btn.disabled = false; btn.textContent = "Check for updates";
       return;
     }
@@ -395,10 +411,10 @@ async function checkUpdatesNow() {
       const status = await api("/api/stacks/check-updates/status");
       if (!status.checking) break;
     }
-    toast("Update check finished.", "success");
+    popAlert(btn, "Update check finished.", "success");
     if ((location.hash || "#/") === "#/") viewDashboard();
   } catch (e) {
-    toast(e.message, "danger");
+    popAlert(btn, e.message, "danger");
     btn.disabled = false; btn.textContent = "Check for updates";
   }
 }
@@ -408,12 +424,12 @@ async function updateAll() {
   btn.disabled = true; btn.textContent = "Updating…";
   try {
     const res = await api("/api/stacks/update-all", { method: "POST", body: {} });
-    toast(`Updated ${res.updated} of ${res.total}.`, res.updated === res.total ? "success" : "warning");
+    popAlert(btn, `Updated ${res.updated} of ${res.total}.`, res.updated === res.total ? "success" : "warning");
     await refreshStacks();
     viewDashboard();
   } catch (e) {
     btn.disabled = false; btn.textContent = "Update all";
-    toast(e.message, "danger");
+    popAlert(btn, e.message, "danger");
   }
 }
 
@@ -447,13 +463,14 @@ async function adoptAll(dismissOnboarding) {
     if (dismissOnboarding) {
       try { await api("/api/onboarding/dismiss", { method: "POST", body: {} }); } catch (e) { /* ignore */ }
     }
-    toast(`Adopted ${res.adopted} of ${res.total}.`, res.adopted === res.total ? "success" : "warning");
+    popAlert(btn, `Adopted ${res.adopted} of ${res.total}.`, res.adopted === res.total ? "success" : "warning");
     await refreshStacks();
+    await new Promise(r => setTimeout(r, 900));
     location.hash = "#/";
     viewDashboard();
   } catch (e) {
     btn.disabled = false; btn.textContent = "Adopt all";
-    toast(e.message, "danger");
+    popAlert(btn, e.message, "danger");
   }
 }
 
@@ -524,13 +541,14 @@ function managedCard(s) {
       dot.dataset.tip = "Updating…";
       try {
         const r = await api(`/api/stacks/${encodeURIComponent(s.name)}/quick-update`, { method: "POST", body: {} });
-        toast(r.message || `'${s.name}' updated.`, "success");
+        popAlert(dot, r.message || `'${s.name}' updated.`, "success");
         await refreshStacks();
+        await new Promise(res => setTimeout(res, 900));
         if ((location.hash || "#/") === "#/") viewDashboard();
       } catch (err) {
-        toast(err.message, "danger");
         dot.classList.remove("busy");
         dot.dataset.tip = "Update available - click to update";
+        popAlert(dot, err.message, "danger");
       }
     };
     dot.addEventListener("click", runUpdate);
@@ -553,20 +571,22 @@ function managedCard(s) {
       archiveBtn.disabled = true; archiveBtn.textContent = "Archiving…";
       try {
         await api(`/api/stacks/${encodeURIComponent(s.name)}/archive`, { method: "POST", body: {} });
-        toast(`'${s.name}' archived.`, "success");
+        popAlert(archiveBtn, `'${s.name}' archived.`, "success");
         await refreshStacks();
+        await new Promise(res => setTimeout(res, 900));
         if ((location.hash || "#/") === "#/") viewDashboard();
       } catch (err) {
-        toast(err.message, "danger");
         archiveBtn.disabled = false; archiveBtn.textContent = "Archive";
+        popAlert(archiveBtn, err.message, "danger");
       }
     });
     purgeBtn.dataset.tipOrig = "Delete";
     purgeBtn.addEventListener("click", e => e.stopPropagation());
     armedAction(purgeBtn, async () => {
       const res = await api(`/api/stacks/${encodeURIComponent(s.name)}/purge`, { method: "POST", body: {} });
-      toast(res.removedImages.length ? `'${s.name}' deleted, image(s) removed.` : `'${s.name}' deleted.`, "success");
+      popAlert(purgeBtn, res.removedImages.length ? `'${s.name}' deleted, image(s) removed.` : `'${s.name}' deleted.`, "success");
       await refreshStacks();
+      await new Promise(res => setTimeout(res, 900));
       if ((location.hash || "#/") === "#/") viewDashboard();
     }, "permanently delete this stack and its image - nothing kept");
   }
@@ -599,12 +619,13 @@ async function adopt(payload, card) {
   btn.disabled = true; btn.textContent = "Adopting…";
   try {
     const res = await api("/api/adopt", { method: "POST", body: payload });
-    toast(`Adopted '${res.name}'. ${res.note}.`, "success");
+    popAlert(btn, `Adopted '${res.name}'. ${res.note}.`, "success");
     await refreshStacks();
+    await new Promise(r => setTimeout(r, 900));
     location.hash = `#/stack/${encodeURIComponent(res.name)}`;
   } catch (e) {
     btn.disabled = false; btn.textContent = "Adopt";
-    toast(e.message, "danger");
+    popAlert(btn, e.message, "danger");
   }
 }
 
@@ -664,23 +685,26 @@ function viewNewStack() {
     cm.recheck();
   });
 
-  document.getElementById("convertBtn").addEventListener("click", async () => {
+  const convertBtn = document.getElementById("convertBtn");
+  convertBtn.addEventListener("click", async () => {
     try {
       const res = await api("/api/convert", { method: "POST", body: { command: document.getElementById("runCmd").value } });
       cm.setValue(res.compose);
-      toast("Converted - check the compose file, then create the stack.", "success");
-    } catch (e) { toast(e.message, "danger"); }
+      popAlert(convertBtn, "Converted - check the compose file, then create the stack.", "success");
+    } catch (e) { popAlert(convertBtn, e.message, "danger"); }
   });
-  document.getElementById("createBtn").addEventListener("click", async () => {
+  const createBtn = document.getElementById("createBtn");
+  createBtn.addEventListener("click", async () => {
     const name = document.getElementById("stackName").value.trim();
     try {
       await api("/api/stacks", { method: "POST", body: {
         name, compose: cm.getValue(),
         env: envCm.getValue() } });
-      toast(`Stack '${name}' created.`, "success");
+      popAlert(createBtn, `Stack '${name}' created.`, "success");
       await refreshStacks();
+      await new Promise(r => setTimeout(r, 900));
       location.hash = `#/stack/${encodeURIComponent(name)}`;
-    } catch (e) { toast(e.message, "danger"); }
+    } catch (e) { popAlert(createBtn, e.message, "danger"); }
   });
 }
 
@@ -749,12 +773,6 @@ async function viewStack(name) {
   const checkTipDefault = checkBtn.dataset.tip;
   const updateTipReady = "Update available - click to update";
 
-  function popTip(btn, text, ms = 2500) {
-    btn.dataset.tip = text;
-    btn.classList.add("tip-visible");
-    clearTimeout(btn._tipTimer);
-    btn._tipTimer = setTimeout(() => btn.classList.remove("tip-visible"), ms);
-  }
   function setStackStatus(effectiveStatus) {
     const tip = STATUS_TIPS[effectiveStatus] || "Container is down";
     statusDot.className = `status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}`;
@@ -774,11 +792,11 @@ async function viewStack(name) {
       s.updateAvailable = false;
       checkBtn.classList.remove("update-ready");
       checkBtn.dataset.tip = checkTipDefault;
-      popTip(checkBtn, "Updated");
+      popAlert(checkBtn, "Updated", "success");
       setStackStatus(s.status);
       refreshStacks();
     } catch (e) {
-      popTip(checkBtn, e.message, 4000);
+      popAlert(checkBtn, e.message, "danger", 4000);
     } finally {
       checkBtn.classList.remove("busy");
       checkBtn.disabled = false;
@@ -794,17 +812,17 @@ async function viewStack(name) {
       if (res.available) {
         checkBtn.classList.add("update-ready");
         checkBtn.dataset.tip = updateTipReady;
-        popTip(checkBtn, updateTipReady);
+        popAlert(checkBtn, updateTipReady, "warning");
         setStackStatus("update");
       } else {
         checkBtn.classList.remove("update-ready");
         checkBtn.dataset.tip = checkTipDefault;
-        popTip(checkBtn, "You're on the latest version");
+        popAlert(checkBtn, "You're on the latest version", "success");
         setStackStatus(s.status);
       }
       refreshStacks();
     } catch (e) {
-      popTip(checkBtn, e.message, 4000);
+      popAlert(checkBtn, e.message, "danger", 4000);
     } finally {
       checkBtn.classList.remove("busy");
       checkBtn.disabled = false;
@@ -892,15 +910,17 @@ async function viewStack(name) {
       envCm = attachCodeEditor(form.querySelector("#editEnv"));
       let envTimer;
       envCm.on("change", () => { clearTimeout(envTimer); envTimer = setTimeout(() => cm.recheck(), 600); });
-      const save = async () => {
+      const saveBtn = form.querySelector("#saveBtn");
+      const saveUpBtn = form.querySelector("#saveUpBtn");
+      const save = async (anchorBtn) => {
         await api(`/api/stacks/${encodeURIComponent(name)}`, { method: "PUT", body: {
           compose: cm.getValue(),
           env: envCm.getValue() } });
-        toast("Saved.", "success");
+        popAlert(anchorBtn, "Saved.", "success");
       };
-      form.querySelector("#saveBtn").addEventListener("click", () => save().catch(e => toast(e.message, "danger")));
-      form.querySelector("#saveUpBtn").addEventListener("click", async () => {
-        try { await save(); runAction("up"); } catch (e) { toast(e.message, "danger"); }
+      saveBtn.addEventListener("click", () => save(saveBtn).catch(e => popAlert(saveBtn, e.message, "danger")));
+      saveUpBtn.addEventListener("click", async () => {
+        try { await save(saveUpBtn); runAction("up"); } catch (e) { popAlert(saveUpBtn, e.message, "danger"); }
       });
     },
     logs() {
@@ -977,8 +997,8 @@ async function viewStack(name) {
             btn.disabled = true;
             try {
               const res = await api(`/api/stacks/${encodeURIComponent(name)}/backups/${encodeURIComponent(btn.dataset.restore)}/restore`, { method: "POST", body: {} });
-              toast(res.message, "success");
-            } catch (e) { toast(e.message, "danger"); }
+              popAlert(btn, res.message, "success");
+            } catch (e) { popAlert(btn, e.message, "danger"); }
             btn.disabled = false; armed = false; btn.textContent = "Restore"; btn.classList.remove("btn-danger");
           });
         });
@@ -987,11 +1007,12 @@ async function viewStack(name) {
         e.target.disabled = true; e.target.textContent = "Backing up…";
         try {
           const r = await api(`/api/stacks/${encodeURIComponent(name)}/backups`, { method: "POST", body: {} });
-          toast(`Backup made: ${r.name}`, "success");
+          popAlert(e.target, `Backup made: ${r.name}`, "success");
           await loadList();
-        } catch (err) { toast(err.message, "danger"); }
+        } catch (err) { popAlert(e.target, err.message, "danger"); }
         e.target.disabled = false; e.target.textContent = "Back up now";
       });
+      const uploadLabel = tabBody.querySelector('label[for="bkUploadInput"]');
       tabBody.querySelector("#bkUploadInput").addEventListener("change", async (e) => {
         const file = e.target.files[0];
         e.target.value = "";
@@ -1004,9 +1025,9 @@ async function viewStack(name) {
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.error || "Upload failed");
-          toast(`Uploaded ${data.name} - it's in the list below, ready to restore.`, "success");
+          popAlert(uploadLabel, `Uploaded ${data.name} - it's in the list below, ready to restore.`, "success");
           await loadList();
-        } catch (err) { toast(err.message, "danger"); }
+        } catch (err) { popAlert(uploadLabel, err.message, "danger"); }
       });
       await loadList();
     },
@@ -1044,9 +1065,10 @@ async function viewStack(name) {
           try {
             await api(`/api/hostcompanion/stacks/${encodeURIComponent(name)}/serve`, {
               method: "POST", body: { port, on: e.target.checked } });
-            toast(`Serve ${e.target.checked ? "enabled" : "disabled"} for port ${port}.`, "success");
+            popAlert(e.target, `Serve ${e.target.checked ? "enabled" : "disabled"} for port ${port}.`, "success");
+            await new Promise(r => setTimeout(r, 900));
             renderTab.serve();
-          } catch (err) { toast(err.message, "danger"); e.target.checked = !e.target.checked; e.target.disabled = false; }
+          } catch (err) { popAlert(e.target, err.message, "danger"); e.target.checked = !e.target.checked; e.target.disabled = false; }
         });
       }
     },
@@ -1088,14 +1110,20 @@ async function streamAction(name, action, out, isDelete = false, deleteData = fa
       }
     }
     if (ok) {
-      toast(`${action} finished.`, "success");
+      popAlert(out, `${action} finished.`, "success");
     } else {
       appendLog(out, `ERROR: ${action} did not complete cleanly - see above.`);
-      toast(`${action} failed - the output panel has the details.`, "danger");
+      popAlert(out, `${action} failed - the output panel has the details.`, "danger");
     }
-    if (isDelete && ok) { await refreshStacks(); return; }
+    if (isDelete && ok) {
+      await refreshStacks();
+      await new Promise(r => setTimeout(r, 900));
+      location.hash = "#/";
+      return;
+    }
     await refreshStacks();
     if (!isDelete && location.hash === `#/stack/${encodeURIComponent(name)}`) {
+      await new Promise(r => setTimeout(r, 900)); // let the finished/failed bubble be seen before the panel rebuilds
       const output = out.innerHTML;
       await viewStack(name);
       const fresh = document.getElementById("actionOut");
@@ -1103,7 +1131,7 @@ async function streamAction(name, action, out, isDelete = false, deleteData = fa
     }
   } catch (e) {
     appendLog(out, "ERROR: " + e.message);
-    toast(e.message, "danger");
+    popAlert(out, e.message, "danger");
   } finally {
     document.querySelectorAll(".panel-head .icon-btn").forEach(b => b.disabled = false);
   }
@@ -1180,10 +1208,11 @@ async function viewMaintenance() {
       const res = await api("/api/system/prune", { method: "POST",
         body: { targets: ["containers", "images", "networks", "buildcache"] } });
       const lines = Object.entries(res.results).map(([k, r]) => `${k}: ${r.message}`);
-      toast(lines.join(" · "), res.ok ? "success" : "danger");
+      popAlert(btn, lines.join(" · "), res.ok ? "success" : "danger");
+      await new Promise(r => setTimeout(r, 900));
       viewMaintenance();
     } catch (err) {
-      toast(err.message, "danger");
+      popAlert(btn, err.message, "danger");
       btn.disabled = false; btn.textContent = "Prune everything";
     }
   });
@@ -1246,17 +1275,17 @@ async function viewBackups() {
         btn.disabled = true;
         try {
           const res = await api("/api/backup/restore", { method: "POST", body: { name: btn.dataset.restore } });
-          toast(res.message, "success");
+          popAlert(btn, res.message, "success");
           await refreshStacks();
-        } catch (e) { toast(e.message, "danger"); }
+        } catch (e) { popAlert(btn, e.message, "danger"); }
         btn.disabled = false; armed = false; btn.textContent = "Restore"; btn.classList.remove("btn-danger");
       });
     });
   };
   document.getElementById("backupNow").addEventListener("click", async (e) => {
     e.target.disabled = true;
-    try { const r = await api("/api/backup/run", { method: "POST", body: {} }); toast(`Backup made: ${r.name}`, "success"); await load(); }
-    catch (err) { toast(err.message, "danger"); }
+    try { const r = await api("/api/backup/run", { method: "POST", body: {} }); popAlert(e.target, `Backup made: ${r.name}`, "success"); await load(); }
+    catch (err) { popAlert(e.target, err.message, "danger"); }
     e.target.disabled = false;
   });
   await load();
@@ -1373,29 +1402,29 @@ async function viewSettings() {
       const theme = f("setTheme").value;
       theme ? localStorage.setItem("dockle-theme", theme) : localStorage.removeItem("dockle-theme");
       applyTheme();
-      toast("Settings saved.", "success");
-    } catch (e) { toast(e.message, "danger"); }
+      popAlert(f("saveSettings"), "Settings saved.", "success");
+    } catch (e) { popAlert(f("saveSettings"), e.message, "danger"); }
   });
 
   f("testRuntime").addEventListener("click", async () => {
     try {
       const r = await api("/api/settings/test-runtime", { method: "POST", body: {
         engine: f("setEngine").value, socket: f("setSocket").value } });
-      toast(r.message, "success");
-    } catch (e) { toast(e.message, "danger"); }
+      popAlert(f("testRuntime"), r.message, "success");
+    } catch (e) { popAlert(f("testRuntime"), e.message, "danger"); }
   });
   f("testSmtp").addEventListener("click", async () => {
-    toast("Sending test email…");
-    try { const r = await api("/api/settings/test-smtp", { method: "POST", body: {} }); toast(r.message, "success"); }
-    catch (e) { toast(e.message, "danger"); }
+    popAlert(f("testSmtp"), "Sending test email…", "info");
+    try { const r = await api("/api/settings/test-smtp", { method: "POST", body: {} }); popAlert(f("testSmtp"), r.message, "success"); }
+    catch (e) { popAlert(f("testSmtp"), e.message, "danger"); }
   });
   f("pwBtn").addEventListener("click", async () => {
     try {
       await api("/api/account/password", { method: "POST", body: {
         current: f("pwCurrent").value, new: f("pwNew").value } });
       f("pwCurrent").value = f("pwNew").value = "";
-      toast("Password changed.", "success");
-    } catch (e) { toast(e.message, "danger"); }
+      popAlert(f("pwBtn"), "Password changed.", "success");
+    } catch (e) { popAlert(f("pwBtn"), e.message, "danger"); }
   });
 
   renderTfa(document.getElementById("tfaHost"));
@@ -1512,16 +1541,16 @@ async function renderHostCompanionPanel() {
         body.querySelector("#osResult").textContent = r.upgradable
           ? `${r.upgradable} package(s) can be updated.` : "Everything is up to date.";
         body.querySelector("#osApplyBtn").disabled = r.upgradable === 0;
-      } catch (err) { toast(err.message, "danger"); }
+      } catch (err) { popAlert(e.target, err.message, "danger"); }
       e.target.disabled = false; e.target.textContent = "Check for updates";
     });
     body.querySelector("#osApplyBtn").addEventListener("click", async (e) => {
       e.target.disabled = true; e.target.textContent = "Applying…";
       try {
         await api("/api/hostcompanion/os-update-apply", { method: "POST", body: {} });
-        toast("Host packages updated.", "success");
+        popAlert(e.target, "Host packages updated.", "success");
         body.querySelector("#osResult").textContent = "Up to date.";
-      } catch (err) { toast(err.message, "danger"); }
+      } catch (err) { popAlert(e.target, err.message, "danger"); }
       e.target.disabled = true; e.target.textContent = "Apply updates";
     });
   }
@@ -1530,10 +1559,11 @@ async function renderHostCompanionPanel() {
       e.target.disabled = true; e.target.textContent = "Installing…";
       try {
         const r = await api("/api/hostcompanion/tailscale/install", { method: "POST", body: {} });
-        toast(r.message, "success");
+        popAlert(e.target, r.message, "success");
+        await new Promise(res => setTimeout(res, 900));
         panel.remove();
         await renderHostCompanionPanel();
-      } catch (err) { toast(err.message, "danger"); e.target.disabled = false; e.target.textContent = "Install Tailscale"; }
+      } catch (err) { popAlert(e.target, err.message, "danger"); e.target.disabled = false; e.target.textContent = "Install Tailscale"; }
     });
   }
 }
@@ -1552,7 +1582,7 @@ async function initHostPowerButtons() {
   dockerRestartBtn.dataset.tipOrig = "Restart Docker";
   armedAction(dockerRestartBtn, async () => {
     const r = await api("/api/hostcompanion/docker-restart", { method: "POST", body: {} });
-    toast(r.message, "success");
+    popAlert(dockerRestartBtn, r.message, "success");
   }, "restart Docker on the host");
 
   const rebootBtn = document.getElementById("topbarRebootBtn");
@@ -1560,7 +1590,7 @@ async function initHostPowerButtons() {
   rebootBtn.dataset.tipOrig = "Reboot server";
   armedAction(rebootBtn, async () => {
     const r = await api("/api/hostcompanion/reboot", { method: "POST", body: {} });
-    toast(r.message, "success");
+    popAlert(rebootBtn, r.message, "success");
   }, "reboot the whole server");
 }
 
@@ -1584,13 +1614,14 @@ async function renderTfa(host) {
         <p class="hint">Or enter the key by hand: <code>${esc(r.secret)}</code></p>
         <div class="field"><label for="tfaCode">Six-digit code</label><input id="tfaCode" inputmode="numeric" autocomplete="one-time-code"></div>
         <button class="btn btn-primary" id="tfaConfirm">Switch 2FA on</button></div>`;
-      flow.querySelector("#tfaConfirm").addEventListener("click", async () => {
+      const confirmBtn = flow.querySelector("#tfaConfirm");
+      confirmBtn.addEventListener("click", async () => {
         try {
           await api("/api/2fa/enable", { method: "POST", body: { code: flow.querySelector("#tfaCode").value } });
           flow.innerHTML = '<p class="alert alert-success">✓ Two-factor is on. You’ll need your app next sign-in.</p>';
-        } catch (e) { toast(e.message, "danger"); }
+        } catch (e) { popAlert(confirmBtn, e.message, "danger"); }
       });
-    } catch (e) { toast(e.message, "danger"); }
+    } catch (e) { popAlert(host.querySelector("#tfaStart"), e.message, "danger"); }
   });
   host.querySelector("#tfaOff").addEventListener("click", async () => {
     const flow = host.querySelector("#tfaFlow");
@@ -1598,11 +1629,12 @@ async function renderTfa(host) {
       <div class="field"><label for="tfaOffCode">Enter a current six-digit code to turn 2FA off</label>
       <input id="tfaOffCode" inputmode="numeric"></div>
       <button class="btn btn-danger" id="tfaOffConfirm">Turn off</button></div>`;
-    flow.querySelector("#tfaOffConfirm").addEventListener("click", async () => {
+    const offConfirmBtn = flow.querySelector("#tfaOffConfirm");
+    offConfirmBtn.addEventListener("click", async () => {
       try {
         await api("/api/2fa/disable", { method: "POST", body: { code: flow.querySelector("#tfaOffCode").value } });
         flow.innerHTML = '<p class="alert alert-success">✓ Two-factor is off.</p>';
-      } catch (e) { toast(e.message, "danger"); }
+      } catch (e) { popAlert(offConfirmBtn, e.message, "danger"); }
     });
   });
 }
