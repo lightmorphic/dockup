@@ -142,6 +142,9 @@ class Runtime:
     def remove_image(self, image: str):
         self._run(["rmi", image], timeout=60)
 
+    def remove_volume(self, name: str):
+        self._run(["volume", "rm", "-f", name], timeout=30)
+
     # -- compose ---------------------------------------------------------
 
     def compose_stream(self, stack_dir, project, action, extra_args=None):

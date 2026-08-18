@@ -215,6 +215,26 @@ def api_list():
     return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error, "dnsName": dns_name})
 
 
+def _stack_data_paths(name):
+    """Every bind mount and named volume this stack actually uses, for
+    showing the user exactly what "also delete this stack's data" would
+    remove - same mount parsing stackbackup already relies on, so the
+    list here is guaranteed to match what a backup would have covered."""
+    from . import stackbackup
+    d = stack_dir(name)
+    cp = compose_path(name)
+    if not cp.exists():
+        return []
+    compose_text = cp.read_text()
+    envp = d / ".env"
+    env_text = envp.read_text() if envp.exists() else ""
+    mounts = stackbackup._parse_mounts(compose_text, env_text)
+    for m in mounts:
+        if m["type"] == "bind":
+            m["source"] = stackbackup._resolve_bind_source(m["source"], d)
+    return mounts
+
+
 @bp.get("/stacks/<name>")
 def api_get(name):
     from . import updatecheck
@@ -233,6 +253,7 @@ def api_get(name):
         "status": (match or {}).get("status", "inactive"),
         "containers": (match or {}).get("containers", []),
         "updateAvailable": updatecheck.get_flags().get(name, False),
+        "dataPaths": _stack_data_paths(name),
     })
 
 
@@ -397,6 +418,7 @@ def api_action(name, action):
     if not d.exists() and action != "delete":
         return jsonify({"error": f"'{name}' hasn't been adopted into the stacks folder yet"}), 404
     rt = runtime.current()
+    delete_data = action == "delete" and request.args.get("deleteData") == "1"
 
     def generate():
         ok = True
@@ -444,6 +466,15 @@ def api_action(name, action):
                 yield from run_compose("up")
             elif action == "delete":
                 if d.exists():
+                    # Grab the compose text and data-mount list before the
+                    # folder is gone - both the image purge and (if asked)
+                    # the data wipe below need it.
+                    cp = compose_path(name)
+                    compose_text = cp.read_text() if cp.exists() else ""
+                    envp = d / ".env"
+                    env_text = envp.read_text() if envp.exists() else ""
+                    mounts = _stack_data_paths(name) if delete_data else []
+
                     # Permanent, not a pause: a deleted stack's ports
                     # should stop being served, not just quiet down and
                     # come back - a stale Serve rule left running here is
@@ -458,6 +489,33 @@ def api_action(name, action):
                             ok = line == "[dockle-exit:0]"
                         else:
                             yield line + "\n"
+
+                    # Every trace of the container/image, unconditionally -
+                    # unlike the data below, a cached image is never
+                    # something worth keeping around after a deliberate
+                    # delete, and re-pulling it later is cheap.
+                    removed_images = _purge_images(compose_text, env_text)
+                    if removed_images:
+                        yield f"Removed image(s): {', '.join(removed_images)}\n"
+
+                    if delete_data and mounts:
+                        for m in mounts:
+                            # Best-effort: a problem wiping one mount
+                            # (in use elsewhere, permission denied, a
+                            # bug in the runtime backend) shouldn't
+                            # abort the delete itself - the stack's
+                            # config and containers are already gone
+                            # regardless of what happens here.
+                            try:
+                                if m["type"] == "bind":
+                                    src = Path(m["source"])
+                                    rt.force_remove_dir(str(src.parent), src.name)
+                                else:
+                                    rt.remove_volume(m["source"])
+                                yield f"Deleted data: {m['source']}\n"
+                            except Exception as exc:
+                                yield f"Couldn't delete data '{m['source']}': {exc}\n"
+
                     try:
                         shutil.rmtree(d)
                     except OSError:

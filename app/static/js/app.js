@@ -837,8 +837,27 @@ async function viewStack(name) {
   head.querySelector("#actUpdate").addEventListener("click", () => runAction("update"));
   head.querySelector("#actDown").addEventListener("click", () => runAction("down"));
   const delBtn = head.querySelector("#actDelete");
-  delBtn.dataset.tipOrig = "Delete stack";
-  armedAction(delBtn, () => streamAction(name, "delete", out, true), "delete this stack and its folder");
+  delBtn.dataset.tip = "Delete stack";
+  const dataPaths = s.dataPaths || [];
+  const deletePanel = el(`<div class="panel hidden" id="deletePanel">
+    <p class="alert alert-danger">! Permanently delete '${esc(name)}'? This removes its containers, compose
+      file, and Docker image(s). This cannot be undone.</p>
+    ${dataPaths.length ? `<div class="check-row"><input type="checkbox" id="deleteDataCheck">
+      <label for="deleteDataCheck">Also permanently delete this stack's data</label></div>
+      <ul class="hint hint-tight">${dataPaths.map(m => `<li>${m.type === "bind" ? "folder" : "volume"} <code>${esc(m.source)}</code></li>`).join("")}</ul>` : ""}
+    <div class="btn-row">
+      <button class="btn btn-danger" id="deleteConfirmBtn">Delete</button>
+      <button class="btn" id="deleteCancelBtn">Cancel</button>
+    </div>
+  </div>`);
+  head.insertAdjacentElement("afterend", deletePanel);
+  delBtn.addEventListener("click", () => deletePanel.classList.remove("hidden"));
+  deletePanel.querySelector("#deleteCancelBtn").addEventListener("click", () => deletePanel.classList.add("hidden"));
+  deletePanel.querySelector("#deleteConfirmBtn").addEventListener("click", () => {
+    deletePanel.classList.add("hidden");
+    const deleteData = dataPaths.length && deletePanel.querySelector("#deleteDataCheck").checked;
+    streamAction(name, "delete", out, true, deleteData);
+  });
 
   const renderTab = {
     overview() {
@@ -1041,12 +1060,13 @@ async function viewStack(name) {
   renderTab.overview();
 }
 
-async function streamAction(name, action, out, isDelete = false) {
+async function streamAction(name, action, out, isDelete = false, deleteData = false) {
   out.innerHTML = "";
   appendLog(out, `$ ${action} ${name}`);
   document.querySelectorAll(".panel-head .icon-btn").forEach(b => b.disabled = true);
   try {
-    const res = await fetch(`/api/stacks/${encodeURIComponent(name)}/action/${action}`, {
+    const qs = deleteData ? "?deleteData=1" : "";
+    const res = await fetch(`/api/stacks/${encodeURIComponent(name)}/action/${action}${qs}`, {
       method: "POST", headers: { "X-CSRF": CSRF },
     });
     const reader = res.body.getReader();

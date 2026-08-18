@@ -140,6 +140,9 @@ class MockRuntime:
     def remove_image(self, image):
         pass
 
+    def remove_volume(self, name):
+        pass
+
     def compose_stream(self, stack_dir, project, action, extra_args=None):
         steps = {
             "up": ["Network created", "Container web-1  Started", "Container db-1  Started"],
