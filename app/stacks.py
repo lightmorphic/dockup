@@ -349,9 +349,7 @@ def _fix_unlabeled_network(project: str, network_name: str) -> bool:
     state for anything adopted from a previous manager. Labels can't be
     edited on an existing network, so the only fix is telling compose
     to treat it as external and just use it as-is, instead of trying
-    to validate ownership it was never given. Skipped if the compose
-    file already declares its own networks: section - merging into
-    that safely needs more care than a blind append."""
+    to validate ownership it was never given."""
     cp = compose_path(project)
     if not cp.exists():
         return False
@@ -360,8 +358,26 @@ def _fix_unlabeled_network(project: str, network_name: str) -> bool:
         doc = yaml.safe_load(text)
     except yaml.YAMLError:
         return False
-    if isinstance(doc, dict) and doc.get("networks"):
+    if not isinstance(doc, dict):
         return False
+    networks = doc.get("networks")
+    if isinstance(networks, dict):
+        # A networks: block already exists (composegen's own output, or a
+        # user's) - if one of its entries already declares this exact
+        # network by name but is missing external: true, that's this same
+        # bug wearing a different hat (adopting a container whose network
+        # predates it, same as the no-networks-block case below), so patch
+        # it in place instead of blindly appending a second networks: key.
+        # Anything else about the file - comments, key order, unrelated
+        # entries - isn't something to guess at, so leave those alone.
+        for key, val in networks.items():
+            if isinstance(val, dict) and val.get("name") == network_name:
+                if val.get("external"):
+                    return False  # already external - a different failure
+                val["external"] = True
+                cp.write_text(yaml.safe_dump(doc, sort_keys=False, default_flow_style=False))
+                return True
+        return False  # networks: exists but none of it is this network
     key = network_name[len(project) + 1:] if network_name.startswith(project + "_") else network_name
     if not text.endswith("\n"):
         text += "\n"

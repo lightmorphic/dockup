@@ -79,11 +79,17 @@ def containers_to_compose(inspects: list[dict]) -> str:
             # that literal name and never create it, which breaks the
             # moment that network is ever pruned or missing (the exact
             # "network not found" failure this fixes). Declaring it as a
-            # real networks: entry with an explicit name lets compose
-            # create it if needed, same as it would for a stack that was
-            # never adopted in the first place.
+            # real networks: entry with an explicit name instead lets
+            # compose manage it properly. Adoption always means this
+            # network already exists (the container is running on it right
+            # now), and an adopted network almost never carries the exact
+            # label compose expects of one it created itself - so this has
+            # to be external: true, or the very next redeploy fails with
+            # "network X was found but has incorrect label" (the same
+            # failure _fix_unlabeled_network self-heals for pre-existing
+            # networks elsewhere, avoided here by never creating the bug).
             svc["networks"] = [net_mode]
-            networks_top[net_mode] = {"name": net_mode}
+            networks_top[net_mode] = {"name": net_mode, "external": True}
 
         services[service_name] = svc
 

@@ -248,8 +248,10 @@ function renderStackList() {
   }
   for (const s of managed) {
     const href = `#/stack/${encodeURIComponent(s.name)}`;
+    const effectiveStatus = s.updateAvailable ? "update" : s.status;
+    const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
     const a = el(`<a href="${href}" ${current === href ? 'class="active"' : ""}>
-      <span class="status-dot ${s.status}"></span><span>${esc(s.name)}</span></a>`);
+      <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" data-tip="${esc(dotTip)}"></span><span>${esc(s.name)}</span></a>`);
     const li = document.createElement("li");
     li.appendChild(a);
     stackListEl.appendChild(li);
