@@ -141,6 +141,10 @@ function armedAction(btn, run, label) {
    already had once the alert fades. */
 function popAlert(el, message, kind = "info", ms = 3500) {
   if (!el) return;
+  // kind is accepted (danger/success/warning/info) for callers to stay
+  // self-documenting, but deliberately doesn't change the bubble's
+  // colour - every alert stays the same neutral --tip-fg, never
+  // tinted red/green/amber.
   // Capture whatever tooltip the element is resting at right now (its
   // normal hover text, or "" if it has none) - but only on the first
   // call of a sequence, so a caller that legitimately changes the
@@ -148,12 +152,10 @@ function popAlert(el, message, kind = "info", ms = 3500) {
   // isn't clobbered back to a stale value once this fades.
   if (!el._tipTimer) el._tipRestingValue = el.dataset.tip ?? "";
   el.dataset.tip = message;
-  el.classList.remove("tip-danger", "tip-success", "tip-warning");
-  if (kind === "danger" || kind === "success" || kind === "warning") el.classList.add(`tip-${kind}`);
   el.classList.add("tip-visible");
   clearTimeout(el._tipTimer);
   el._tipTimer = setTimeout(() => {
-    el.classList.remove("tip-visible", "tip-danger", "tip-success", "tip-warning");
+    el.classList.remove("tip-visible");
     el.dataset.tip = el._tipRestingValue;
     el._tipTimer = null;
   }, ms);

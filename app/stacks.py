@@ -567,6 +567,18 @@ def api_action(name, action):
         except runtime.RuntimeError_ as exc:
             ok = False
             yield f"ERROR: {exc}\n"
+        except Exception as exc:
+            # A bug anywhere above this point (not a well-understood
+            # RuntimeError_ from a docker command) would otherwise
+            # crash the stream mid-flight with zero trace anywhere -
+            # the client just sees the connection die ("network
+            # error"), and since this always sat above the completion
+            # logging below, nothing ever made it into Activity either.
+            # Whatever this turns out to be, it must never be silent.
+            ok = False
+            yield f"ERROR: unexpected {type(exc).__name__}: {exc}\n"
+            activity.log("error", "stack", f"{action.capitalize()} crashed unexpectedly on '{name}'",
+                         f"{type(exc).__name__}: {exc}")
         finally:
             if paused_ports:
                 yield f"Restoring Tailscale Serve on port(s) {', '.join(map(str, paused_ports))}...\n"

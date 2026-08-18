@@ -276,9 +276,9 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   opacity: 1; visibility: visible;
   transition-delay: 0s;
 }
-[data-tip].tip-danger::after { color: var(--danger); }
-[data-tip].tip-success::after { color: var(--success); }
-[data-tip].tip-warning::after { color: var(--warning); }
+/* Deliberately no colour-by-severity here - every bubble stays the
+   same neutral --tip-fg (a dark charcoal on the light bubble, an
+   off-white on the dark one), never tinted red/green/amber. */
 
 /* ---- forms: equal gaps, full-width fields ---- */
 
