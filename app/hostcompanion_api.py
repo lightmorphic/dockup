@@ -8,7 +8,7 @@ runbook.
 import shutil
 from pathlib import Path
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from . import activity, config, hostcompanion, runtime, stacks
 
@@ -190,5 +190,10 @@ def api_install_companion():
             pass  # expected - Dockle's own container recreation races this request
         yield "[dockle-done:ok]\n"
 
-    return Response(generate(), mimetype="text/plain",
+    # stream_with_context: without it, Flask doesn't keep the request/app
+    # context alive for the generator's whole lifetime, and anything in
+    # here needing it (activity.log) can throw well after the response
+    # has already started - see the same fix in stacks.py's api_action
+    # for the full story.
+    return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})

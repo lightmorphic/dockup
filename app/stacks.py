@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 import yaml
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from . import activity, composeconv, composegen, config, runtime
 
@@ -594,7 +594,16 @@ def api_action(name, action):
                          "Open the stack's output panel for the full error text.")
             yield "[dockle-done:error]\n"
 
-    return Response(generate(), mimetype="text/plain",
+    # stream_with_context: without it, Flask doesn't keep the request/app
+    # context alive for the generator's whole lifetime - anything deep in
+    # here that needs it (runtime.current() -> settingsvc.get() -> db.get(),
+    # activity.log()) can then throw "Working outside of application
+    # context" mid-stream, well after the response has already started -
+    # the client just sees the connection die, and since that crash sits
+    # above the completion logging, nothing reaches Activity either. This
+    # was the real cause of a delete that streamed real progress lines
+    # and then died with no trace.
+    return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
