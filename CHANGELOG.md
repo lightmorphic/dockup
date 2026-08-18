@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.5.0 - 2026-08-18
+
+- Delete now purges the image unconditionally (previously only Purge
+  did), and offers an explicit, opt-in option to permanently delete a
+  stack's actual data too - bind-mount folders and named volumes,
+  listing the real paths involved before you opt in
+- Fixed a real bug where deleting a stack could crash mid-stream with
+  no trace anywhere (client saw a bare "network error", nothing in
+  Activity) - the streaming actions (delete, redeploy, update, and the
+  companion installer) now correctly keep Flask's request context
+  alive for their whole run, and any unexpected error is now always
+  caught and reported instead of failing silently
+- Delete can no longer hang forever on a container stuck in a bad
+  state (e.g. its bind-mount source deleted while still running) - a
+  45s cap now falls back to forcefully removing it
+- Fixed a real update-check bug: some images report a frozen digest
+  instead of their tag, which made Dockle permanently report "up to
+  date" even when a real update was sitting on the registry
+- Every contextual message in the app (save confirmations, errors,
+  update results) is now a small bubble anchored to the actual button
+  or field it's about, with an arrow pointing at it - replacing the
+  old toast that sat easy-to-miss at the bottom of the page
+- New Stack's default port changed from 8080 to 8001 to avoid a
+  common collision
+- Container hardened further: dropped capabilities to only what the
+  entrypoint's privilege drop needs, no-new-privileges, a process and
+  memory ceiling, rotated logs, and a .dockerignore trimming the build
+  context
+
 ## 1.4.0 - 2026-08-18
 
 - Port-conflict warnings: creating or editing a compose file now checks
