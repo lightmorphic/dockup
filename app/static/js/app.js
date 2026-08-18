@@ -746,23 +746,73 @@ async function viewStack(name) {
 
   const checkBtn = head.querySelector("#checkUpdateBtn");
   const statusDot = head.querySelector("#stackStatusDot");
-  checkBtn.addEventListener("click", async () => {
+  const checkTipDefault = checkBtn.dataset.tip;
+  const updateTipReady = "Update available - click to update";
+
+  function popTip(btn, text, ms = 2500) {
+    btn.dataset.tip = text;
+    btn.classList.add("tip-visible");
+    clearTimeout(btn._tipTimer);
+    btn._tipTimer = setTimeout(() => btn.classList.remove("tip-visible"), ms);
+  }
+  function setStackStatus(effectiveStatus) {
+    const tip = STATUS_TIPS[effectiveStatus] || "Container is down";
+    statusDot.className = `status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}`;
+    statusDot.dataset.tip = tip;
+    statusDot.setAttribute("aria-label", tip);
+  }
+  if (s.updateAvailable) {
+    checkBtn.classList.add("update-ready");
+    checkBtn.dataset.tip = updateTipReady;
+  }
+
+  async function doUpdate() {
     checkBtn.disabled = true;
+    checkBtn.classList.add("busy");
+    try {
+      await api(`/api/stacks/${encodeURIComponent(name)}/quick-update`, { method: "POST", body: {} });
+      s.updateAvailable = false;
+      checkBtn.classList.remove("update-ready");
+      checkBtn.dataset.tip = checkTipDefault;
+      popTip(checkBtn, "Updated");
+      setStackStatus(s.status);
+      refreshStacks();
+    } catch (e) {
+      popTip(checkBtn, e.message, 4000);
+    } finally {
+      checkBtn.classList.remove("busy");
+      checkBtn.disabled = false;
+    }
+  }
+
+  async function doCheck() {
+    checkBtn.disabled = true;
+    checkBtn.classList.add("busy");
     try {
       const res = await api(`/api/stacks/${encodeURIComponent(name)}/check-update`, { method: "POST", body: {} });
       s.updateAvailable = res.available;
-      const eff = res.available ? "update" : s.status;
-      const tip = STATUS_TIPS[eff] || "Container is down";
-      statusDot.className = `status-dot ${STATUS_DOT_CLASS[eff] || ""}`;
-      statusDot.dataset.tip = tip;
-      statusDot.setAttribute("aria-label", tip);
-      toast(res.available ? "An update is available." : "Already up to date.", res.available ? "info" : "success");
+      if (res.available) {
+        checkBtn.classList.add("update-ready");
+        checkBtn.dataset.tip = updateTipReady;
+        popTip(checkBtn, updateTipReady);
+        setStackStatus("update");
+      } else {
+        checkBtn.classList.remove("update-ready");
+        checkBtn.dataset.tip = checkTipDefault;
+        popTip(checkBtn, "You're on the latest version");
+        setStackStatus(s.status);
+      }
       refreshStacks();
     } catch (e) {
-      toast(e.message, "danger");
+      popTip(checkBtn, e.message, 4000);
     } finally {
+      checkBtn.classList.remove("busy");
       checkBtn.disabled = false;
     }
+  }
+
+  checkBtn.addEventListener("click", () => {
+    if (checkBtn.classList.contains("update-ready")) doUpdate(); else doCheck();
   });
 
   const tabs = el(`<div class="panel">

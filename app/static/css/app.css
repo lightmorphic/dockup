@@ -227,6 +227,8 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .icon-btn.confirming { background: var(--danger); color: #fff; }
 .icon-btn.success-flash { background: var(--success); color: #fff; }
 .icon-btn[disabled] { opacity: 0.45; cursor: progress; }
+.icon-btn.update-ready { color: var(--warning); }
+.icon-btn.busy { animation: dot-pulse 1s ease-in-out infinite; }
 
 /* tooltips: informational, not an action - muted surface + plain
    foreground text, never the accent colour */
@@ -247,6 +249,12 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after {
   opacity: 1; visibility: visible;
   transition-delay: 0.5s;
+}
+/* forced open from JS - e.g. the result of a click, not a hover - so it
+   needs to appear instantly, no hover delay */
+[data-tip].tip-visible::after {
+  opacity: 1; visibility: visible;
+  transition-delay: 0s;
 }
 
 /* ---- forms: equal gaps, full-width fields ---- */
