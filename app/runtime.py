@@ -209,13 +209,29 @@ class Runtime:
         # stack's services.
         self._run(["compose", "-p", project, "pull", "-q", "--ignore-pull-failures"],
                    timeout=300, cwd=stack_dir, compose=True)
+
+        # `compose ps`'s own "Image" column isn't reliable for this - for
+        # some published images it reports the frozen digest the running
+        # container was created from instead of the tag (e.g.
+        # "sha256:01fd..." instead of "ghcr.io/x/y:latest"), which then
+        # only ever compares against itself and never detects an update.
+        # `compose config --images` always resolves to the tag actually
+        # declared in the compose file, so use that as the source of
+        # truth for what "latest" means here.
+        services = self._run(["compose", "-p", project, "config", "--services"],
+                              timeout=30, cwd=stack_dir, compose=True).splitlines()
+        images = self._run(["compose", "-p", project, "config", "--images"],
+                            timeout=30, cwd=stack_dir, compose=True).splitlines()
+        service_images = dict(zip(services, images))
+
         out = self._run(["compose", "-p", project, "ps", "-a", "--format", "{{json .}}"],
                         timeout=30, cwd=stack_dir, compose=True)
         for line in out.splitlines():
             if not line.strip():
                 continue
             c = json.loads(line)
-            name, image_ref = c.get("Name"), c.get("Image")
+            name, service = c.get("Name"), c.get("Service")
+            image_ref = service_images.get(service)
             if not name or not image_ref:
                 continue
             try:

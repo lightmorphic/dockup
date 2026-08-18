@@ -218,7 +218,7 @@ const ICONS = {
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   tick: '<svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  checkUpdate: '<svg viewBox="0 0 24 24"><path d="M7 18h9.5a3.5 3.5 0 0 0 .5-6.96 5 5 0 0 0-9.71-1.79A4 4 0 0 0 7 18Z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M9 12.5l1.8 1.8L15 10" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
 /* ---------- sidebar / engine ---------- */
@@ -721,9 +721,9 @@ async function viewStack(name) {
       <h1 class="stack-title">${esc(name)}</h1>
       <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
         target="_blank" rel="noopener" href="#">${ICONS.external}</a>
-      <button class="icon-btn" id="checkUpdateBtn" data-tip="Check this stack for an update right now"
-        aria-label="Check for an update">${ICONS.search}</button>
       <span class="spacer"></span>
+      <button class="icon-btn" id="checkUpdateBtn" data-tip="Check this stack for an update right now"
+        aria-label="Check for an update">${ICONS.checkUpdate}</button>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
       <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
