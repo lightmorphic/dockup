@@ -713,6 +713,11 @@ async function viewStack(name) {
   let s;
   try { s = await api(`/api/stacks/${encodeURIComponent(name)}`); }
   catch (e) { content.innerHTML = `<p class="alert alert-danger">! ${esc(e.message)}</p>`; return; }
+  // The sidebar renders from stacksCache, which this fresh per-stack
+  // fetch doesn't touch - without this, the sidebar/dashboard dot can
+  // sit stale (e.g. still green) while this page's own dot already
+  // shows yellow, right after a background check flips the flag.
+  refreshStacks();
 
   content.innerHTML = "";
   const effectiveStatus = s.updateAvailable ? "update" : s.status;
@@ -752,6 +757,7 @@ async function viewStack(name) {
       statusDot.dataset.tip = tip;
       statusDot.setAttribute("aria-label", tip);
       toast(res.available ? "An update is available." : "Already up to date.", res.available ? "info" : "success");
+      refreshStacks();
     } catch (e) {
       toast(e.message, "danger");
     } finally {

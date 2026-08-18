@@ -24,7 +24,13 @@ COMPOSE_ACTIONS = {
     "stop": ["stop"],
     "start": ["start"],
     "restart": ["restart"],
-    "pull": ["pull"],
+    # --ignore-pull-failures: a service whose image is built locally by
+    # something outside Dockle (no registry to pull from at all, just a
+    # bare local tag) would otherwise hard-fail Update before it ever
+    # reaches the `up` step that actually picks up the newer local
+    # image - same tolerance check_stack_update already uses to detect
+    # the update in the first place.
+    "pull": ["pull", "--ignore-pull-failures"],
     # Recreates every container from the compose file and whatever
     # image is already pulled - unlike restart (which just restarts the
     # same container process), this tears down and rebuilds it, which
