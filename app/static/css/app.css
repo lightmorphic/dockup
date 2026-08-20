@@ -428,6 +428,14 @@ tr:last-child td { border-bottom: none; }
 .prune-result { margin-top: 0.5rem; font-size: 0.875rem; font-weight: 600; }
 .prune-result.ok { color: var(--success); }
 .prune-result.bad { color: var(--danger); }
+.prune-result p { font-weight: 400; margin: 0.35rem 0; }
+.vol-list { list-style: none; margin: 0.5rem 0; padding: 0; display: grid; gap: 0.35rem; }
+.vol-list li { border-left: 3px solid var(--border); padding: 0.25rem 0 0.25rem 0.6rem; font-weight: 400; }
+.vol-list li strong { font-weight: 600; }
+.vol-list .hint { display: block; font-size: 0.8125rem; color: var(--muted-fg); }
+.vol-list .vol-in-use { border-left-color: var(--danger); background: var(--danger-bg); }
+.vol-list .vol-superseded { border-left-color: var(--warning); background: var(--warning-bg); }
+.vol-list .vol-orphaned { border-left-color: var(--success); }
 
 /* ---- auth pages ---- */
 

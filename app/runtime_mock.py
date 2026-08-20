@@ -186,7 +186,9 @@ class MockRuntime:
         ]
 
     def dangling_volumes(self):
-        return ["old-wordpress_db-data", "test-stack_cache", "temp_build_scratch"]
+        return [{"name": "old-wordpress_db-data", "size": "412MB"},
+                {"name": "test-stack_cache", "size": "38.1MB"},
+                {"name": "temp_build_scratch", "size": "0B"}]
 
     def prune(self, target):
         time.sleep(1.2)

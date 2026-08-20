@@ -45,7 +45,10 @@ PRUNE_TARGETS = {
     "images": ["image", "prune", "-af"],
     "containers": ["container", "prune", "-f"],
     "networks": ["network", "prune", "-f"],
-    "volumes": ["volume", "prune", "-f"],
+    # -a is required: since API 1.42 a bare `volume prune` removes only
+    # anonymous volumes, so named ones were listed in the preview and
+    # then silently left behind ("0B reclaimed").
+    "volumes": ["volume", "prune", "-af"],
     "buildcache": ["builder", "prune", "-af"],
 }
 
@@ -242,9 +245,20 @@ class Runtime:
                 })
         return rows
 
-    def dangling_volumes(self) -> list[str]:
+    def dangling_volumes(self) -> list[dict]:
+        """Unused volumes, with sizes so the confirmation step can show what
+        is actually at stake. Names come from `volume ls` because that is the
+        same set `volume prune -a` acts on; sizes are best-effort."""
         out = self._run(["volume", "ls", "-f", "dangling=true", "--format", "{{.Name}}"])
-        return [v for v in out.splitlines() if v.strip()]
+        names = [v for v in out.splitlines() if v.strip()]
+        sizes = {}
+        try:
+            raw = self._run(["system", "df", "-v", "--format", "{{json .Volumes}}"], timeout=120)
+            for vol in json.loads(raw or "[]"):
+                sizes[vol.get("Name", "")] = vol.get("Size", "")
+        except (RuntimeError_, ValueError):
+            pass
+        return [{"name": n, "size": sizes.get(n, "")} for n in names]
 
     def prune(self, target: str) -> str:
         out = self._run(PRUNE_TARGETS[target], timeout=600)

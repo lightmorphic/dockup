@@ -1146,7 +1146,10 @@ const PRUNE_INFO = [
   ["containers", "Stopped containers", "Removes containers that have exited. Their images and volumes stay."],
   ["networks", "Unused networks", "Removes networks no container is attached to."],
   ["buildcache", "Build cache", "Clears layers cached from image builds."],
-  ["volumes", "Unused volumes", "Deletes volumes no container uses. Volumes hold real data - this cannot be undone."],
+  ["volumes", "Unused volumes", "The only one that can lose data. \u201cUnused\u201d means no container is using it " +
+    "<em>right now</em> \u2014 which also describes every volume belonging to a stack you have merely stopped. " +
+    "Everything else on this page only removes things Docker can rebuild; this removes real data, permanently. " +
+    "Dockle lists each volume and whose it is before anything is deleted."],
 ];
 
 async function viewMaintenance() {
@@ -1155,8 +1158,9 @@ async function viewMaintenance() {
       <div class="table-wrap" id="dfWrap"><p class="hint">Loading…</p></div></div>
     <div class="panel"><div class="panel-head"><h2>Prune</h2>
       <span class="spacer"></span><button class="btn btn-primary" id="pruneAll">Prune everything</button></div>
-      <p>Each cleans one kind of leftover. <strong>Prune everything</strong> runs the safe four together -
-      volumes always stay a separate, deliberate step.</p>
+      <p>Each cleans one kind of leftover. <strong>Prune everything</strong> runs the safe four together \u2014
+      images, containers, networks and build cache are all rebuildable, so pruning them costs you nothing but
+      a slower next build. Volumes hold real data and are never included; they stay a separate, deliberate step.</p>
       <div class="prune-grid" id="pruneGrid"></div></div>`;
 
   api("/api/system/df").then(d => {
@@ -1184,8 +1188,23 @@ async function viewMaintenance() {
           if (!card.dataset.armed) {
             card.dataset.armed = "1";
             result.className = "prune-result bad";
-            result.textContent = `Will permanently delete: ${prev.volumes.join(", ")}. Click again to confirm.`;
-            setTimeout(() => { delete card.dataset.armed; if (result.textContent.startsWith("Will")) result.textContent = ""; }, 8000);
+            const order = { "in-use": 0, superseded: 1, orphaned: 2 };
+            const rows = [...prev.volumes].sort((a, b) => order[a.verdict] - order[b.verdict])
+              .map(v => `<li class="vol-${esc(v.verdict)}"><strong>${esc(v.name)}</strong>${v.size ? ` \u00b7 ${esc(v.size)}` : ""}
+                <span class="hint">${esc(v.note || "")}</span></li>`).join("");
+            const risky = prev.volumes.filter(v => v.verdict === "in-use").length;
+            result.innerHTML = `<p>Will <strong>permanently delete</strong> these ${prev.volumes.length} volumes
+              and the data in them:</p><ul class="vol-list">${rows}</ul>
+              <p>${risky
+                ? `<strong>${risky} of them belong to a stack that is only stopped.</strong> Start that stack again
+                   and its data will be gone. Delete those only if you are finished with the stack.`
+                : "None of them belong to a stack Dockle can see, so this should only reclaim genuine leftovers."}
+              Click again to confirm.</p>`;
+            setTimeout(() => {
+              if (!card.dataset.armed) return;  // already confirmed - leave the outcome on screen
+              delete card.dataset.armed;
+              result.innerHTML = "";
+            }, 15000);
             return;
           }
           delete card.dataset.armed;

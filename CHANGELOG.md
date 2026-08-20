@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.1 - 2026-08-20
+
+- Fixed Prune volumes doing nothing: it listed the volumes it would
+  remove, then reclaimed 0B every time. Since Docker API 1.42 a bare
+  `docker volume prune` removes only anonymous volumes, so every named
+  volume named in the confirmation was silently left behind - the
+  preview and the action were asking the engine two different
+  questions
+- Prune volumes now says whose data each volume is before deleting it.
+  "Unused" only means no container is using it right now, which also
+  describes every volume belonging to a stack you have merely stopped
+  - so each one is now listed with its size and its origin: in use by
+  a stopped stack (its live data), left over from a stack that no
+  longer uses it, or claimed by no stack at all. If any belong to a
+  stopped stack, the confirmation says so plainly instead of relying
+  on the button being red
+- Maintenance now explains that images, containers, networks and build
+  cache are all rebuildable and cost nothing to prune, and that
+  volumes are the only thing on the page that can lose real data
+
 ## 1.5.0 - 2026-08-18
 
 - Delete now purges the image unconditionally (previously only Purge
