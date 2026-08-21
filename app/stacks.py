@@ -376,6 +376,39 @@ def _port_conflict_hint(line, available):
 _NETWORK_LABEL_RE = re.compile(r"network (\S+) was found but has incorrect label com\.docker\.compose\.network")
 
 
+def _compose_with_network_fix(rt, name, d, action):
+    """Run one compose action, and if it failed only because compose
+    tried to take ownership of a network that predates Dockle managing
+    this stack, declare that network external and retry once.
+
+    Yields ('line', text) for every output line of both attempts,
+    ('notice', text) once for the retry explanation, and finally
+    ('done', ok). Callers decide what to surface - the streaming action
+    panel prints lines, hints and the notice; Update all captures a port
+    conflict from the lines and stays silent otherwise. Keeping the
+    run-once-retry-once logic here means both can't drift apart."""
+    local_ok = True
+    fix_network = None
+    for line in rt.compose_stream(str(d), name, action):
+        if line.startswith("[dockle-exit:"):
+            local_ok = line == "[dockle-exit:0]"
+        else:
+            yield ("line", line)
+            m = _NETWORK_LABEL_RE.search(line)
+            if m:
+                fix_network = m.group(1)
+    if not local_ok and fix_network and _fix_unlabeled_network(name, fix_network):
+        yield ("notice", f"Network '{fix_network}' predates Dockle managing this stack - declaring it "
+                         f"external so compose reuses it instead of trying to own it, and retrying...")
+        local_ok = True
+        for line in rt.compose_stream(str(d), name, action):
+            if line.startswith("[dockle-exit:"):
+                local_ok = line == "[dockle-exit:0]"
+            else:
+                yield ("line", line)
+    yield ("done", local_ok)
+
+
 def _fix_unlabeled_network(project: str, network_name: str) -> bool:
     """One-time repair for a network that predates Dockle managing this
     stack (or any docker-compose lifecycle ownership) - a real, common
@@ -440,32 +473,18 @@ def api_action(name, action):
 
         def run_compose(sub_action):
             nonlocal ok
-            local_ok = [True]
-            fix_network = None
-            for line in rt.compose_stream(str(d), name, sub_action):
-                if line.startswith("[dockle-exit:"):
-                    local_ok[0] = line == "[dockle-exit:0]"
-                else:
-                    yield line + "\n"
-                    m = _NETWORK_LABEL_RE.search(line)
-                    if m:
-                        fix_network = m.group(1)
-                    hint = _port_conflict_hint(line, companion_available)
+            action_ok = True
+            for kind, text in _compose_with_network_fix(rt, name, d, sub_action):
+                if kind == "line":
+                    yield text + "\n"
+                    hint = _port_conflict_hint(text, companion_available)
                     if hint:
                         yield hint + "\n"
-            if not local_ok[0] and fix_network and _fix_unlabeled_network(name, fix_network):
-                yield (f"Network '{fix_network}' predates Dockle managing this stack - declaring it "
-                       f"external so compose reuses it instead of trying to own it, and retrying...\n")
-                local_ok[0] = True
-                for line in rt.compose_stream(str(d), name, sub_action):
-                    if line.startswith("[dockle-exit:"):
-                        local_ok[0] = line == "[dockle-exit:0]"
-                    else:
-                        yield line + "\n"
-                        hint = _port_conflict_hint(line, companion_available)
-                        if hint:
-                            yield hint + "\n"
-            ok = ok and local_ok[0]
+                elif kind == "notice":
+                    yield text + "\n"
+                elif kind == "done":
+                    action_ok = text
+            ok = ok and action_ok
 
         try:
             if action in _STARTING_ACTIONS:
@@ -764,25 +783,13 @@ def _update_one(name, d, rt):
     try:
         ok = True
         for action in ("pull", "up"):
-            local_ok = [True]
-            fix_network = None
-            for line in rt.compose_stream(str(d), name, action):
-                if line.startswith("[dockle-exit:"):
-                    local_ok[0] = line == "[dockle-exit:0]"
-                    continue
-                if not conflict_port:
-                    m = _PORT_CONFLICT_RE.search(line)
+            for kind, text in _compose_with_network_fix(rt, name, d, action):
+                if kind == "line" and not conflict_port:
+                    m = _PORT_CONFLICT_RE.search(text)
                     if m:
                         conflict_port = m.group(1)
-                m = _NETWORK_LABEL_RE.search(line)
-                if m:
-                    fix_network = m.group(1)
-            if not local_ok[0] and fix_network and _fix_unlabeled_network(name, fix_network):
-                local_ok[0] = True
-                for line in rt.compose_stream(str(d), name, action):
-                    if line.startswith("[dockle-exit:"):
-                        local_ok[0] = line == "[dockle-exit:0]"
-            ok = ok and local_ok[0]
+                elif kind == "done":
+                    ok = ok and text
         if ok:
             from . import updatecheck
             updatecheck.clear_flag(name)

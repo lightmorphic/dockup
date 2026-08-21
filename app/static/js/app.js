@@ -1295,26 +1295,11 @@ async function streamSelfAction(action, out, deleteData = false) {
     const res = await fetch(`/api/system/self/action/${action}${qs}`, {
       method: "POST", headers: { "X-CSRF": CSRF },
     });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Request failed (${res.status})`);
-    }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
-      for (const line of lines) {
-        if (line === "[dockle-restarting]") { restarting = true; continue; }
-        if (line === "[dockle-done:ok]") { ok = true; continue; }
-        if (line === "[dockle-done:error]") { ok = false; continue; }
-        if (line) appendLog(out, line);
-      }
-    }
+    const r = await readDockleStream(res, {
+      onLine: line => appendLog(out, line),
+      onRestarting: () => { restarting = true; },
+    });
+    ok = r.ok;
   } catch (e) {
     if (!restarting) {
       appendLog(out, "ERROR: " + e.message);
@@ -1339,6 +1324,35 @@ async function streamSelfAction(action, out, deleteData = false) {
   if (location.hash === "#/dockle") await viewDockleStack();
 }
 
+/* Every one of Dockle's streaming actions speaks the same wire format:
+   newline-delimited output plus a few control tokens. This reads one
+   such response, calling onLine for each content line and onRestarting
+   when the container serving the request is about to be replaced (after
+   which the stream simply stops). Returns {ok, restarting}. */
+async function readDockleStream(res, { onLine, onRestarting } = {}) {
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", ok = true, restarting = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for (const line of lines) {
+      if (line === "[dockle-done:ok]") { ok = true; continue; }
+      if (line === "[dockle-done:error]") { ok = false; continue; }
+      if (line === "[dockle-restarting]") { restarting = true; if (onRestarting) onRestarting(); continue; }
+      if (line) { if (onLine) onLine(line); }
+    }
+  }
+  return { ok, restarting };
+}
+
 async function streamAction(name, action, out, isDelete = false, deleteData = false) {
   out.innerHTML = "";
   appendLog(out, `$ ${action} ${name}`);
@@ -1348,24 +1362,11 @@ async function streamAction(name, action, out, isDelete = false, deleteData = fa
     const res = await fetch(`/api/stacks/${encodeURIComponent(name)}/action/${action}${qs}`, {
       method: "POST", headers: { "X-CSRF": CSRF },
     });
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let ok = true;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
-      for (const line of lines) {
-        if (line === "[dockle-done:ok]") { ok = true; continue; }
-        if (line === "[dockle-done:error]") { ok = false; continue; }
-        const hint = line.match(/^\[dockle-hint:tailscale-port-conflict:(\d+):([01])\]$/);
-        if (hint) { renderPortConflictHint(out, hint[1], hint[2] === "1"); continue; }
-        if (line) appendLog(out, line);
-      }
-    }
+    const { ok } = await readDockleStream(res, { onLine: line => {
+      const hint = line.match(/^\[dockle-hint:tailscale-port-conflict:(\d+):([01])\]$/);
+      if (hint) { renderPortConflictHint(out, hint[1], hint[2] === "1"); return; }
+      appendLog(out, line);
+    }});
     if (ok) {
       popAlert(out, `${action} finished.`, "success");
     } else {
@@ -1720,21 +1721,10 @@ async function installCompanion(btn) {
   let restarting = false;
   try {
     const res = await fetch("/api/hostcompanion/install", { method: "POST", headers: { "X-CSRF": CSRF } });
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
-      for (const line of lines) {
-        if (line === "[dockle-restarting]") { restarting = true; panel.line("Reconnecting Dockle…"); continue; }
-        if (line === "[dockle-done:ok]" || line === "[dockle-done:error]") continue;
-        if (line) panel.line(line);
-      }
-    }
+    ({ restarting } = await readDockleStream(res, {
+      onLine: line => panel.line(line),
+      onRestarting: () => panel.line("Reconnecting Dockle…"),
+    }));
   } catch (e) {
     if (!restarting) {
       panel.line("ERROR: " + e.message);
@@ -1825,25 +1815,10 @@ async function updateDockle() {
   let restarting = false;
   try {
     const res = await fetch("/api/system/self-update", { method: "POST", headers: { "X-CSRF": CSRF } });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Request failed (${res.status})`);
-    }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
-      for (const line of lines) {
-        if (line === "[dockle-restarting]") { restarting = true; progress.line("Dockle is restarting itself…"); continue; }
-        if (line === "[dockle-done:ok]" || line === "[dockle-done:error]") continue;
-        if (line) progress.line(line);
-      }
-    }
+    ({ restarting } = await readDockleStream(res, {
+      onLine: line => progress.line(line),
+      onRestarting: () => progress.line("Dockle is restarting itself…"),
+    }));
   } catch (e) {
     if (!restarting) {
       progress.line("ERROR: " + e.message);

@@ -30,6 +30,11 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   other call, rather than relying on PATH
 - Renamed the last "Settings → Host" references to the panel's real
   name, "Host OS & Tailscale"
+- Internal: the four browser functions that read a streaming action now
+  share one stream reader, and the compose run-and-retry-on-network-clash
+  logic that was written twice (streamed vs collected) is now one
+  generator both callers drive - no behaviour change, less to keep in
+  step
 
 ## 1.5.2 - 2026-08-21
 
