@@ -2,7 +2,17 @@
 
 ## 1.5.2 - 2026-08-21
 
-- **Update Dockle itself from Settings**, no terminal needed. Settings
+- **Dockle now appears on the dashboard as a card like any other
+  stack** - same status dot, containers, logs and terminal, and the full
+  set of buttons: Start, Stop, Restart, Redeploy, Update, Down and
+  Delete, Delete included with the same opt-in "and its data" checkbox
+  every other stack has. It used to hide itself from the dashboard
+  entirely, which was a blunt way of avoiding buttons that would shoot
+  it in the foot; the buttons now work instead, because every action
+  runs from a helper container rather than from the container being
+  acted on. Actions that deliberately leave Dockle down say so plainly
+  rather than waiting for a page that isn't coming back
+- **Update Dockle itself from Settings too**, no terminal needed. Settings
   now has a "Dockle itself" panel: check how many new commits are
   available, then one button pulls the newest source, pulls/rebuilds the
   image and recreates the container, streaming the output as it goes.

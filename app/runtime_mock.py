@@ -89,6 +89,16 @@ class MockRuntime:
                     "service": svc,
                     "workingDir": "", "configFiles": "", "ports": "",
                 })
+        # Dockle's own container, so the dashboard's Dockle card has
+        # something real to show in dev mode too.
+        rows.append({
+            "id": "0d0ckle00001", "name": "dockle",
+            "image": "dockle:latest",
+            "state": self.states.get("dockle", "running"),
+            "status": "Up 2 hours", "project": "dockle", "service": "dockle",
+            "workingDir": "/opt/dockle", "configFiles": "/opt/dockle/compose.yaml",
+            "ports": "127.0.0.1:4000->5001/tcp",
+        })
         if not self.adopted("homeassistant"):
             rows.append({
                 "id": "aa11bb22cc33", "name": "homeassistant-app-1",
@@ -247,3 +257,17 @@ class MockRuntime:
             yield line
         yield "Dockle would restart here - no real restart in dev mode."
         yield "[dockle-exit:0]"
+
+    def self_compose_stream(self, compose_host_dir, args):
+        yield f"(mock) docker compose {' '.join(args)} in {compose_host_dir}"
+        time.sleep(0.4)
+        if args and args[0] == "down":
+            yield " dockle: Container dockle  Removed"
+            self.states.pop("dockle", None)
+        else:
+            yield " dockle: Container dockle  Recreated"
+            self.states["dockle"] = "running"
+        yield "[dockle-exit:0]"
+
+    def container_logs_process(self, container, tail=200):
+        return _FakeLogsProc(container)

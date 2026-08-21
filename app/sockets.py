@@ -37,27 +37,11 @@ def _same_origin():
     return urlparse(origin).netloc == request.host
 
 
-@sock.route("/ws/logs/<name>")
-def ws_logs(ws, name):
-    if not _authed() or not _same_origin():
-        ws.close()
-        return
-    try:
-        d = stacks.stack_dir(name)
-    except ValueError:
-        ws.close()
-        return
-    if not d.exists():
-        ws.send(f"'{name}' hasn't been adopted into the stacks folder yet - nothing to stream.")
-        ws.close()
-        return
-    rt = runtime.current()
-    try:
-        proc = rt.logs_process(str(d), name)
-    except OSError:
-        ws.send("Could not start the log stream for this stack.")
-        ws.close()
-        return
+def _relay(ws, proc):
+    """Pump a log process's output down the socket until either end goes
+    away, then make sure the process is stopped - a reader that quietly
+    stayed alive after its browser tab closed would keep a `logs -f`
+    running forever."""
     stop = threading.Event()
 
     def watch_client():
@@ -86,6 +70,53 @@ def ws_logs(ws, name):
             proc.terminate()
         except Exception:
             pass
+
+
+@sock.route("/ws/logs-container/<container>")
+def ws_container_logs(ws, container):
+    """Logs for one named container, used by Dockle's own stack page -
+    `compose logs` needs the compose file, and Dockle's own folder isn't
+    mounted inside its container."""
+    if not _authed() or not _same_origin():
+        ws.close()
+        return
+    # Same name check the terminal route makes: a container name is the
+    # only thing this may ever be, never a flag or a path.
+    if not container or not all(c.isalnum() or c in "-_." for c in container):
+        ws.close()
+        return
+    rt = runtime.current()
+    try:
+        proc = rt.container_logs_process(container)
+    except OSError:
+        ws.send("Could not start the log stream for this container.")
+        ws.close()
+        return
+    _relay(ws, proc)
+
+
+@sock.route("/ws/logs/<name>")
+def ws_logs(ws, name):
+    if not _authed() or not _same_origin():
+        ws.close()
+        return
+    try:
+        d = stacks.stack_dir(name)
+    except ValueError:
+        ws.close()
+        return
+    if not d.exists():
+        ws.send(f"'{name}' hasn't been adopted into the stacks folder yet - nothing to stream.")
+        ws.close()
+        return
+    rt = runtime.current()
+    try:
+        proc = rt.logs_process(str(d), name)
+    except OSError:
+        ws.send("Could not start the log stream for this stack.")
+        ws.close()
+        return
+    _relay(ws, proc)
 
 
 @sock.route("/ws/terminal/<container>")

@@ -48,6 +48,18 @@ def compose_path(name):
     return d / "compose.yaml"
 
 
+def own_compose_project(containers):
+    """Which compose project Dockle itself belongs to, given a ps() list.
+    Its own container id is its hostname, the way Docker sets it. Used
+    both to keep Dockle out of the adopt list and to build its own card -
+    one definition, so the two can't drift apart."""
+    own_id = socket.gethostname()[:12]
+    own = next((c for c in containers if c["id"] == own_id), None)
+    if own is None and config.MOCK_MODE:
+        own = next((c for c in containers if c["project"] == "dockle"), None)
+    return (own["project"] or own["name"]) if own else None
+
+
 def list_stacks():
     rt = runtime.current()
     containers = []
@@ -874,9 +886,9 @@ def discover():
                if d.is_dir() and any((d / f).exists() for f in config.COMPOSE_FILENAMES)} \
         if config.STACKS_DIR.exists() else set()
 
-    # the project Dockle itself belongs to shouldn't offer to adopt itself
-    own_id = socket.gethostname()[:12]
-    own_project = next((c["project"] for c in containers if c["id"] == own_id), None)
+    # Dockle has its own card on the dashboard, so it must never also
+    # turn up here as something to adopt.
+    own_project = own_compose_project(containers)
 
     exclude = [p.strip() for p in (settingsvc.get("adopt.exclude_paths") or "").split(",") if p.strip()]
 

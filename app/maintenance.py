@@ -4,6 +4,7 @@ Also updating Dockle itself, the one stack its own Update button can't
 apply (see runtime.self_update_stream for why).
 """
 
+import re
 from pathlib import Path
 
 import yaml
@@ -214,5 +215,131 @@ def api_self_update():
     # stream_with_context for the same reason as every other streaming
     # action here: the generator outlives the request otherwise, and
     # activity.log() then throws well after the response has started.
+    return Response(stream_with_context(generate()), mimetype="text/plain",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+# -- Dockle as a stack of its own -----------------------------------------
+# Dockle is an ordinary container started by an ordinary compose file, and
+# the dashboard shows it as an ordinary card. The only thing that isn't
+# ordinary is how its actions run: every one of them goes through a helper
+# container (runtime.self_compose_stream), because a command that stops or
+# replaces Dockle's own container would otherwise kill the process running
+# it halfway through.
+
+SELF_ACTIONS = {
+    "up": ["up", "-d"],
+    "start": ["start"],
+    "stop": ["stop"],
+    "restart": ["restart"],
+    "redeploy": ["up", "-d", "--force-recreate"],
+    "down": ["down"],
+    # --rmi all: compose.yaml gives the image a tag of its own
+    # (dockle:latest), which --rmi local deliberately leaves alone.
+    "delete": ["down", "--rmi", "all"],
+}
+
+_PORT_RE = re.compile(r":(\d+)->")
+
+
+def _self_stack():
+    """Dockle's own container(s), shaped like any other stack entry so the
+    dashboard can render one card for everything."""
+    rt = runtime.current()
+    try:
+        containers = rt.ps()
+    except runtime.RuntimeError_ as exc:
+        return {"available": False, "error": str(exc)}
+
+    from . import stacks
+    project = stacks.own_compose_project(containers)
+    if not project:
+        # Not running under Docker at all (a bare `python run.py`), or the
+        # container was started without compose - either way there's no
+        # compose project to act on, so no card rather than a broken one.
+        return {"available": False, "error": "Dockle isn't running as a compose project on this host."}
+
+    mine = [c for c in containers if (c["project"] or c["name"]) == project]
+    states = {c["state"] for c in mine}
+    if not mine:
+        status = "inactive"
+    elif states == {"running"}:
+        status = "running"
+    elif "running" in states:
+        status = "partial"
+    else:
+        status = "stopped"
+
+    ports = sorted({int(p) for c in mine for p in _PORT_RE.findall(c.get("ports") or "")})
+    return {
+        "available": True,
+        "name": project,
+        "status": status,
+        "containers": mine,
+        "ports": ports,
+        "dir": _dockle_compose_dir(),
+        # Without its own host path Dockle can't act on itself at all -
+        # the card still shows, the buttons explain why they can't.
+        "canAct": bool(_dockle_compose_dir()),
+    }
+
+
+@bp.get("/self")
+def api_self():
+    return jsonify(_self_stack())
+
+
+@bp.post("/self/action/<action>")
+def api_self_action(action):
+    if action not in SELF_ACTIONS and action != "update":
+        return jsonify({"error": "Unknown action"}), 400
+    compose_dir = _dockle_compose_dir()
+    if not compose_dir:
+        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    delete_data = action == "delete" and request.args.get("deleteData") == "1"
+    rt = runtime.current()
+    activity.log("warning" if action in ("down", "delete") else "info", "dockle",
+                 f"{action.capitalize()} requested on Dockle itself")
+    # Update is the one action that isn't a plain compose command: it
+    # pulls newer source and rebuilds first (see self_update_stream).
+    steps = (rt.self_update_stream(compose_dir) if action == "update"
+             else rt.self_compose_stream(compose_dir, SELF_ACTIONS[action]))
+
+    def generate():
+        ok = True
+        stopping = action in ("stop", "down", "delete", "restart", "redeploy", "update")
+        warned = False
+        try:
+            for line in steps:
+                if line.startswith("[dockle-exit:"):
+                    ok = line == "[dockle-exit:0]"
+                    continue
+                yield line + "\n"
+                if stopping and not warned and ("recreat" in line.lower() or "stopp" in line.lower()
+                                                 or "remov" in line.lower()):
+                    warned = True
+                    yield "[dockle-restarting]\n"
+            if ok and delete_data:
+                # Dockle's own folder, compose file, database and all -
+                # the deliberate opt-in half of a delete, matching what
+                # the same checkbox does for any other stack.
+                d = Path(compose_dir)
+                yield f"Deleting Dockle's own folder {d}...\n"
+                rt.force_remove_dir(str(d.parent), d.name)
+                yield "Deleted.\n"
+        except runtime.RuntimeError_ as exc:
+            ok = False
+            yield f"ERROR: {exc}\n"
+        except Exception as exc:
+            ok = False
+            yield f"ERROR: unexpected {type(exc).__name__}: {exc}\n"
+        if ok:
+            activity.log("info", "dockle", f"{action.capitalize()} completed on Dockle itself")
+            yield "[dockle-done:ok]\n"
+        else:
+            activity.log("error", "dockle", f"{action.capitalize()} FAILED on Dockle itself")
+            yield "[dockle-done:error]\n"
+
     return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})

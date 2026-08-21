@@ -482,6 +482,37 @@ class Runtime:
                 return {"git": True, "behind": None if value == "unknown" else int(value)}
         raise RuntimeError_("Couldn't work out whether an update is available:\n" + out.strip()[-400:])
 
+    def self_compose_stream(self, compose_host_dir: str, args: list):
+        """One `docker compose <args>` against Dockle's own folder, run
+        from a helper container in the host's namespaces. Dockle's own
+        lifecycle actions all come through here for the same reason the
+        update does: any command that stops Dockle's container would
+        otherwise kill the process running it, leaving the job half
+        done. Streams output; ends abruptly whenever the action being
+        run is one that replaces or stops Dockle itself."""
+        inner = (f"cd {shlex.quote(compose_host_dir)} && docker compose "
+                 + " ".join(shlex.quote(a) for a in args))
+        script = "apk add --no-cache util-linux-misc >/dev/null && " + self._host_nsenter(inner)
+        proc = subprocess.Popen(
+            [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
+             "alpine", "sh", "-c", script],
+            env=self._env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1)
+        for line in proc.stdout:
+            yield line.rstrip("\n")
+        proc.wait()
+        yield f"[dockle-exit:{proc.returncode}]"
+
+    def container_logs_process(self, container: str, tail=200):
+        """`docker logs -f` for one container. Dockle's own stack streams
+        its logs this way rather than through `compose logs`, which needs
+        the compose file - and Dockle's own folder isn't mounted into its
+        container."""
+        return subprocess.Popen(
+            [_DOCKER_BIN, "logs", "-f", "--tail", str(tail), container],
+            env=self._env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1)
+
     def self_update_stream(self, compose_host_dir: str):
         """Pull newer source (git checkouts), pull newer published images,
         then rebuild and recreate. Covers both install styles: built from

@@ -124,7 +124,8 @@ lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
 
 ## Restart / update Dockle
 
-Normally: **Settings -> Dockle itself -> Update Dockle**. It pulls the
+Normally: open **Dockle's own card on the dashboard** (or Settings ->
+Dockle itself) and press **Update**. It pulls the
 newest source, pulls/rebuilds the image and recreates the container, then
 waits for Dockle to answer again and refreshes the page itself. Your
 stacks are untouched - only Dockle's own container is replaced.
@@ -138,6 +139,14 @@ output stops mid-flight: the page it was streaming to has gone.
 
 Needs `DOCKLE_DATA_HOST_PATH` set in compose.yaml (it's how Dockle knows
 its own folder on the host); the button says so plainly if it isn't.
+
+Dockle's card carries the full set of buttons - Start, Stop, Restart,
+Redeploy, Update, Down and Delete - plus its logs and a terminal. Stop,
+Down and Delete do exactly what they say, so the page they were pressed
+from is the last one you'll see until you bring Dockle back from a
+shell. Delete offers the same opt-in "and its data" checkbox every other
+stack does; ticking it removes Dockle's own folder, settings, activity
+log and login along with the container.
 
 From a shell, if you prefer or if Dockle won't start:
 
