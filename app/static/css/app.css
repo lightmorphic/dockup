@@ -129,11 +129,6 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .spacer { flex: 1; }
 .inline-form { display: inline; margin: 0; }
 
-.engine-badge {
-  font-size: 0.8125rem; padding: 0.125rem 0.75rem;
-  border: 1px solid var(--border); border-radius: 999px;
-  background: var(--bg); color: var(--muted-fg);
-}
 /* Small "this is Dockle" marker on its own card and page title - the
    card is otherwise deliberately identical to every other stack's. */
 .pill {
@@ -142,9 +137,6 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   border: 1px solid var(--border); color: var(--muted-fg);
   background: var(--bg); white-space: nowrap;
 }
-
-.engine-badge.ok { color: var(--success); border-color: var(--success); }
-.engine-badge.bad { color: var(--danger); border-color: var(--danger); }
 
 .sidebar {
   grid-area: side;
@@ -169,6 +161,21 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   background: var(--accent-container); color: var(--on-accent-container); font-weight: 600;
 }
 .side-nav { display: flex; flex-direction: column; gap: 2px; margin-top: auto; }
+
+/* Versions, under the nav at the very bottom of the sidebar: quiet by
+   default, because a version number is a fact you look up rather than
+   something that should compete with the stack list for attention. */
+.versions {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  padding-top: 0.75rem; border-top: 1px solid var(--panel-border);
+  font-size: 0.75rem; color: var(--muted-fg);
+}
+.version-row { display: flex; align-items: center; gap: 0.375rem; }
+.version-name { font-weight: 600; }
+.version-num { font-variant-numeric: tabular-nums; }
+.version-tick { color: var(--success); font-weight: 700; }
+.version-behind { color: var(--warning); font-weight: 700; }
+.version-row.bad .version-num { color: var(--danger); }
 .nav-ico, .btn-ico { width: 18px; height: 18px; flex: none; }
 
 /* display:inline-block matters here - a bare <span> is inline by default,

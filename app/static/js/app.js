@@ -4,7 +4,7 @@
 const CSRF = document.querySelector('meta[name="csrf"]').content;
 const content = document.getElementById("content");
 const stackListEl = document.getElementById("stackList");
-const engineBadge = document.getElementById("engineBadge");
+const versionsEl = document.getElementById("versions");
 
 let stacksCache = [];
 let liveSockets = [];
@@ -249,14 +249,55 @@ async function refreshStacks() {
     const data = await api("/api/stacks");
     stacksCache = data.stacks;
     dashboardDnsName = data.dnsName || "";
-    const e = data.engine || {};
-    engineBadge.textContent = e.ok ? `✓ ${e.engine} ${e.version}` : "! engine unreachable";
-    engineBadge.className = "engine-badge " + (e.ok ? "ok" : "bad");
-    if (data.engineError) engineBadge.title = data.engineError;
     renderStackList();
   } catch (e) {
-    engineBadge.textContent = "! " + e.message;
-    engineBadge.className = "engine-badge bad";
+    // Callers treat this as best-effort; the sidebar's Docker row is
+    // where an unreachable engine is actually reported now.
+    renderStackList();
+  }
+}
+
+/* Versions, bottom of the sidebar: a number each for Dockle and Docker,
+   with a tick when there's something real to tick. Dockle's tick means
+   up to date with the repo; Docker's means Dockle is talking to it (the
+   newest Docker release isn't knowable from inside a container, so a
+   tick claiming otherwise would be a lie). No answer yet - the check
+   runs in the background - shows the number alone. */
+async function renderVersions() {
+  if (!versionsEl) return;
+  let v;
+  try { v = await api("/api/system/versions"); }
+  catch (e) {
+    versionsEl.innerHTML = `<div class="version-row bad">${esc(e.message)}</div>`;
+    return;
+  }
+  const tick = '<span class="version-tick" aria-hidden="true">✓</span>';
+  const rows = [];
+
+  const d = v.dockle || {};
+  let dockleMark = "", dockleTip = "Version check hasn't run yet";
+  if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
+  else if (d.behind > 0) {
+    dockleMark = '<span class="version-behind" aria-hidden="true">↑</span>';
+    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - Settings → Dockle itself`;
+  }
+  rows.push(`<div class="version-row" data-tip="${esc(dockleTip)}">
+    <span class="version-name">Dockle</span>
+    <span class="version-num">${esc(d.version || "?")}</span>${dockleMark}</div>`);
+
+  const k = v.docker || {};
+  rows.push(`<div class="version-row ${k.ok ? "" : "bad"}" data-tip="${esc(k.ok ? "Connected" : (k.error || "Engine unreachable"))}">
+    <span class="version-name">${esc(k.engine || "Docker")}</span>
+    <span class="version-num">${esc(k.version || "unreachable")}</span>${k.ok ? tick : ""}</div>`);
+
+  versionsEl.innerHTML = rows.join("");
+
+  // First load after a restart has no cached answer yet: the server has
+  // just kicked the check off in the background, so look again shortly
+  // rather than leaving the row blank until the next minute ticks over.
+  if (d.upToDate === null && !renderVersions.retried) {
+    renderVersions.retried = true;
+    setTimeout(() => { renderVersions.retried = false; renderVersions(); }, 5000);
   }
 }
 
@@ -1997,7 +2038,9 @@ window.addEventListener("hashchange", route);
 applyTheme();
 applyAccent(localStorage.getItem("dockle-accent") || "");
 refreshStacks().then(route);
+renderVersions();
 setInterval(() => { if ((location.hash || "#/") === "#/") refreshStacks(); }, 15000);
+setInterval(renderVersions, 60000);
 initHostPowerButtons();
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/static/sw.js");

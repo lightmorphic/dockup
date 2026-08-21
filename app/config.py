@@ -39,6 +39,10 @@ COMPOSE_PASSTHROUGH = (
     "SSL_CERT_FILE", "SSL_CERT_DIR",
 )
 
+# Dockle's own version, shown in the sidebar. Kept in step with the top
+# entry in CHANGELOG.md by hand - one number, one place.
+VERSION = "1.5.2"
+
 SESSION_DAYS = 7
 LOGIN_MAX_FAILS = 5
 LOGIN_WINDOW_MIN = 15

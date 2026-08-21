@@ -5,6 +5,8 @@ apply (see runtime.self_update_stream for why).
 """
 
 import re
+import threading
+import time
 from pathlib import Path
 
 import yaml
@@ -161,9 +163,11 @@ def api_self_update_check():
         return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
                                  "real path on the host - see the runbook to set it in compose.yaml."}), 400
     try:
-        return jsonify(runtime.current().self_update_check(compose_dir))
+        result = runtime.current().self_update_check(compose_dir)
     except runtime.RuntimeError_ as exc:
         return jsonify({"error": str(exc)}), 502
+    note_self_check(result)  # the sidebar's tick rides on this answer too
+    return jsonify(result)
 
 
 @bp.post("/self-update")
@@ -343,3 +347,70 @@ def api_self_action(action):
 
     return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+# -- versions in the sidebar ----------------------------------------------
+# The Dockle half of this needs a `git fetch` on the host, which means a
+# helper container - far too slow to run while a page is loading. So the
+# answer is cached, served instantly however stale, and refreshed in the
+# background when it ages out. The sidebar shows a tick or nothing; it
+# never blocks on a check.
+
+_SELF_CHECK_TTL = 6 * 60 * 60
+_self_check = {"at": 0.0, "result": None}
+_self_check_lock = threading.Lock()
+
+
+def note_self_check(result: dict):
+    """Remember a check someone else already paid for - the Settings
+    button's check refreshes this cache rather than racing it."""
+    with _self_check_lock:
+        _self_check["at"] = time.time()
+        _self_check["result"] = result
+
+
+def _refresh_self_check(app, compose_dir):
+    with app.app_context():
+        try:
+            note_self_check(runtime.current().self_update_check(compose_dir))
+        except Exception:
+            # A failed check must never be worse than no check: the
+            # sidebar simply shows the version without a tick.
+            with _self_check_lock:
+                _self_check["at"] = time.time()
+
+
+@bp.get("/versions")
+def api_versions():
+    from flask import current_app
+    rt = runtime.current()
+    try:
+        engine = rt.ping()
+    except runtime.RuntimeError_ as exc:
+        engine = {"ok": False, "engine": "Docker", "version": "", "error": str(exc)}
+
+    with _self_check_lock:
+        cached, checked_at = _self_check["result"], _self_check["at"]
+    compose_dir = _dockle_compose_dir()
+    if compose_dir and time.time() - checked_at > _SELF_CHECK_TTL:
+        threading.Thread(target=_refresh_self_check,
+                         args=(current_app._get_current_object(), compose_dir),
+                         daemon=True).start()
+
+    behind = cached.get("behind") if cached else None
+    return jsonify({
+        "dockle": {
+            "version": config.VERSION,
+            # None means "not known yet" - a tick is only ever shown for
+            # a real, current answer.
+            "behind": behind,
+            "upToDate": (behind == 0) if behind is not None else None,
+            "checkedAt": checked_at or None,
+        },
+        "docker": {
+            "engine": engine.get("engine", "Docker"),
+            "version": engine.get("version", ""),
+            "ok": bool(engine.get("ok")),
+            "error": engine.get("error", ""),
+        },
+    })

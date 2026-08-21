@@ -28,6 +28,15 @@
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
   port its own compose.yaml already has until you change it
+- The sidebar now ends with two version numbers - Dockle's own and the
+  container engine's - each with a green tick when there's something
+  real to tick: for Dockle, up to date with the repo; for Docker, that
+  Dockle is talking to it. (A tick claiming Docker itself is the newest
+  release would be a guess: that isn't knowable from inside a
+  container.) An amber arrow appears when Dockle is behind, with the
+  commit count in the tooltip. This replaces the engine badge that used
+  to sit in the top bar, and the check behind it is cached and refreshed
+  in the background, so no page ever waits on it
 - Fixed the Dockle update check failing with "couldn't reach the
   remote" on a normal install: git commands run as root over a folder
   owned by the admin who cloned it, and git refuses that with "detected
