@@ -1826,7 +1826,7 @@ async function updateDockle() {
 
 async function renderHostCompanionPanel() {
   document.querySelectorAll(".host-companion-panel").forEach(p => p.remove());
-  const panel = el(`<div class="panel host-companion-panel"><div class="panel-head"><h2>Host (Tailscale &amp; updates)</h2></div>
+  const panel = el(`<div class="panel host-companion-panel"><div class="panel-head"><h2>Host OS &amp; Tailscale</h2></div>
     <div id="hostCompanionBody"><p class="hint">Checking…</p></div></div>`);
   content.appendChild(panel);
   const body = panel.querySelector("#hostCompanionBody");
