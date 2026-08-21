@@ -852,7 +852,7 @@ async function viewStack(name) {
       <button data-tab="logs">Logs</button>
       <button data-tab="terminal">Terminal</button>
       <button data-tab="backup">Backup</button>
-      <button data-tab="serve">Serve</button>
+      <button data-tab="serve">Tailscale</button>
     </div>
     <div id="tabBody"></div></div>`);
   content.appendChild(tabs);

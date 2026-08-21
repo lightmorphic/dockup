@@ -28,6 +28,8 @@
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
   port its own compose.yaml already has until you change it
+- A stack's "Serve" tab is now called "Tailscale" - it only ever did
+  Tailscale Serve, and "Serve" read like a generic hosting setting
 - `compose.override.yaml` is gitignored and documented as the place for
   per-machine settings (the companion socket mount, a different port).
   Editing the tracked `compose.yaml` instead is what makes `git pull` -

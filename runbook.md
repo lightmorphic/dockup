@@ -54,7 +54,7 @@ Either way, finish by uncommenting the companion socket line in
 ```
 
 and restart Dockle (`docker compose up -d`). Settings → Host and each
-stack's Serve tab go from "not set up" to working once that's done.
+stack's Tailscale tab go from "not set up" to working once that's done.
 
 Also worth knowing: once the companion is installed, Dockle
 automatically pauses any Tailscale Serve rule that's using a port a
