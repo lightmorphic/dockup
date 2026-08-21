@@ -28,6 +28,13 @@
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
   port its own compose.yaml already has until you change it
+- Fixed the Dockle update check failing with "couldn't reach the
+  remote" on a normal install: git commands run as root over a folder
+  owned by the admin who cloned it, and git refuses that with "detected
+  dubious ownership in repository". Every git call the update path makes
+  now declares that one directory safe, scoped per command rather than
+  changing anything on the host. The check also reports git's own words
+  now instead of swallowing them
 - A stack's "Serve" tab is now called "Tailscale" - it only ever did
   Tailscale Serve, and "Serve" read like a generic hosting setting
 - `compose.override.yaml` is gitignored and documented as the place for

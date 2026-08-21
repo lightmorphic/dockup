@@ -450,6 +450,17 @@ class Runtime:
     # companion install does - the daemon finishes the job whether or not
     # anything is still listening.
 
+    # git run by root over a folder owned by someone else (the normal
+    # case: /opt/dockle belongs to the admin who cloned it, these
+    # commands run as root inside the host's namespaces) refuses with
+    # "detected dubious ownership in repository" and nothing else - so
+    # every git call here declares the directory safe explicitly. Scoped
+    # to this one path per command, never a global config change on the
+    # host.
+    @staticmethod
+    def _host_git(quoted_dir: str) -> str:
+        return f"git -c safe.directory={quoted_dir} -C {quoted_dir}"
+
     def _host_nsenter(self, inner_script: str) -> str:
         return ("nsenter --target 1 --mount --uts --ipc --net --pid -- "
                 f"sh -c {shlex.quote(inner_script)}")
@@ -460,12 +471,13 @@ class Runtime:
         unpacked folder has nothing to compare against, which is not an
         error - it just means "rebuild" is the only thing on offer."""
         d = shlex.quote(compose_host_dir)
+        git = self._host_git(d)
         script = ("apk add --no-cache util-linux-misc >/dev/null && " + self._host_nsenter(
             f"cd {d} || exit 9; "
             "if [ ! -d .git ]; then echo dockle-nogit; exit 0; fi; "
             "command -v git >/dev/null || { echo dockle-nogitbin; exit 0; }; "
-            "git fetch --quiet 2>&1 || { echo dockle-fetchfail; exit 0; }; "
-            'echo "dockle-behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo unknown)"'
+            f'err=$({git} fetch 2>&1) || {{ echo "dockle-fetchfail=$err"; exit 0; }}; '
+            f'echo "dockle-behind=$({git} rev-list --count HEAD..@{{u}} 2>/dev/null || echo unknown)"'
         ))
         out = self._run(["run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
                          "alpine", "sh", "-c", script], timeout=180)
@@ -475,8 +487,9 @@ class Runtime:
                 return {"git": False, "reason": "not a git checkout"}
             if line == "dockle-nogitbin":
                 return {"git": False, "reason": "git isn't installed on the host"}
-            if line == "dockle-fetchfail":
-                return {"git": True, "behind": None, "reason": "couldn't reach the remote"}
+            if line.startswith("dockle-fetchfail"):
+                _, _, why = line.partition("=")
+                return {"git": True, "behind": None, "reason": why.strip() or "no reason given"}
             if line.startswith("dockle-behind="):
                 value = line.split("=", 1)[1]
                 return {"git": True, "behind": None if value == "unknown" else int(value)}
@@ -521,12 +534,13 @@ class Runtime:
         Dockle's own container ends this stream abruptly partway through -
         expected, not a failure."""
         d = shlex.quote(compose_host_dir)
+        git = self._host_git(d)
         script = " && ".join([
             "apk add --no-cache util-linux-misc >/dev/null",
             self._host_nsenter(
                 f"cd {d} || exit 9; "
                 "if [ -d .git ] && command -v git >/dev/null; then "
-                'echo "Pulling the latest source..."; git pull --ff-only || exit 1; '
+                f'echo "Pulling the latest source..."; {git} pull --ff-only || exit 1; '
                 'else echo "Not a git checkout - rebuilding from the files already here."; fi'),
             # Published-image installs get their new image here; a
             # build-from-source install has nothing to pull, which is why

@@ -1758,7 +1758,9 @@ async function renderDockleUpdatePanel() {
       if (!r.git) {
         result.textContent = `Can't tell (${r.reason}) - Update still rebuilds and restarts.`;
       } else if (r.behind === null) {
-        result.textContent = `Couldn't reach the remote (${r.reason || "no answer"}).`;
+        // r.reason is git's own words - show them rather than a summary
+        // of them, since the reason is usually the actionable part.
+        result.textContent = `Couldn't check: ${r.reason || "the remote didn't answer"}`;
       } else if (r.behind === 0) {
         result.textContent = "Already on the newest version.";
       } else {
