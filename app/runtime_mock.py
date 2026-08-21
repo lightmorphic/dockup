@@ -235,3 +235,15 @@ class MockRuntime:
         yield "Validating config (mock)..."
         yield "dockle-companion reconnected (mock) - no real restart in dev mode."
         yield "[dockle-exit:0]"
+
+    def self_update_check(self, compose_host_dir):
+        return {"git": True, "behind": 2}
+
+    def self_update_stream(self, compose_host_dir):
+        for line in ("Pulling the latest source (mock)...",
+                     "Building dockle image (mock)...",
+                     "Recreating container dockle (mock)..."):
+            time.sleep(0.5)
+            yield line
+        yield "Dockle would restart here - no real restart in dev mode."
+        yield "[dockle-exit:0]"

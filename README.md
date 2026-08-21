@@ -39,6 +39,10 @@ fresh code, different look, security first.
 - One click to open a stack's real web UI in a new tab - its Tailscale
   Serve address if set up, otherwise the host address you're already
   using to reach Dockle
+- **Update Dockle itself from Settings** - one button pulls the newest
+  version, rebuilds and restarts it, no terminal needed; your stacks
+  keep running throughout, only Dockle's own page blinks out for a few
+  seconds
 - Optional dockle-companion for host OS update checks and per-stack
   Tailscale Serve toggles - the one part of Dockle that needs root on
   the actual server rather than just Docker access, so it's a separate
@@ -61,7 +65,7 @@ echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')
 docker compose up -d --build
 ```
 
-Open `http://<server-ip>:5001`, create the admin account, done.
+Open `http://<server-ip>:4000`, create the admin account, done.
 `/opt/stacks` is the recommended stacks folder - each stack is a plain
 folder with a compose file, so there's no lock-in: the folder works with
 plain `docker compose` (or any other manager) at any time.

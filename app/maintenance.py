@@ -1,9 +1,13 @@
 """Maintenance: disk usage and pruning - each type separately or all at
 once. Volume pruning always shows exactly what will be deleted first.
+Also updating Dockle itself, the one stack its own Update button can't
+apply (see runtime.self_update_stream for why).
 """
 
+from pathlib import Path
+
 import yaml
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from . import activity, config, envsub, runtime
 
@@ -129,3 +133,86 @@ def prune():
             results[target] = {"ok": False, "message": str(exc)}
             activity.log("error", "prune", f"Prune of {target} FAILED", str(exc))
     return jsonify({"ok": ok, "results": results})
+
+
+# -- updating Dockle itself -----------------------------------------------
+
+
+def _dockle_compose_dir():
+    """Dockle's own folder as the HOST sees it. compose.yaml lives one
+    level up from the data dir it mounts as ./data - true by construction
+    for every install this project documents, and the same derivation the
+    companion installer already relies on."""
+    if config.MOCK_MODE:
+        return "/opt/dockle"
+    if not config.DATA_HOST_PATH:
+        return None
+    return str(Path(config.DATA_HOST_PATH).parent)
+
+
+@bp.get("/self-update/check")
+def api_self_update_check():
+    """Is there a newer Dockle to move to? Answerable only for a git
+    checkout; anything else reports plainly that it can't tell, rather
+    than guessing."""
+    compose_dir = _dockle_compose_dir()
+    if not compose_dir:
+        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    try:
+        return jsonify(runtime.current().self_update_check(compose_dir))
+    except runtime.RuntimeError_ as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+@bp.post("/self-update")
+def api_self_update():
+    """Update Dockle in place: newer source, newer images, rebuild,
+    recreate. The last step replaces the container serving this very
+    request, so the stream ends abruptly right after
+    "[dockle-restarting]" - the browser waits for /health to answer
+    again rather than treating the dropped connection as a failure."""
+    compose_dir = _dockle_compose_dir()
+    if not compose_dir:
+        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    rt = runtime.current()
+    activity.log("info", "dockle-update", "Dockle self-update started")
+
+    def generate():
+        ok = True
+        restarting = False
+        try:
+            for line in rt.self_update_stream(compose_dir):
+                if line.startswith("[dockle-exit:"):
+                    ok = line == "[dockle-exit:0]"
+                    continue
+                yield line + "\n"
+                # Compose says "Container dockle  Recreate/Recreating"
+                # just before it replaces the container this request is
+                # being served from - so everything after this point can
+                # be cut off mid-word. Tell the browser once, so it waits
+                # for Dockle to come back instead of reporting the
+                # dropped connection as a failure.
+                if not restarting and "recreat" in line.lower():
+                    restarting = True
+                    yield "[dockle-restarting]\n"
+        except runtime.RuntimeError_ as exc:
+            ok = False
+            yield f"ERROR: {exc}\n"
+        except Exception as exc:
+            ok = False
+            yield f"ERROR: unexpected {type(exc).__name__}: {exc}\n"
+        if ok:
+            activity.log("info", "dockle-update", "Dockle self-update finished")
+            yield "[dockle-done:ok]\n"
+        else:
+            activity.log("error", "dockle-update", "Dockle self-update FAILED",
+                         "Open Settings and read the update output panel for the full text.")
+            yield "[dockle-done:error]\n"
+
+    # stream_with_context for the same reason as every other streaming
+    # action here: the generator outlives the request otherwise, and
+    # activity.log() then throws well after the response has started.
+    return Response(stream_with_context(generate()), mimetype="text/plain",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})

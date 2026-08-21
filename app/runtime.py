@@ -75,16 +75,19 @@ class Runtime:
         return env
 
     def _compose_env(self):
-        """Same as _env(), minus PATH. `docker compose` substitutes a
-        stack's own compose.yaml variables from its .env file, but the
-        shell environment always wins over the .env file - so if a
-        stack's .env defines its own PATH variable (a real pattern in
-        imported Arcane stacks, e.g. PATH=/opt/stirling-pdf), Dockle's
-        own container PATH silently overrides it and every ${PATH}
-        reference resolves to garbage. Dropping it here is safe:
-        _DOCKER_BIN is resolved to an absolute path up front."""
-        env = self._env()
-        env.pop("PATH", None)
+        """The environment `docker compose` runs with: only the few
+        variables in config.COMPOSE_PASSTHROUGH, plus DOCKER_HOST.
+
+        Compose substitutes a stack's compose.yaml variables from its .env
+        file, but the environment it runs in always wins over that file. So
+        every variable Dockle passes down silently overrides the stack's own
+        value of the same name - Dockle's SECRET_KEY became the secret key
+        of any stack referencing ${SECRET_KEY}, PATH broke stacks defining
+        their own, and TZ would quietly reset a stack's timezone. An
+        allowlist is the only version of this that stays fixed as Dockle
+        gains environment variables of its own."""
+        env = {k: v for k, v in os.environ.items() if k in config.COMPOSE_PASSTHROUGH}
+        env["DOCKER_HOST"] = f"unix://{self.socket_path}"
         return env
 
     def _run(self, args, timeout=60, cwd=None, compose=False):
@@ -428,6 +431,82 @@ class Runtime:
             "nsenter --target 1 --mount --uts --ipc --net --pid -- "
             f"sh -c 'cd {shlex.quote(compose_host_dir)} && docker compose up -d'"
         )
+        args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
+                "alpine", "sh", "-c", script]
+        proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:
+            yield line.rstrip("\n")
+        proc.wait()
+        yield f"[dockle-exit:{proc.returncode}]"
+
+    # -- updating Dockle itself -------------------------------------------
+    # Dockle cannot recreate its own container from inside it: `compose up`
+    # stops that container, which kills the very process running the
+    # command, so the "start it again" half never happens and Dockle stays
+    # down until someone opens a shell. Both methods below therefore do
+    # the work from a short-lived container that ISN'T the one being
+    # replaced, entering the host's own namespaces the same way the
+    # companion install does - the daemon finishes the job whether or not
+    # anything is still listening.
+
+    def _host_nsenter(self, inner_script: str) -> str:
+        return ("nsenter --target 1 --mount --uts --ipc --net --pid -- "
+                f"sh -c {shlex.quote(inner_script)}")
+
+    def self_update_check(self, compose_host_dir: str) -> dict:
+        """How far behind is this install? Only answerable for a git
+        checkout (what the README's install steps produce); a copied or
+        unpacked folder has nothing to compare against, which is not an
+        error - it just means "rebuild" is the only thing on offer."""
+        d = shlex.quote(compose_host_dir)
+        script = ("apk add --no-cache util-linux-misc >/dev/null && " + self._host_nsenter(
+            f"cd {d} || exit 9; "
+            "if [ ! -d .git ]; then echo dockle-nogit; exit 0; fi; "
+            "command -v git >/dev/null || { echo dockle-nogitbin; exit 0; }; "
+            "git fetch --quiet 2>&1 || { echo dockle-fetchfail; exit 0; }; "
+            'echo "dockle-behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo unknown)"'
+        ))
+        out = self._run(["run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
+                         "alpine", "sh", "-c", script], timeout=180)
+        for line in out.splitlines():
+            line = line.strip()
+            if line == "dockle-nogit":
+                return {"git": False, "reason": "not a git checkout"}
+            if line == "dockle-nogitbin":
+                return {"git": False, "reason": "git isn't installed on the host"}
+            if line == "dockle-fetchfail":
+                return {"git": True, "behind": None, "reason": "couldn't reach the remote"}
+            if line.startswith("dockle-behind="):
+                value = line.split("=", 1)[1]
+                return {"git": True, "behind": None if value == "unknown" else int(value)}
+        raise RuntimeError_("Couldn't work out whether an update is available:\n" + out.strip()[-400:])
+
+    def self_update_stream(self, compose_host_dir: str):
+        """Pull newer source (git checkouts), pull newer published images,
+        then rebuild and recreate. Covers both install styles: built from
+        source (`build: .`, the documented one) and plain published
+        images, where the build step simply has nothing to do. Recreating
+        Dockle's own container ends this stream abruptly partway through -
+        expected, not a failure."""
+        d = shlex.quote(compose_host_dir)
+        script = " && ".join([
+            "apk add --no-cache util-linux-misc >/dev/null",
+            self._host_nsenter(
+                f"cd {d} || exit 9; "
+                "if [ -d .git ] && command -v git >/dev/null; then "
+                'echo "Pulling the latest source..."; git pull --ff-only || exit 1; '
+                'else echo "Not a git checkout - rebuilding from the files already here."; fi'),
+            # Published-image installs get their new image here; a
+            # build-from-source install has nothing to pull, which is why
+            # a failure at this step is never fatal on its own.
+            self._host_nsenter(f"cd {d} && docker compose pull --ignore-pull-failures || true"),
+            # Refuse to touch a running Dockle if the compose file it
+            # would be recreated from doesn't parse - better to stop here
+            # with Dockle still up than halfway through with it down.
+            self._host_nsenter(f"cd {d} && docker compose config --quiet"),
+            self._host_nsenter(f"cd {d} && docker compose up -d --build"),
+        ])
         args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
                 "alpine", "sh", "-c", script]
         proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,

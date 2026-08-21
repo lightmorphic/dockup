@@ -65,7 +65,15 @@ def create_app():
         endpoint = request.endpoint or ""
         if endpoint in PUBLIC or endpoint.startswith("static"):
             return None
-        if not session.get("uid"):
+        # The account behind the session must still exist, not just the
+        # cookie: a session used to outlive the user row it pointed at,
+        # so anything that removed that row (a password reset done
+        # straight in the database, a restored-from-backup db, a wiped
+        # dev database) left every already-signed-in browser signed in
+        # regardless. Clearing the session here means such a browser
+        # lands back on the login page like any other stranger.
+        if not session.get("uid") or auth.current_user() is None:
+            session.clear()
             if request.path.startswith("/api/") or request.path.startswith("/ws/"):
                 return jsonify({"error": "Not signed in"}), 401
             return redirect(url_for("auth.login"))

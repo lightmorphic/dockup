@@ -17,8 +17,10 @@ services:
         max-file: "3"
     ports:
       # localhost only - Tailscale Serve is the only intended way in.
-      # Publishing 5001 without a host IP would also expose it on the LAN.
-      - "127.0.0.1:5001:5001"
+      # Publishing the port without a host IP would also expose it on the LAN.
+      # Left number is the host port and is yours to change; the right one is
+      # fixed at 5001, the port gunicorn listens on inside the container.
+      - "127.0.0.1:4000:5001"
     environment:
       # The one and only secret. Set it once in .env or the shell:
       #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")

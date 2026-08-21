@@ -741,7 +741,10 @@ def api_archived_purge(name):
 
 
 def _update_one(name, d, rt):
-    """Pull + redeploy a single stack. Returns (ok, message)."""
+    """Pull + redeploy a single stack, output collected rather than
+    streamed. Used by Update all, where there's no per-stack output
+    panel to stream into; a single stack's update always runs through
+    the streaming action so its output is visible."""
     from . import hostcompanion
     companion_available = hostcompanion.is_available()
     paused_ports = _tailscale_pause_ports(name, d, companion_available)
@@ -788,24 +791,6 @@ def _update_one(name, d, rt):
         return False, str(exc)
     finally:
         _tailscale_resume_ports(paused_ports)
-
-
-@bp.post("/stacks/<name>/quick-update")
-def api_quick_update(name):
-    """One-click update straight from a dashboard card - same pull +
-    redeploy _update_one already does for Update all, just for a
-    single stack without needing the stack detail page's live output."""
-    try:
-        d = stack_dir(name)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    if not d.exists():
-        return jsonify({"error": f"'{name}' hasn't been adopted into the stacks folder yet"}), 404
-    rt = runtime.current()
-    ok, message = _update_one(name, d, rt)
-    if not ok:
-        return jsonify({"error": message}), 400
-    return jsonify({"ok": True, "message": message})
 
 
 @bp.post("/stacks/update-all")

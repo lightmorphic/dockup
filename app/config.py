@@ -21,6 +21,24 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "")
 STACK_NAME_RE = r"^[a-z0-9][a-z0-9_-]{0,62}$"
 COMPOSE_FILENAMES = ("compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml")
 
+# The only variables of Dockle's own environment that reach `docker compose`.
+# Everything else is dropped on purpose: compose lets the environment it runs
+# in win over a stack's .env, so anything passed here silently becomes that
+# stack's value. Dockle's SECRET_KEY was ending up as the secret key of every
+# stack whose compose file referenced ${SECRET_KEY}, and a TZ of ours would
+# override theirs the same way. These few are what the docker CLI itself may
+# need to reach the daemon, find its config, or get out through a proxy.
+# PATH is deliberately absent: the docker binary is resolved to an absolute
+# path up front, and a stack defining its own PATH (a real pattern in
+# imported Arcane stacks) must not have Dockle's shadow it.
+COMPOSE_PASSTHROUGH = (
+    "HOME",
+    "DOCKER_CONFIG", "DOCKER_CERT_PATH", "DOCKER_TLS_VERIFY",
+    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR",
+)
+
 SESSION_DAYS = 7
 LOGIN_MAX_FAILS = 5
 LOGIN_WINDOW_MIN = 15

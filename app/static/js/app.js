@@ -9,6 +9,11 @@ const engineBadge = document.getElementById("engineBadge");
 let stacksCache = [];
 let liveSockets = [];
 let dashboardDnsName = "";
+// Set when a dashboard card's update dot is clicked: the update itself
+// runs on the stack's own page so its output streams into the panel
+// there, exactly like pressing Update, instead of happening silently
+// behind a spinner on the card.
+let pendingStackAction = null;
 
 /* ---------- helpers ---------- */
 
@@ -537,21 +542,15 @@ function managedCard(s) {
 
   if (updateReady) {
     const dot = card.querySelector(".status-dot");
-    const runUpdate = async (e) => {
+    const runUpdate = (e) => {
       e.stopPropagation();
       dot.classList.add("busy");
       dot.dataset.tip = "Updating…";
-      try {
-        const r = await api(`/api/stacks/${encodeURIComponent(s.name)}/quick-update`, { method: "POST", body: {} });
-        popAlert(dot, r.message || `'${s.name}' updated.`, "success");
-        await refreshStacks();
-        await new Promise(res => setTimeout(res, 900));
-        if ((location.hash || "#/") === "#/") viewDashboard();
-      } catch (err) {
-        dot.classList.remove("busy");
-        dot.dataset.tip = "Update available - click to update";
-        popAlert(dot, err.message, "danger");
-      }
+      // The card has nowhere to show a pull's output, and an update is
+      // exactly the thing you want to watch - hand off to the stack's
+      // page, which starts the same streaming update on arrival.
+      pendingStackAction = { name: s.name, action: "update" };
+      location.hash = `#/stack/${encodeURIComponent(s.name)}`;
     };
     dot.addEventListener("click", runUpdate);
     dot.addEventListener("keydown", e => {
@@ -786,23 +785,11 @@ async function viewStack(name) {
     checkBtn.dataset.tip = updateTipReady;
   }
 
-  async function doUpdate() {
-    checkBtn.disabled = true;
-    checkBtn.classList.add("busy");
-    try {
-      await api(`/api/stacks/${encodeURIComponent(name)}/quick-update`, { method: "POST", body: {} });
-      s.updateAvailable = false;
-      checkBtn.classList.remove("update-ready");
-      checkBtn.dataset.tip = checkTipDefault;
-      popAlert(checkBtn, "Updated", "success");
-      setStackStatus(s.status);
-      refreshStacks();
-    } catch (e) {
-      popAlert(checkBtn, e.message, "danger", 4000);
-    } finally {
-      checkBtn.classList.remove("busy");
-      checkBtn.disabled = false;
-    }
+  // Same streaming pull + up the Update button runs, so clicking the
+  // cloud shows the real output line by line rather than going quiet
+  // and coming back with a one-word verdict.
+  function doUpdate() {
+    return runAction("update");
   }
 
   async function doCheck() {
@@ -1082,6 +1069,12 @@ async function viewStack(name) {
     renderTab[b.dataset.tab]();
   }));
   renderTab.overview();
+
+  if (pendingStackAction && pendingStackAction.name === name) {
+    const { action } = pendingStackAction;
+    pendingStackAction = null;
+    runAction(action);
+  }
 }
 
 async function streamAction(name, action, out, isDelete = false, deleteData = false) {
@@ -1449,6 +1442,7 @@ async function viewSettings() {
   });
 
   renderTfa(document.getElementById("tfaHost"));
+  await renderDockleUpdatePanel();
   await renderHostCompanionPanel();
 }
 
@@ -1489,14 +1483,14 @@ async function installCompanion(btn) {
     // else: expected - the connection dropped because Dockle restarted itself
   }
   if (restarting) {
-    await waitForCompanionReconnect(panel);
+    await waitForDockleBack(panel);
   } else {
     panel.done(true);
   }
   if (location.hash === "#/settings") await renderHostCompanionPanel();
 }
 
-async function waitForCompanionReconnect(panel) {
+async function waitForDockleBack(panel) {
   panel.line("Waiting for Dockle to come back…");
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
@@ -1508,6 +1502,98 @@ async function waitForCompanionReconnect(panel) {
   }
   panel.line("Still not back after a minute - check the container directly (docker ps / docker logs dockle).");
   panel.done(false);
+}
+
+/* Updating Dockle itself, without a terminal. The button can't just
+   run a redeploy like any other stack would: `compose up` stops
+   Dockle's container, which kills the process running the command, so
+   the restart half never happens and Dockle stays down. The server side
+   hands the job to a throwaway container instead (see
+   runtime.self_update_stream); from here it looks like a stream that
+   stops mid-flight, after which we wait for /health to answer again. */
+async function renderDockleUpdatePanel() {
+  document.querySelectorAll(".dockle-update-panel").forEach(p => p.remove());
+  const panel = el(`<div class="panel dockle-update-panel">
+    <div class="panel-head"><h2>Dockle itself</h2></div>
+    <p>Pulls the newest Dockle, rebuilds it and restarts - your stacks keep running
+      throughout; only this page goes away for a few seconds.</p>
+    <div class="btn-row align-center">
+      <button class="btn" id="dockleCheckBtn">Check for a new version</button>
+      <button class="btn btn-primary" id="dockleUpdateBtn">Update Dockle</button>
+      <span class="hint" id="dockleUpdateResult"></span>
+    </div></div>`);
+  content.appendChild(panel);
+  const result = panel.querySelector("#dockleUpdateResult");
+
+  panel.querySelector("#dockleCheckBtn").addEventListener("click", async (e) => {
+    e.target.disabled = true; e.target.textContent = "Checking…";
+    try {
+      const r = await api("/api/system/self-update/check");
+      if (!r.git) {
+        result.textContent = `Can't tell (${r.reason}) - Update still rebuilds and restarts.`;
+      } else if (r.behind === null) {
+        result.textContent = `Couldn't reach the remote (${r.reason || "no answer"}).`;
+      } else if (r.behind === 0) {
+        result.textContent = "Already on the newest version.";
+      } else {
+        result.textContent = `${r.behind} new commit${r.behind === 1 ? "" : "s"} available.`;
+      }
+    } catch (err) { popAlert(e.target, err.message, "danger", 5000); }
+    e.target.disabled = false; e.target.textContent = "Check for a new version";
+  });
+
+  // Deliberately not armedAction: this isn't destructive (nothing is
+  // deleted and the stacks stay up), and armedAction jumps to the
+  // dashboard when its action resolves - which would yank the page away
+  // from the update output the moment Dockle came back.
+  const updateBtn = panel.querySelector("#dockleUpdateBtn");
+  updateBtn.addEventListener("click", async () => {
+    updateBtn.disabled = true;
+    updateBtn.textContent = "Updating…";
+    await updateDockle();
+    updateBtn.disabled = false;
+    updateBtn.textContent = "Update Dockle";
+  });
+}
+
+async function updateDockle() {
+  const progress = openProgressPanel("Updating Dockle");
+  let restarting = false;
+  try {
+    const res = await fetch("/api/system/self-update", { method: "POST", headers: { "X-CSRF": CSRF } });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (line === "[dockle-restarting]") { restarting = true; progress.line("Dockle is restarting itself…"); continue; }
+        if (line === "[dockle-done:ok]" || line === "[dockle-done:error]") continue;
+        if (line) progress.line(line);
+      }
+    }
+  } catch (e) {
+    if (!restarting) {
+      progress.line("ERROR: " + e.message);
+      progress.done(false);
+      return;
+    }
+    // else: expected - the connection died because Dockle replaced itself
+  }
+  if (restarting) {
+    await waitForDockleBack(progress);
+    if (location.hash === "#/settings") await viewSettings();
+  } else {
+    progress.done(true);
+  }
 }
 
 async function renderHostCompanionPanel() {

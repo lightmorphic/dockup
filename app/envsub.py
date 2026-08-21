@@ -10,6 +10,8 @@ literal unexpanded string.
 import os
 import re
 
+from . import config
+
 _VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-[^}]*)?\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 
 
@@ -25,7 +27,19 @@ def parse_env(env_text: str) -> dict:
 
 
 def substitute(text: str, env: dict) -> str:
+    """Resolve ${VAR} the way compose will, given a stack's .env values.
+
+    The fallback is limited to config.COMPOSE_PASSTHROUGH because that is
+    now all compose itself receives from Dockle's environment (see
+    Runtime._compose_env). Falling back to the whole of os.environ made
+    this disagree with reality: a stack referencing ${SECRET_KEY} resolved
+    here to Dockle's key, so backup source paths and Serve ports could be
+    computed from values the container never saw."""
     def repl(m):
         name = m.group(1) or m.group(2)
-        return env.get(name, os.environ.get(name, m.group(0)))
+        if name in env:
+            return env[name]
+        if name in config.COMPOSE_PASSTHROUGH:
+            return os.environ.get(name, m.group(0))
+        return m.group(0)
     return _VAR_RE.sub(repl, text)

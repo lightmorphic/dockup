@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.5.2 - 2026-08-21
+
+- **Update Dockle itself from Settings**, no terminal needed. Settings
+  now has a "Dockle itself" panel: check how many new commits are
+  available, then one button pulls the newest source, pulls/rebuilds the
+  image and recreates the container, streaming the output as it goes.
+  Dockle can't apply this through its own Redeploy button - `compose up`
+  stops the container running the command before it can start anything
+  again - so the job is handed to a short-lived helper container that
+  isn't the one being replaced, the same approach the companion
+  installer already uses. When Dockle's own container goes down the
+  output stops mid-flight; the page then waits for Dockle to answer
+  again and refreshes itself. Managed stacks keep running throughout
+- Dockle's own default port is now 4000 (`127.0.0.1:4000:5001` in
+  compose.yaml), and the install steps everywhere say so. Only the host
+  side moved - inside the container gunicorn still listens on 5001, so
+  the right-hand number stays put. An existing install keeps whatever
+  port its own compose.yaml already has until you change it
+- A session no longer outlives the account it belongs to: every request
+  now checks the user still exists, not just that the browser is
+  carrying a session cookie
+- Clicking the cloud to update a stack now shows the update happening,
+  line by line, the same way pressing Start or Update does. It used to
+  run silently behind a spinner and come back with one word ("Updated"
+  or an error), so a slow pull looked like nothing at all and a
+  failure gave you nothing to read. From a stack's own page the output
+  streams straight into its output panel; from a dashboard card - which
+  has nowhere to show output - it opens that stack's page and starts
+  the update there
+
 ## 1.5.1 - 2026-08-20
 
 - Fixed Prune volumes doing nothing: it listed the volumes it would

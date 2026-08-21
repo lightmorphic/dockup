@@ -21,7 +21,7 @@ can't write to `data/` - fix it once:
 sudo chown -R 1000:1000 /opt/dockle/data /opt/stacks
 ```
 
-Open `http://<server-ip>:5001` and create the admin account.
+Open `http://<server-ip>:4000` and create the admin account.
 Keep a copy of the `.env` file's SECRET_KEY somewhere safe (password
 manager). It encrypts your saved settings - lose it and saved passwords
 in Settings have to be re-entered.
@@ -124,6 +124,23 @@ lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
 
 ## Restart / update Dockle
 
+Normally: **Settings -> Dockle itself -> Update Dockle**. It pulls the
+newest source, pulls/rebuilds the image and recreates the container, then
+waits for Dockle to answer again and refreshes the page itself. Your
+stacks are untouched - only Dockle's own container is replaced.
+
+Dockle can't do this the way it redeploys any other stack: `compose up`
+stops Dockle's container, which kills the process running the command
+before it can start anything again. So the update is handed to a
+short-lived helper container that isn't the one being replaced - the
+same approach the companion installer already uses. That's also why the
+output stops mid-flight: the page it was streaming to has gone.
+
+Needs `DOCKLE_DATA_HOST_PATH` set in compose.yaml (it's how Dockle knows
+its own folder on the host); the button says so plainly if it isn't.
+
+From a shell, if you prefer or if Dockle won't start:
+
 ```bash
 cd /opt/dockle
 docker compose restart            # just restart
@@ -155,7 +172,7 @@ health check, so a crash normally self-heals within a minute.
 ## Uptime check
 
 Dockle answers on `/health` without a login. Point any LAN uptime tool
-(Uptime Kuma, etc.) at `http://<server-ip>:5001/health` and alert on
+(Uptime Kuma, etc.) at `http://<server-ip>:4000/health` and alert on
 non-200. That way you hear about it even if Dockle itself is the thing
 that's down.
 
