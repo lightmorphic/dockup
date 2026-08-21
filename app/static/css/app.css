@@ -129,6 +129,13 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .spacer { flex: 1; }
 .inline-form { display: inline; margin: 0; }
 
+/* Buttons whose label changes while they work ("Check for updates" ->
+   "Checking...") reserve room for the longest label they'll ever show,
+   so the row never reflows and neighbouring buttons never jump sideways
+   mid-click. */
+.btn-steady { min-width: 10.5rem; }
+.btn-steady-wide { min-width: 13.5rem; }
+
 /* Small "this is Dockle" marker on its own card and page title - the
    card is otherwise deliberately identical to every other stack's. */
 .pill {

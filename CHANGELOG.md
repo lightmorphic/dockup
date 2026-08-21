@@ -28,6 +28,12 @@
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
   port its own compose.yaml already has until you change it
+- Buttons no longer jump sideways when a check runs: "Check for
+  updates" shrinking to "Checking..." used to reflow the whole row and
+  slide the button next to it out from under the cursor. Both check
+  buttons now reserve room for their longest label. The host OS result
+  ("Everything is up to date") also sits to the right of Apply updates
+  now, matching Dockle's own row instead of dropping onto a line below
 - The sidebar now ends with two version numbers - Dockle's own and the
   container engine's - each with a green tick when there's something
   real to tick: for Dockle, up to date with the repo; for Docker, that

@@ -1785,8 +1785,8 @@ async function renderDockleUpdatePanel() {
     <p>Pulls the newest Dockle, rebuilds it and restarts - your stacks keep running
       throughout; only this page goes away for a few seconds.</p>
     <div class="btn-row align-center">
-      <button class="btn" id="dockleCheckBtn">Check for a new version</button>
-      <button class="btn btn-primary" id="dockleUpdateBtn">Update Dockle</button>
+      <button class="btn btn-steady-wide" id="dockleCheckBtn">Check for a new version</button>
+      <button class="btn btn-primary btn-steady" id="dockleUpdateBtn">Update Dockle</button>
       <span class="hint" id="dockleUpdateResult"></span>
     </div></div>`);
   content.appendChild(panel);
@@ -1893,10 +1893,10 @@ async function renderHostCompanionPanel() {
     <div>
       <h3>Host OS updates</h3>
       <p class="hint">${esc(os.name || "Unknown OS")}${os.supported ? "" : " - not Debian/Ubuntu, updates aren't available here"}</p>
-      ${os.supported ? `<div class="btn-row">
-        <button class="btn" id="osCheckBtn">Check for updates</button>
-        <button class="btn btn-primary" id="osApplyBtn" disabled>Apply updates</button></div>
-      <p class="hint" id="osResult"></p>` : ""}
+      ${os.supported ? `<div class="btn-row align-center">
+        <button class="btn btn-steady" id="osCheckBtn">Check for updates</button>
+        <button class="btn btn-primary btn-steady" id="osApplyBtn" disabled>Apply updates</button>
+        <span class="hint" id="osResult"></span></div>` : ""}
     </div>
     <div>
       <h3>Tailscale</h3>
