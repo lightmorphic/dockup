@@ -35,7 +35,7 @@ Dockle that needs root on the actual server, not just Docker access.
 Skip it entirely if you don't want those two features; everything else
 works the same either way.
 
-**One click**: Settings → Host → "Install companion". This installs
+**One click**: Settings → Host OS & Tailscale → "Install companion". This installs
 the systemd service on the host for you (a short-lived, one-time
 privileged action - nothing standing afterward beyond the service
 itself), then tells you the one remaining manual step below.
@@ -53,7 +53,7 @@ Either way, finish by uncommenting the companion socket line in
 - /run/dockle-companion.sock:/run/dockle-companion.sock
 ```
 
-and restart Dockle (`docker compose up -d`). Settings → Host and each
+and restart Dockle (`docker compose up -d`). Settings → Host OS & Tailscale and each
 stack's Tailscale tab go from "not set up" to working once that's done.
 
 Also worth knowing: once the companion is installed, Dockle

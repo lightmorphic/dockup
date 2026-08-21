@@ -10,6 +10,7 @@ connections in a visitor's browser and ride their session cookie in.
 import fcntl
 import os
 import pty
+import re
 import select
 import signal
 import struct
@@ -25,9 +26,16 @@ from . import runtime, stacks
 
 sock = Sock()
 
+# Docker's own container-name rule: must start alphanumeric, so a value
+# like "--help" can never be read as a flag by `docker logs`/`docker exec`.
+_CONTAINER_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
 
 def _authed():
-    return bool(session.get("uid"))
+    # Mirror require_login's HTTP check: a session for a since-deleted
+    # user must not keep a socket open either.
+    from . import auth
+    return bool(session.get("uid")) and auth.current_user() is not None
 
 
 def _same_origin():
@@ -80,9 +88,7 @@ def ws_container_logs(ws, container):
     if not _authed() or not _same_origin():
         ws.close()
         return
-    # Same name check the terminal route makes: a container name is the
-    # only thing this may ever be, never a flag or a path.
-    if not container or not all(c.isalnum() or c in "-_." for c in container):
+    if not _CONTAINER_RE.match(container):
         ws.close()
         return
     rt = runtime.current()
@@ -124,7 +130,7 @@ def ws_terminal(ws, container):
     if not _authed() or not _same_origin():
         ws.close()
         return
-    if not all(c.isalnum() or c in "-_." for c in container) or not container:
+    if not _CONTAINER_RE.match(container):
         ws.close()
         return
     rt = runtime.current()

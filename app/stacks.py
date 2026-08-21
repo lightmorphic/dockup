@@ -791,7 +791,7 @@ def _update_one(name, d, rt):
         if conflict_port:
             detail = (f"Port {conflict_port} was still held by a Tailscale Serve rule from a previous "
                       f"version of this stack." + ("" if companion_available else
-                      " Installing the dockle-companion (Settings → Host) lets Dockle clear this "
+                      " Installing the dockle-companion (Settings → Host OS & Tailscale) lets Dockle clear this "
                       "automatically next time."))
             activity.log("error", "stack", f"Update FAILED on '{name}'", detail)
             return False, f"Port {conflict_port} conflict - see Activity for details"

@@ -105,8 +105,6 @@ def docker_run_to_compose(command: str) -> str:
 def _absorb(flag, value, collected, single):
     for compose_key, flags in _MULTI.items():
         if flag in flags:
-            if flag == "--add-host":
-                value = value.replace(":", ":", 1)
             collected.setdefault(compose_key, []).append(value)
             return
     mapping = {

@@ -69,9 +69,6 @@ class MockRuntime:
         # project -> state
         self.states = {}
 
-    def _state(self, project):
-        return self.states.get(project, "exited")
-
     def ping(self):
         return {"ok": True, "engine": "Docker (mock)", "version": "27.0-mock"}
 
@@ -160,12 +157,13 @@ class MockRuntime:
             "stop": ["Container web-1  Stopped", "Container db-1  Stopped"],
             "start": ["Container web-1  Started", "Container db-1  Started"],
             "restart": ["Container web-1  Restarted", "Container db-1  Restarted"],
+            "redeploy": ["Container web-1  Recreated", "Container db-1  Recreated"],
             "pull": ["web Pulling", "db Pulling", "web Pulled", "db Pulled"],
         }[action]
         for line in steps:
             time.sleep(0.4)
             yield f" {project}: {line}"
-        if action in ("up", "start", "restart"):
+        if action in ("up", "start", "restart", "redeploy"):
             self.states[project] = "running"
         elif action in ("down",):
             self.states.pop(project, None)
@@ -206,14 +204,15 @@ class MockRuntime:
                    "volumes": "460MB", "buildcache": "780MB"}
         return f"Total reclaimed space: {amounts[target]}"
 
-    def pull_image_updates(self, stack_dir, project):
-        return self.compose_stream(stack_dir, project, "pull")
 
     def check_stack_update(self, stack_dir, project) -> bool:
         # deterministic per project name, so the dashboard has something
         # to show in mock mode without needing a real registry
         time.sleep(0.3)
         return abs(hash(project)) % 3 == 0
+
+    def rmdir_if_empty(self, parent_host_path, dirname):
+        pass
 
     def force_remove_dir(self, parent_host_path, dirname):
         import shutil as _shutil

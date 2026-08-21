@@ -34,7 +34,7 @@ RUN addgroup -g 1000 dockle && adduser -u 1000 -G dockle -D dockle
 WORKDIR /app
 COPY app ./app
 COPY run.py .
-# Bundled so the one-click "Install companion" button (Settings → Host)
+# Bundled so the one-click "Install companion" button (Settings → Host OS & Tailscale)
 # can stage these onto the host without needing a separate download -
 # the same three files as a manual `companion/install.sh` run.
 COPY companion ./companion

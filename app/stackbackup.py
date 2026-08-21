@@ -5,6 +5,8 @@ different layout; a helper container does the real file access so this
 reaches paths Dockle's own container can't see directly (see runtime.py).
 """
 
+import json
+import re
 import shutil
 import tarfile
 import time
@@ -42,6 +44,10 @@ def _parse_mounts(compose_text: str, env_text: str = "") -> list:
             seen.add((kind, source))
             mounts.append({"service": service_name, "type": kind, "source": source})
     return mounts
+
+
+_ARCHIVE_RE = re.compile(r"^data-\d+\.tar\.gz$")
+_VOLUME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
 def _resolve_bind_source(source: str, stack_dir: Path) -> str:
@@ -133,6 +139,16 @@ def restore_stack(name: str, backup_filename: str) -> str:
         errors = []
         for m in manifest.get("mounts", []):
             if not m.get("ok") or not m.get("archive"):
+                continue
+            # The archive name is read from an uploaded, attacker-editable
+            # manifest and ends up in a helper container's argv - a real
+            # backup only ever names its pieces "data-<n>.tar.gz", so
+            # anything else is refused rather than trusted.
+            if not _ARCHIVE_RE.match(m["archive"]):
+                errors.append(f"{m.get('type', '?')} '{m.get('source', '?')}': suspicious archive name in manifest")
+                continue
+            if m["type"] == "volume" and not _VOLUME_RE.match(str(m.get("source", ""))):
+                errors.append(f"volume '{m.get('source', '?')}': invalid volume name in manifest")
                 continue
             piece_rel = f"{work_name}/{m['archive']}"
             try:

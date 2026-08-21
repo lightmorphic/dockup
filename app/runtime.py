@@ -224,7 +224,7 @@ class Runtime:
     def exec_argv(self, container: str) -> list[str]:
         """argv for an interactive shell in a container, run under a PTY."""
         return [
-            "docker", "exec", "-it", container,
+            _DOCKER_BIN, "exec", "-it", container,
             "sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh",
         ]
 
@@ -269,9 +269,6 @@ class Runtime:
             if "reclaimed" in line.lower():
                 return line.strip()
         return "Nothing to remove"
-
-    def pull_image_updates(self, stack_dir, project):
-        return self.compose_stream(stack_dir, project, "pull")
 
     def check_stack_update(self, stack_dir, project) -> bool:
         """Quietly pull each service's image and compare against what's
@@ -366,10 +363,11 @@ class Runtime:
 
     def restore_path_from_backup(self, host_dest: str, src_filename: str):
         dest_host_dir = self._require_host_path()
-        # bind-mounting a path that doesn't exist yet needs it created
-        # first - do both in one helper container.
+        # No shell: src_filename comes from an uploaded manifest, and a
+        # bind mount's source directory is created by the daemon anyway
+        # when it doesn't exist yet, so tar can run as a plain argv.
         self._run(["run", "--rm", "-v", f"{host_dest}:/dest", "-v", f"{dest_host_dir}:/src:ro",
-                   "alpine", "sh", "-c", f"mkdir -p /dest && tar xzf /src/{src_filename} -C /dest"], timeout=900)
+                   "alpine", "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
 
     def restore_volume_from_backup(self, volume_name: str, src_filename: str):
         dest_host_dir = self._require_host_path()

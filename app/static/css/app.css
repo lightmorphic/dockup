@@ -340,7 +340,6 @@ input[type="checkbox"], input[type="radio"] { width: auto; display: inline-block
 .alert-danger { background: var(--danger-bg); color: var(--danger); }
 .alert-success { background: var(--success-bg); color: var(--success); }
 .alert-warning { background: var(--warning-bg); color: var(--warning); }
-.alert-info { background: var(--info-bg); color: var(--info); }
 .port-conflict-hint { font-weight: 400; margin: 0.5rem 0; }
 .port-conflict-hint p { margin: 0 0 0.5rem; }
 .port-conflict-hint p:last-child { margin-bottom: 0; }

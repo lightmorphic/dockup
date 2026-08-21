@@ -76,7 +76,7 @@ plain `docker compose` (or any other manager) at any time.
 
 A second, separate step - only needed for host OS update checks and
 per-stack Tailscale Serve toggles. Everything else works without it.
-Easiest way: Settings → Host → "Install companion" (one click, once
+Easiest way: Settings → Host OS & Tailscale → "Install companion" (one click, once
 Dockle itself is running). Or manually:
 
 ```bash

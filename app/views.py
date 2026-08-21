@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from . import activity, settingsvc
 
@@ -17,7 +17,6 @@ def health():
 
 @bp.get("/favicon.ico")
 def favicon():
-    from flask import redirect
     return redirect("/static/icons/dockle.svg", code=301)
 
 

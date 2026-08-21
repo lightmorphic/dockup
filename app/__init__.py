@@ -105,8 +105,7 @@ def create_app():
     # they're rate-limited and create the session, so the standard
     # SameSite=Lax cookie policy covers them.
 
-    from . import backup as backup_mod
-    backup_mod.start_scheduler()
+    backup.start_scheduler()
 
     from . import updatecheck
     updatecheck.start(app)

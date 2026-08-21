@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.5.3 - 2026-08-21
+
+Security and cleanup pass (home-server threat model - no VPS hardening).
+
+- **Fixed per-stack backup and restore, which were crashing outright**:
+  `stackbackup.py` used `json` without importing it, so every "Back up
+  now" and "Restore" raised an error before doing anything
+- **Hardened stack-backup restore.** An uploaded backup's manifest is
+  attacker-editable; its archive-piece name used to be interpolated into
+  a shell (`sh -c "... tar xzf /src/<name> ..."`). Restore no longer
+  uses a shell at all, and the manifest's archive names and volume names
+  are validated against strict patterns before use, so nothing from an
+  uploaded file can reach a command
+- WebSocket routes now apply the same "user still exists" check the HTTP
+  routes do, and the container-name check requires a real Docker name
+  (leading character alphanumeric) so a value like `--flag` can't be
+  read as an option by `docker logs`/`docker exec`
+- `run.py` no longer sets `debug=True` (it was the dev flag landing in
+  the production entry file - harmless under gunicorn, but it would have
+  exposed the Werkzeug debugger to anyone running `python run.py`)
+- Removed dead code: the unused `pull_image_updates` runtime methods
+  (left over from the old quick-update path), a no-op `--add-host`
+  substitution in the compose converter, an unused mock method, the
+  unused `.alert-info` CSS rule and `data-nav` attributes
+- Fixed mock-mode Redeploy (missing a step) and delete-with-data
+  (missing a mock method) so dev mode matches the real runtime
+- The container terminal now uses the resolved docker binary like every
+  other call, rather than relying on PATH
+- Renamed the last "Settings → Host" references to the panel's real
+  name, "Host OS & Tailscale"
+
 ## 1.5.2 - 2026-08-21
 
 - **Dockle now appears on the dashboard as a card like any other

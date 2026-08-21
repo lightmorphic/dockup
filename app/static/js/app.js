@@ -72,7 +72,7 @@ function renderPortConflictHint(view, port, companionAvailable) {
     previous version of this stack, so Docker can't bind it.</p>
     ${companionAvailable
       ? `<p>The dockle-companion should clear this automatically - if you're seeing this anyway,
-         check <a href="#/settings">Settings → Host</a> that it's still running.</p>`
+         check <a href="#/settings">Settings → Host OS & Tailscale</a> that it's still running.</p>`
       : `<p>Fix it now: <code>sudo tailscale serve --https=${port} off</code> on the host, then try
          again. Restore it afterward with
          <code>sudo tailscale serve --bg --https=${port} http://127.0.0.1:${port}</code>.</p>
@@ -534,7 +534,7 @@ const STATUS_TIPS = {
   running: "Container is running",
   update: "Update available - click to update",
   warning: "Warnings - check the log",
-  partial: "Container is down",
+  partial: "Some containers are down",
   stopped: "Container is down",
   exited: "Container is down",
   inactive: "No container - ready to archive or delete",
@@ -849,13 +849,6 @@ async function viewStack(name) {
     checkBtn.dataset.tip = updateTipReady;
   }
 
-  // Same streaming pull + up the Update button runs, so clicking the
-  // cloud shows the real output line by line rather than going quiet
-  // and coming back with a one-word verdict.
-  function doUpdate() {
-    return runAction("update");
-  }
-
   async function doCheck() {
     checkBtn.disabled = true;
     checkBtn.classList.add("busy");
@@ -883,7 +876,9 @@ async function viewStack(name) {
   }
 
   checkBtn.addEventListener("click", () => {
-    if (checkBtn.classList.contains("update-ready")) doUpdate(); else doCheck();
+    // The cloud runs the same streaming update the Update button does,
+    // so its output shows line by line instead of a one-word verdict.
+    if (checkBtn.classList.contains("update-ready")) runAction("update"); else doCheck();
   });
 
   const tabs = el(`<div class="panel">
@@ -1091,7 +1086,7 @@ async function viewStack(name) {
       catch (e) { status = { available: false }; }
       if (!status.available) {
         tabBody.innerHTML = `<p>Not set up. Exposing this stack's ports over Tailscale Serve needs the
-          optional dockle-companion - see Settings → Host to install it with one click.</p>`;
+          optional dockle-companion - see Settings → Host OS & Tailscale to install it with one click.</p>`;
         return;
       }
       if (!status.ports.length) {
