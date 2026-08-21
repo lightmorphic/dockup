@@ -28,6 +28,11 @@
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
   port its own compose.yaml already has until you change it
+- `compose.override.yaml` is gitignored and documented as the place for
+  per-machine settings (the companion socket mount, a different port).
+  Editing the tracked `compose.yaml` instead is what makes `git pull` -
+  and so the in-app update button, which uses `git pull --ff-only` -
+  refuse to run
 - A session no longer outlives the account it belongs to: every request
   now checks the user still exists, not just that the browser is
   carrying a session cookie

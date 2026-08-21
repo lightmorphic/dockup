@@ -156,6 +156,23 @@ docker compose restart            # just restart
 git pull && docker compose up -d --build   # update to latest
 ```
 
+## Per-machine settings: compose.override.yaml
+
+Anything specific to one server - the companion socket mount, a
+different published port, an extra volume - belongs in
+`compose.override.yaml` next to `compose.yaml`, not in `compose.yaml`
+itself. Compose reads and merges it automatically, and it's gitignored,
+so `git pull` (and the in-app Update button, which uses
+`git pull --ff-only`) never collide with your local edits. Editing the
+tracked `compose.yaml` is what makes an update refuse to run.
+
+```yaml
+services:
+  dockle:
+    volumes:
+      - /run/dockle-companion.sock:/run/dockle-companion.sock
+```
+
 ## Switch to Podman (no daemon)
 
 1. On the host: `systemctl enable --now podman.socket`
