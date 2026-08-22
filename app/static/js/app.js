@@ -278,9 +278,25 @@ async function renderVersions() {
   // top-bar dot's state.
   const d = v.dockle || {};
   updateDotFromVersions(d);
-  rows.push(`<a class="version-row lm-badge" href="https://lightmorphic.com" target="_blank" rel="noopener"
+  rows.push(`<a class="lm-badge" href="https://lightmorphic.com" target="_blank" rel="noopener"
     data-tip="Lightmorphic - the studio behind Dockle">
-    <span class="version-name">Lightmorphic</span></a>`);
+    <span class="lm-badge-label">Created by</span>
+    <svg class="lm-badge-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <defs><linearGradient id="lmBadgeGrad" x1="0" y1="0" x2="24" y2="24">
+        <stop offset="0" stop-color="#FF5721"/><stop offset="1" stop-color="#FFC006"/>
+      </linearGradient></defs>
+      <g fill="url(#lmBadgeGrad)">
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z"/>
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z" transform="rotate(60 12 12)"/>
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z" transform="rotate(120 12 12)"/>
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z" transform="rotate(180 12 12)"/>
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z" transform="rotate(240 12 12)"/>
+        <path d="M12 2c1.4 4 1.8 6 0 10-1.8-4-1.4-6 0-10Z" transform="rotate(300 12 12)"/>
+      </g>
+    </svg>
+    <span class="lm-badge-name">Lightmorphic</span>
+    <span class="lm-badge-ext">${ICONS.external}</span></a>`);
+  rows.push('<span class="spacer"></span>');
 
   const k = v.docker || {};
   rows.push(`<div class="version-row ${k.ok ? "" : "bad"}" data-tip="${esc(k.ok ? "Connected" : (k.error || "Engine unreachable"))}">

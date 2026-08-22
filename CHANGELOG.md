@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.8 - 2026-08-22
+
+- The footer's Lightmorphic link is now a proper "Created by" badge -
+  a dark pill with the Lightmorphic mark, sitting on the left; the
+  Docker version moved to the right to balance it
+
 ## 1.7.7 - 2026-08-22
 
 - The footer no longer repeats Dockle's own version - it already shows
