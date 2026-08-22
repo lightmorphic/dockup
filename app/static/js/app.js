@@ -793,20 +793,22 @@ async function viewStack(name) {
   content.innerHTML = "";
   const effectiveStatus = s.updateAvailable ? "update" : s.status;
   const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
-  const head = el(`<div class="panel"><div class="panel-head stack-actions">
+  const head = el(`<div class="panel"><div class="stack-head">
       <h1 class="stack-title">${esc(name)}</h1>
-      <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
-        target="_blank" rel="noopener" href="#">${ICONS.external}</a>
-      <span class="spacer"></span>
-      <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
-        role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
-      <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
-      <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
-      <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
-      <button class="icon-btn" id="actRedeploy" data-tip="Redeploy (recreate containers - fixes a stuck one without pulling a new image)" aria-label="Redeploy stack">${ICONS.redeploy}</button>
-      <button class="icon-btn" id="actUpdate" data-tip="Update (pull newest images)" aria-label="Update stack">${ICONS.update}</button>
-      <button class="icon-btn" id="actDown" data-tip="Down (stop and remove containers)" aria-label="Take stack down">${ICONS.down}</button>
-      <button class="icon-btn" id="actDelete" data-tip="Delete stack" aria-label="Delete stack">${ICONS.bin}</button>
+      <div class="panel-head stack-actions">
+        <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
+          target="_blank" rel="noopener" href="#">${ICONS.external}</a>
+        <span class="spacer"></span>
+        <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
+          role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
+        <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
+        <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
+        <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
+        <button class="icon-btn" id="actRedeploy" data-tip="Redeploy (recreate containers - fixes a stuck one without pulling a new image)" aria-label="Redeploy stack">${ICONS.redeploy}</button>
+        <button class="icon-btn" id="actUpdate" data-tip="Update (pull newest images)" aria-label="Update stack">${ICONS.update}</button>
+        <button class="icon-btn" id="actDown" data-tip="Down (stop and remove containers)" aria-label="Take stack down">${ICONS.down}</button>
+        <button class="icon-btn" id="actDelete" data-tip="Delete stack" aria-label="Delete stack">${ICONS.bin}</button>
+      </div>
     </div>
     <div class="log-view action-output" id="actionOut" aria-live="polite"></div>
   </div>`);

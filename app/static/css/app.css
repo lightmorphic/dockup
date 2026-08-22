@@ -608,13 +608,19 @@ tr:last-child td { border-bottom: none; }
 
 .hint-tight { padding: 0 0.75rem; }
 .stack-title { font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 3rem; }
-/* The stack page's own action row: title, web-UI link, status dot,
-   Start/Stop/Restart/Redeploy/Update/Down/Delete - up to nine icons
-   plus the title on one line. Fixed 34px icons plus a 0.75rem gap
-   between all of them refused to fit a narrow phone and pushed the
-   right-most buttons off the edge of the page. Tying icon size and
-   gap to viewport width (clamp, not a fixed breakpoint) means they
-   shrink continuously as the window narrows and always stay on
+/* The stack's name on its own row, full width - it used to share a
+   row with the action icons and lost the fight for space, shrinking
+   to a couple of letters on a narrow screen. The action row (web-UI
+   link, status dot, Start/Stop/Restart/Redeploy/Update/Down/Delete)
+   sits underneath instead. */
+.stack-head { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+.stack-head .stack-title { margin: 0; }
+.stack-head .panel-head { margin-bottom: 0; }
+/* The action row itself: up to nine icons on one line. Fixed 34px
+   icons plus a 0.75rem gap between all of them still refused to fit a
+   narrow phone even with the title moved out of the way. Tying icon
+   size and gap to viewport width (clamp, not a fixed breakpoint) means
+   they shrink continuously as the window narrows and always stay on
    screen, rather than overflowing or needing to scroll - full size is
    unchanged above roughly 570px viewport width. */
 .stack-actions { gap: clamp(0.25rem, 1.5vw, 0.75rem); flex-wrap: nowrap; }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.5 - 2026-08-22
+
+- On a stack's own page, its name now sits on its own full-width row
+  above the action icons instead of sharing a row with them - it was
+  losing that fight for space and shrinking to just a couple of
+  letters on a narrow screen
+
 ## 1.7.4 - 2026-08-22
 
 - Fixed the stack page's action icons overflowing off the right edge
