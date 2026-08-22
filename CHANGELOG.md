@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.7 - 2026-08-22
+
+- The footer no longer repeats Dockle's own version - it already shows
+  in the top bar next to the update dot. In its place: a Lightmorphic
+  badge linking to lightmorphic.com in a new tab
+
 ## 1.7.6 - 2026-08-22
 
 - On a stack's own page, Open web UI now sits opposite the name on its

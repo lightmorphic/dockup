@@ -254,12 +254,13 @@ async function refreshStacks() {
   }
 }
 
-/* Versions, in the footer: a number each for Dockle and Docker,
-   with a tick when there's something real to tick. Dockle's tick means
-   up to date with the repo; Docker's means Dockle is talking to it (the
-   newest Docker release isn't knowable from inside a container, so a
-   tick claiming otherwise would be a lie). No answer yet - the check
-   runs in the background - shows the number alone. */
+/* The footer: a Lightmorphic badge (Dockle's own version already
+   shows in the top bar, no need to repeat it here) and Docker's
+   version, with a tick when there's something real to tick - it means
+   Dockle is talking to it (the newest Docker release isn't knowable
+   from inside a container, so a tick claiming otherwise would be a
+   lie). No answer yet - the check runs in the background - shows the
+   number alone. */
 async function renderVersions() {
   if (!versionsEl) return;
   let v;
@@ -271,18 +272,15 @@ async function renderVersions() {
   const tick = '<span class="version-tick" aria-hidden="true">✓</span>';
   const rows = [];
 
+  // Dockle's own version already shows in the top bar next to the
+  // update dot - no need to repeat it down here too. Still run the
+  // version check itself: updateDotFromVersions is what drives that
+  // top-bar dot's state.
   const d = v.dockle || {};
   updateDotFromVersions(d);
-  let dockleMark = "", dockleTip = "Version check hasn't run yet";
-  if (d.downloadReady) { dockleMark = tick; dockleTip = "Downloaded - click the update dot (next to Maintenance) to restart"; }
-  else if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
-  else if (d.upToDate === false) {
-    dockleMark = '<span class="version-behind" aria-hidden="true">↑</span>';
-    dockleTip = `v${d.latest} available - click the update dot (next to Maintenance)`;
-  }
-  rows.push(`<div class="version-row" data-tip="${esc(dockleTip)}">
-    <span class="version-name">Dockle</span>
-    <span class="version-num">${esc(d.version || "?")}</span>${dockleMark}</div>`);
+  rows.push(`<a class="version-row lm-badge" href="https://lightmorphic.com" target="_blank" rel="noopener"
+    data-tip="Lightmorphic - the studio behind Dockle">
+    <span class="version-name">Lightmorphic</span></a>`);
 
   const k = v.docker || {};
   rows.push(`<div class="version-row ${k.ok ? "" : "bad"}" data-tip="${esc(k.ok ? "Connected" : (k.error || "Engine unreachable"))}">
