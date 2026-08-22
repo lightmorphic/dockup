@@ -257,6 +257,33 @@ class MockRuntime:
         yield "Dockle would restart here - no real restart in dev mode."
         yield "[dockle-exit:0]"
 
+    def self_update_prepare_stream(self, compose_host_dir):
+        yield "Pulling the latest source (mock)..."
+        time.sleep(0.2)
+        for i, step in enumerate([
+            "[internal] load build definition from Dockerfile",
+            "[internal] load metadata for docker.io/library/python:3.13-alpine",
+            "[build 1/4] FROM docker.io/library/python:3.13-alpine",
+            "[build 2/4] WORKDIR /app",
+            "[build 3/4] COPY requirements.txt .",
+            "[build 4/4] RUN pip install --no-cache-dir --prefix=/install -r requirements.txt",
+            "[stage-1  2/11] RUN apk update && apk upgrade --no-cache",
+            "[stage-1  3/11] COPY --from=build /install /usr/local",
+            "[stage-1  7/11] COPY app ./app",
+            "[stage-1 11/11] RUN chmod +x /usr/local/bin/docker-entrypoint.sh",
+            "exporting to image",
+        ]):
+            time.sleep(0.15)
+            yield f" => {step} (mock)"
+        yield "[dockle-exit:0]"
+
+    def self_update_apply_stream(self, compose_host_dir):
+        yield "(mock) docker compose up -d"
+        time.sleep(0.3)
+        yield " dockle: Container dockle  Recreated"
+        self.states["dockle"] = "running"
+        yield "[dockle-exit:0]"
+
     def self_compose_stream(self, compose_host_dir, args):
         yield f"(mock) docker compose {' '.join(args)} in {compose_host_dir}"
         time.sleep(0.4)

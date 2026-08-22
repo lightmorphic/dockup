@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.8 - 2026-08-21
+
+- **Dockle's own update status is now a dot in the top bar, next to its
+  name** - Charlie's standard update-widget pattern from his other
+  self-hosted tools. Green means up to date, amber means a new version
+  is ready: click it to download and rebuild in the background (Dockle
+  keeps running as it is throughout), and the same dot turns into a
+  restart button once that's done - click it again to apply, streamed
+  with a real progress ring parsed from the build's own output. No
+  separate check button, no settings-page panel to find it in first -
+  it keeps itself current on its own and survives a page reload if you
+  download and don't restart right away. Replaces the old "Dockle
+  itself" panel in Settings; the dashboard card's own plain Update
+  button (pull+rebuild+restart in one streamed step, like any other
+  stack's) is unchanged for anyone who'd rather use that
+
 ## 1.5.7 - 2026-08-21
 
 - Maintenance, Activity, Backups and Settings moved out of the sidebar

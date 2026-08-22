@@ -124,11 +124,17 @@ lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
 
 ## Restart / update Dockle
 
-Normally: open **Dockle's own card on the dashboard** (or Settings ->
-Dockle itself) and press **Update**. It pulls the
-newest source, pulls/rebuilds the image and recreates the container, then
-waits for Dockle to answer again and refreshes the page itself. Your
-stacks are untouched - only Dockle's own container is replaced.
+Easiest: the small dot next to "Dockle" in the top bar, top-left of every
+page. Green means up to date; amber means a new version is ready - click
+it to download and rebuild in the background (Dockle keeps running as-is
+the whole time), then click the same dot again once it turns into a
+restart icon. No separate check button - it keeps itself current on its
+own, same pattern as Charlie's other self-hosted tools.
+
+Dockle's own dashboard card also has a plain **Update** button that does
+the same pull-rebuild-restart in one streamed step, no separate download
+click - exactly like any other stack's Update button, if you'd rather
+that than the two-step dot.
 
 Dockle can't do this the way it redeploys any other stack: `compose up`
 stops Dockle's container, which kills the process running the command

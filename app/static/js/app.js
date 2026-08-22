@@ -275,11 +275,13 @@ async function renderVersions() {
   const rows = [];
 
   const d = v.dockle || {};
+  updateDotFromVersions(d);
   let dockleMark = "", dockleTip = "Version check hasn't run yet";
-  if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
+  if (d.downloadReady) { dockleMark = tick; dockleTip = "Downloaded - click the dot next to the logo to restart"; }
+  else if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
   else if (d.behind > 0) {
     dockleMark = '<span class="version-behind" aria-hidden="true">↑</span>';
-    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - Settings → Dockle itself`;
+    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - click the dot next to the logo`;
   }
   rows.push(`<div class="version-row" data-tip="${esc(dockleTip)}">
     <span class="version-name">Dockle</span>
@@ -1433,12 +1435,13 @@ async function viewHelp() {
       <p>The sidebar and the bar along the top, and what each part does.</p>
       <div class="help-grid">
         ${helpTile(NAV_ICO.menu, "Menu", "Shows or hides the sidebar - only needed on a narrow screen.")}
+        ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The dot next to \u201cDockle\u201d", "Its own update status - green means up to date, amber means a new version is ready to download (click it), and once downloaded it turns into a restart button. No separate check button; it keeps itself current on its own.")}
         ${helpTile(NAV_ICO.allStacks, "All stacks", "Back to the dashboard - every stack, one glance.")}
         ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
         ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
         ${helpTile(NAV_ICO.activity, "Activity", "A running log of everything Dockle has done and any errors along the way.")}
         ${helpTile(NAV_ICO.backups, "Backups", "Daily automatic backups of Dockle's own data, with one-click restore.")}
-        ${helpTile(NAV_ICO.settings, "Settings", "Account, email alerts, the host companion, and updating Dockle itself.")}
+        ${helpTile(NAV_ICO.settings, "Settings", "Account, email alerts, and the optional host companion.")}
         ${helpTile(NAV_ICO.power, "Restart Docker / Reboot server", "Only shown once the host companion is installed - real host-level actions, not container ones.")}
         ${helpTile(NAV_ICO.signOut, "Sign out", "Ends your session immediately.")}
       </div>
@@ -1494,9 +1497,12 @@ async function viewHelp() {
         command, so every action on Dockle's own card runs from a short-lived helper container instead, never from
         inside itself.</p>
       <div class="help-cols">
-        <div class="help-col"><h4>Update</h4><p>Pulls the newest source, rebuilds and restarts. The page goes away
-          for a few seconds while that happens, then reconnects itself. Your other stacks are untouched throughout -
-          this only ever replaces Dockle's own container.</p></div>
+        <div class="help-col"><h4>The dot next to the logo</h4><p>Amber means a new version is ready - click it to
+          download and rebuild in the background, while Dockle keeps running as it is. Once that finishes the same
+          dot turns into a restart button; click it again and the page goes away for a few seconds while Dockle
+          replaces itself, then comes back on its own.</p></div>
+        <div class="help-col"><h4>This card's own Update button</h4><p>Does the same pull-rebuild-restart in one
+          go, streamed, exactly like any other stack's Update button - no separate download step.</p></div>
         <div class="help-col"><h4>Stop / Down / Delete</h4><p>These really do what they say, so they're offered
           like any other stack's - but they're one-way from the browser: the page that ran them is the last one
           you'll see until Dockle is brought back from a shell on the server.</p></div>
@@ -1838,7 +1844,6 @@ async function viewSettings() {
   });
 
   renderTfa(document.getElementById("tfaHost"));
-  await renderDockleUpdatePanel();
   await renderHostCompanionPanel();
 }
 
@@ -1875,6 +1880,151 @@ async function installCompanion(btn) {
   if (location.hash === "#/settings") await renderHostCompanionPanel();
 }
 
+/* Dockle's own update status, top bar, next to the name and version -
+   see the update-widget skill (Charlie's standing pattern across his
+   self-hosted tools). One dot, no separate button, no banner: colour
+   and overlay icon are the whole interface. Piggybacks on the same
+   /api/system/versions poll the sidebar's version rows already use
+   (renderVersions, elsewhere in this file) rather than running a second
+   independent timer against the same data. */
+const RING_R = 8.5, RING_C = 2 * Math.PI * RING_R;
+const UPDATE_DOT_ICONS = {
+  download: '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 17v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  restart: '<svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+let updateDotState = "unknown";   // unknown | uptodate | available | downloading | ready | error
+let updateDotBusy = false;        // guards a second click while one action is in flight
+
+function paintUpdateDot(state, tip, iconSvg) {
+  const dot = document.getElementById("updateDot");
+  if (!dot) return;
+  updateDotState = state;
+  const cls = { uptodate: "ud-green", ready: "ud-green", available: "ud-amber", error: "ud-red" }[state] || "";
+  dot.className = "update-dot tip-below tip-align-start " + cls;
+  dot.innerHTML = iconSvg || "";
+  const clickable = state === "available" || state === "ready";
+  if (clickable) { dot.setAttribute("role", "button"); dot.tabIndex = 0; }
+  else { dot.removeAttribute("role"); dot.removeAttribute("tabindex"); }
+  dot.dataset.tip = tip;
+  dot.setAttribute("aria-label", tip);
+}
+
+/* Called from renderVersions() with the same "dockle" object the
+   sidebar's version row already parsed - one fetch, two displays. */
+function updateDotFromVersions(dockle) {
+  if (updateDotState === "downloading") return;  // owns its own rendering mid-download
+  const v = document.getElementById("topbarVersion");
+  if (v && dockle.version) v.textContent = "v" + dockle.version;
+  if (dockle.downloadReady) {
+    paintUpdateDot("ready", "Downloaded - click to restart Dockle", UPDATE_DOT_ICONS.restart);
+  } else if (dockle.behind === null) {
+    if (dockle.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
+    else paintUpdateDot("unknown", "Checking for updates…");
+  } else if (dockle.behind > 0) {
+    paintUpdateDot("available", "Update available - click to download", UPDATE_DOT_ICONS.download);
+  } else {
+    paintUpdateDot("uptodate", "Up to date");
+  }
+}
+
+function startUpdateRing() {
+  const dot = document.getElementById("updateDot");
+  dot.className = "update-dot tip-below tip-align-start ud-ring";
+  dot.removeAttribute("role"); dot.removeAttribute("tabindex");
+  dot.dataset.tip = "Downloading the update…";
+  dot.setAttribute("aria-label", dot.dataset.tip);
+  dot.innerHTML = `<svg class="ud-ring-svg" viewBox="0 0 21 21">
+    <circle class="ud-ring-track" cx="10.5" cy="10.5" r="${RING_R}" fill="none" stroke-width="2.4"/>
+    <circle class="ud-ring-bar" id="udRingBar" cx="10.5" cy="10.5" r="${RING_R}" fill="none" stroke-width="2.4"
+      stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C}"/></svg>`;
+}
+function setUpdateRingProgress(frac) {
+  const bar = document.getElementById("udRingBar");
+  if (bar) bar.style.strokeDashoffset = String(RING_C * (1 - Math.max(0, Math.min(1, frac))));
+}
+
+async function downloadDockleUpdate() {
+  updateDotBusy = true;
+  startUpdateRing();
+  try {
+    const res = await fetch("/api/system/self-update/download", { method: "POST", headers: { "X-CSRF": CSRF } });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", ok = true;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (line === "[dockle-done:ok]") { ok = true; continue; }
+        if (line === "[dockle-done:error]") { ok = false; continue; }
+        const m = line.match(/^\[dockle-progress:([\d.]+)\]$/);
+        if (m) setUpdateRingProgress(parseFloat(m[1]));
+      }
+    }
+    if (!ok) throw new Error("Download failed - see Activity for details.");
+    paintUpdateDot("ready", "Downloaded - click to restart Dockle", UPDATE_DOT_ICONS.restart);
+  } catch (e) {
+    paintUpdateDot("error", e.message);
+  } finally {
+    updateDotBusy = false;
+  }
+}
+
+async function restartDockleForUpdate() {
+  updateDotBusy = true;
+  const dot = document.getElementById("updateDot");
+  dot.removeAttribute("role"); dot.removeAttribute("tabindex");
+  dot.classList.add("ud-busy");
+  dot.dataset.tip = "Restarting…";
+  let restarting = false;
+  try {
+    const res = await fetch("/api/system/self-update/restart", { method: "POST", headers: { "X-CSRF": CSRF } });
+    await readDockleStream(res, { onRestarting: () => { restarting = true; } });
+  } catch (e) {
+    // A dropped connection here is expected - the container this
+    // request was served from just got replaced. Anything else, the
+    // dot has no output panel to explain it in, so it becomes the
+    // error state rather than getting silently swallowed.
+    if (!restarting) {
+      dot.classList.remove("ud-busy");
+      paintUpdateDot("error", e.message);
+      updateDotBusy = false;
+      return;
+    }
+  }
+  // No progress panel here - the busy pulse (started above) is the
+  // only feedback while waiting to reconnect, matching the skill's
+  // "no extra UI" rule; a real dot state, not a fake timer.
+  await waitForDockleBack({ line() {}, closed: () => false, done() {} });
+  dot.classList.remove("ud-busy");
+  // We just booted the exact commit that was downloaded - no need to
+  // wait for the next background git-fetch to say so.
+  paintUpdateDot("uptodate", "Up to date");
+  updateDotBusy = false;
+  refreshStacks();
+  renderVersions();
+}
+
+document.getElementById("updateDot")?.addEventListener("click", () => {
+  if (updateDotBusy) return;
+  if (updateDotState === "available") downloadDockleUpdate();
+  else if (updateDotState === "ready") restartDockleForUpdate();
+});
+document.getElementById("updateDot")?.addEventListener("keydown", (e) => {
+  if (updateDotBusy) return;
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  if (updateDotState === "available") downloadDockleUpdate();
+  else if (updateDotState === "ready") restartDockleForUpdate();
+});
+
 async function waitForDockleBack(panel) {
   panel.line("Waiting for Dockle to come back…");
   for (let i = 0; i < 30; i++) {
@@ -1887,85 +2037,6 @@ async function waitForDockleBack(panel) {
   }
   panel.line("Still not back after a minute - check the container directly (docker ps / docker logs dockle).");
   panel.done(false);
-}
-
-/* Updating Dockle itself, without a terminal. The button can't just
-   run a redeploy like any other stack would: `compose up` stops
-   Dockle's container, which kills the process running the command, so
-   the restart half never happens and Dockle stays down. The server side
-   hands the job to a throwaway container instead (see
-   runtime.self_update_stream); from here it looks like a stream that
-   stops mid-flight, after which we wait for /health to answer again. */
-async function renderDockleUpdatePanel() {
-  document.querySelectorAll(".dockle-update-panel").forEach(p => p.remove());
-  const panel = el(`<div class="panel dockle-update-panel">
-    <div class="panel-head"><h2>Dockle itself</h2></div>
-    <p>Pulls the newest Dockle, rebuilds it and restarts - your stacks keep running
-      throughout; only this page goes away for a few seconds.</p>
-    <div class="btn-row align-center">
-      <button class="btn btn-steady-wide" id="dockleCheckBtn">Check for a new version</button>
-      <button class="btn btn-primary btn-steady" id="dockleUpdateBtn">Update Dockle</button>
-      <span class="hint" id="dockleUpdateResult"></span>
-    </div></div>`);
-  content.appendChild(panel);
-  const result = panel.querySelector("#dockleUpdateResult");
-
-  panel.querySelector("#dockleCheckBtn").addEventListener("click", async (e) => {
-    e.target.disabled = true; e.target.textContent = "Checking…";
-    try {
-      const r = await api("/api/system/self-update/check");
-      if (!r.git) {
-        result.textContent = `Can't tell (${r.reason}) - Update still rebuilds and restarts.`;
-      } else if (r.behind === null) {
-        // r.reason is git's own words - show them rather than a summary
-        // of them, since the reason is usually the actionable part.
-        result.textContent = `Couldn't check: ${r.reason || "the remote didn't answer"}`;
-      } else if (r.behind === 0) {
-        result.textContent = "Already on the newest version.";
-      } else {
-        result.textContent = `${r.behind} new commit${r.behind === 1 ? "" : "s"} available.`;
-      }
-    } catch (err) { popAlert(e.target, err.message, "danger", 5000); }
-    e.target.disabled = false; e.target.textContent = "Check for a new version";
-  });
-
-  // Deliberately not armedAction: this isn't destructive (nothing is
-  // deleted and the stacks stay up), and armedAction jumps to the
-  // dashboard when its action resolves - which would yank the page away
-  // from the update output the moment Dockle came back.
-  const updateBtn = panel.querySelector("#dockleUpdateBtn");
-  updateBtn.addEventListener("click", async () => {
-    updateBtn.disabled = true;
-    updateBtn.textContent = "Updating…";
-    await updateDockle();
-    updateBtn.disabled = false;
-    updateBtn.textContent = "Update Dockle";
-  });
-}
-
-async function updateDockle() {
-  const progress = openProgressPanel("Updating Dockle");
-  let restarting = false;
-  try {
-    const res = await fetch("/api/system/self-update", { method: "POST", headers: { "X-CSRF": CSRF } });
-    ({ restarting } = await readDockleStream(res, {
-      onLine: line => progress.line(line),
-      onRestarting: () => progress.line("Dockle is restarting itself…"),
-    }));
-  } catch (e) {
-    if (!restarting) {
-      progress.line("ERROR: " + e.message);
-      progress.done(false);
-      return;
-    }
-    // else: expected - the connection died because Dockle replaced itself
-  }
-  if (restarting) {
-    await waitForDockleBack(progress);
-    if (location.hash === "#/settings") await viewSettings();
-  } else {
-    progress.done(true);
-  }
 }
 
 async function renderHostCompanionPanel() {

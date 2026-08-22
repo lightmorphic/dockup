@@ -4,6 +4,7 @@ Also updating Dockle itself, the one stack its own Update button can't
 apply (see runtime.self_update_stream for why).
 """
 
+import math
 import re
 import threading
 import time
@@ -170,55 +171,122 @@ def api_self_update_check():
     return jsonify(result)
 
 
-@bp.post("/self-update")
-def api_self_update():
-    """Update Dockle in place: newer source, newer images, rebuild,
-    recreate. The last step replaces the container serving this very
-    request, so the stream ends abruptly right after
-    "[dockle-restarting]" - the browser waits for /health to answer
-    again rather than treating the dropped connection as a failure."""
+# The top-bar update widget's own two-step flow (see the update-widget
+# skill): download builds the new image without touching the running
+# container, so a browser can walk away mid-build and Dockle stays up
+# throughout; restart is the short, separate step that actually replaces
+# it. _download_ready survives across requests (not just this one's
+# response) so reloading the page after a download - or opening it fresh
+# on another device - still shows "ready to restart" rather than losing
+# that state.
+
+_download_ready = {"ready": False}
+_download_ready_lock = threading.Lock()
+
+
+def _progress_fraction(lines_seen: int) -> float:
+    """A build has no fixed, predictable step count - the Dockerfile can
+    change - so this doesn't try to track "step 7 of 15". Instead each
+    real line of output nudges an asymptotic curve that climbs fast at
+    first and slows near the end, capped below 1.0 until the process has
+    actually exited 0. Approximate, not exact, but genuinely driven by
+    real Docker output rather than a fake clock - a real build typically
+    prints 20-30+ lines, which is enough for this to feel proportionate."""
+    return min(0.95, 1 - math.exp(-0.12 * lines_seen))
+
+
+@bp.post("/self-update/download")
+def api_self_update_download():
+    """Pull + rebuild only - see runtime.self_update_prepare_stream. No
+    output is streamed to the client beyond progress fractions; the
+    widget has no text log by design (see the update-widget skill), the
+    real lines still go to Activity on success/failure for anyone who
+    wants the detail."""
     compose_dir = _dockle_compose_dir()
     if not compose_dir:
         return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
                                  "real path on the host - see the runbook to set it in compose.yaml."}), 400
     rt = runtime.current()
-    activity.log("info", "dockle-update", "Dockle self-update started")
+    activity.log("info", "dockle-update", "Dockle update download started")
+
+    def generate():
+        ok = True
+        lines, seen = [], 0
+        try:
+            for line in rt.self_update_prepare_stream(compose_dir):
+                if line.startswith("[dockle-exit:"):
+                    ok = line == "[dockle-exit:0]"
+                    continue
+                lines.append(line)
+                seen += 1
+                yield f"[dockle-progress:{_progress_fraction(seen):.3f}]\n"
+        except runtime.RuntimeError_ as exc:
+            ok = False
+            lines.append(f"ERROR: {exc}")
+        except Exception as exc:
+            ok = False
+            lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
+        if ok:
+            with _download_ready_lock:
+                _download_ready["ready"] = True
+            activity.log("info", "dockle-update", "Dockle update downloaded - ready to restart")
+            yield "[dockle-progress:1.000]\n[dockle-done:ok]\n"
+        else:
+            activity.log("error", "dockle-update", "Dockle update download FAILED", "\n".join(lines[-40:]))
+            yield "[dockle-done:error]\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/plain",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+@bp.post("/self-update/restart")
+def api_self_update_restart():
+    """Recreate Dockle's container from the image /self-update/download
+    already built. Replaces the container serving this very request, so
+    the stream ends abruptly right after "[dockle-restarting]" - the
+    browser waits for /health to answer again rather than treating the
+    dropped connection as a failure."""
+    compose_dir = _dockle_compose_dir()
+    if not compose_dir:
+        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    rt = runtime.current()
+    activity.log("info", "dockle-update", "Dockle restart-to-update started")
 
     def generate():
         ok = True
         restarting = False
+        lines = []
         try:
-            for line in rt.self_update_stream(compose_dir):
+            for line in rt.self_update_apply_stream(compose_dir):
                 if line.startswith("[dockle-exit:"):
                     ok = line == "[dockle-exit:0]"
                     continue
-                yield line + "\n"
-                # Compose says "Container dockle  Recreate/Recreating"
-                # just before it replaces the container this request is
-                # being served from - so everything after this point can
-                # be cut off mid-word. Tell the browser once, so it waits
-                # for Dockle to come back instead of reporting the
-                # dropped connection as a failure.
+                lines.append(line)
                 if not restarting and "recreat" in line.lower():
                     restarting = True
                     yield "[dockle-restarting]\n"
         except runtime.RuntimeError_ as exc:
             ok = False
-            yield f"ERROR: {exc}\n"
+            lines.append(f"ERROR: {exc}")
         except Exception as exc:
             ok = False
-            yield f"ERROR: unexpected {type(exc).__name__}: {exc}\n"
+            lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
         if ok:
-            activity.log("info", "dockle-update", "Dockle self-update finished")
+            with _download_ready_lock:
+                _download_ready["ready"] = False
+            # We just booted the exact commit self-update/download built -
+            # no need to wait up to 6 hours for the next background check
+            # to notice. Without this, both the widget and the sidebar's
+            # version row would keep reporting the pre-update commit
+            # count as still outstanding until that next check runs.
+            note_self_check({"git": True, "behind": 0})
+            activity.log("info", "dockle-update", "Dockle restarted on the new version")
             yield "[dockle-done:ok]\n"
         else:
-            activity.log("error", "dockle-update", "Dockle self-update FAILED",
-                         "Open Settings and read the update output panel for the full text.")
+            activity.log("error", "dockle-update", "Dockle restart FAILED", "\n".join(lines[-40:]))
             yield "[dockle-done:error]\n"
 
-    # stream_with_context for the same reason as every other streaming
-    # action here: the generator outlives the request otherwise, and
-    # activity.log() then throws well after the response has started.
     return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
@@ -398,6 +466,8 @@ def api_versions():
                          daemon=True).start()
 
     behind = cached.get("behind") if cached else None
+    with _download_ready_lock:
+        download_ready = _download_ready["ready"]
     return jsonify({
         "dockle": {
             "version": config.VERSION,
@@ -406,6 +476,11 @@ def api_versions():
             "behind": behind,
             "upToDate": (behind == 0) if behind is not None else None,
             "checkedAt": checked_at or None,
+            # An update already downloaded and built, just waiting on the
+            # (separate, deliberate) restart click - survives a page
+            # reload, though not a restart of Dockle itself, since a
+            # successful restart is a fresh process by definition.
+            "downloadReady": download_ready,
         },
         "docker": {
             "engine": engine.get("engine", "Docker"),
