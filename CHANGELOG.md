@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.11 - 2026-08-21
+
+- The update-status dot moved from beside the "Dockle" wordmark to
+  sitting with Maintenance/Activity/Backups/Settings - leftmost of that
+  group, in the top bar
+- The dot is now clickable when green too, not just amber/ready: click
+  it to check for an update right now instead of waiting for the next
+  background check, with a brief pulse while it does
+- Ready-to-restart is now its own blue, not the same green as "up to
+  date" - a clearer visual break between "nothing to do" and "one more
+  click needed". Tooltips shortened to "Update available" and "Click to
+  restart"
+
 ## 1.5.10 - 2026-08-21
 
 - **Removed the Dockle dashboard card and its dedicated page.** Showing

@@ -146,6 +146,11 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .update-dot.ud-green { background: #4BAE4F; }
 .update-dot.ud-amber { background: #FFC006; }
 .update-dot.ud-red { background: #F34236; }
+/* Ready-to-restart is Charlie's own addition to the standard widget
+   states (the skill's canonical spec reuses green for this) - blue
+   reads unambiguously as its own distinct state at a glance, and reuses
+   the app's existing --info token rather than a new hardcoded colour. */
+.update-dot.ud-blue { background: var(--info); }
 .update-dot.ud-busy { animation: dot-pulse 1s ease-in-out infinite; }
 .update-dot.ud-ring { background: transparent; }
 .update-dot .ud-ring-svg { position: absolute; inset: -4px; transform: rotate(-90deg); }

@@ -277,11 +277,11 @@ async function renderVersions() {
   const d = v.dockle || {};
   updateDotFromVersions(d);
   let dockleMark = "", dockleTip = "Version check hasn't run yet";
-  if (d.downloadReady) { dockleMark = tick; dockleTip = "Downloaded - click the dot next to the logo to restart"; }
+  if (d.downloadReady) { dockleMark = tick; dockleTip = "Downloaded - click the update dot (next to Maintenance) to restart"; }
   else if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
   else if (d.behind > 0) {
     dockleMark = '<span class="version-behind" aria-hidden="true">↑</span>';
-    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - click the dot next to the logo`;
+    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - click the update dot (next to Maintenance)`;
   }
   rows.push(`<div class="version-row" data-tip="${esc(dockleTip)}">
     <span class="version-name">Dockle</span>
@@ -1224,7 +1224,7 @@ async function viewHelp() {
       <p>The sidebar and the bar along the top, and what each part does.</p>
       <div class="help-grid">
         ${helpTile(NAV_ICO.menu, "Menu", "Shows or hides the sidebar - only needed on a narrow screen.")}
-        ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The dot next to \u201cDockle\u201d", "Its own update status - green means up to date, amber means a new version is ready to download (click it), and once downloaded it turns into a restart button. No separate check button; it keeps itself current on its own.")}
+        ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The update dot", "Sits next to Maintenance in the top bar. Green: up to date - click it to check again right now. Amber: a new version is ready to download (click it). Once downloaded it turns blue - click to restart. No separate check button anywhere; it also keeps itself current on its own in the background.")}
         ${helpTile(NAV_ICO.allStacks, "All stacks", "Back to the dashboard - every stack, one glance.")}
         ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
         ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
@@ -1282,10 +1282,11 @@ async function viewHelp() {
       <h2>Dockle itself</h2>
       <p>Dockle doesn't appear as a stack you can act on - stopping or deleting the very thing you're using to
         manage everything else is a mistake worth designing out, not just warning about. Its own update is the
-        one control it offers: the dot next to the logo, top-left of every page. Amber means a new version is
-        ready - click it to download and rebuild in the background while Dockle keeps running as it is. Once
-        that finishes the same dot turns into a restart button; click it again and the page goes away for a few
-        seconds while Dockle replaces itself, then comes back on its own.</p>
+        one control it offers: the update dot in the top bar, next to Maintenance. Green means up to date -
+        click it any time to check again right now, rather than waiting for the next background check. Amber
+        means a new version is ready - click it to download and rebuild in the background while Dockle keeps
+        running as it is. Once that finishes the same dot turns blue; click it again and the page goes away for
+        a few seconds while Dockle replaces itself, then comes back on its own.</p>
     </div>
 
     <div class="panel">
@@ -1678,10 +1679,12 @@ function paintUpdateDot(state, tip, iconSvg) {
   const dot = document.getElementById("updateDot");
   if (!dot) return;
   updateDotState = state;
-  const cls = { uptodate: "ud-green", ready: "ud-green", available: "ud-amber", error: "ud-red" }[state] || "";
+  const cls = { uptodate: "ud-green", ready: "ud-blue", available: "ud-amber", error: "ud-red" }[state] || "";
   dot.className = "update-dot tip-below tip-align-start " + cls;
   dot.innerHTML = iconSvg || "";
-  const clickable = state === "available" || state === "ready";
+  // Green is also clickable - it's how you ask for a check right now
+  // instead of waiting for the next background one.
+  const clickable = state === "uptodate" || state === "available" || state === "ready";
   if (clickable) { dot.setAttribute("role", "button"); dot.tabIndex = 0; }
   else { dot.removeAttribute("role"); dot.removeAttribute("tabindex"); }
   dot.dataset.tip = tip;
@@ -1691,19 +1694,43 @@ function paintUpdateDot(state, tip, iconSvg) {
 /* Called from renderVersions() with the same "dockle" object the
    sidebar's version row already parsed - one fetch, two displays. */
 function updateDotFromVersions(dockle) {
-  if (updateDotState === "downloading") return;  // owns its own rendering mid-download
+  if (updateDotState === "downloading" || updateDotState === "checking") return;  // own their own rendering mid-flight
   const v = document.getElementById("topbarVersion");
   if (v && dockle.version) v.textContent = "v" + dockle.version;
   if (dockle.downloadReady) {
-    paintUpdateDot("ready", "Downloaded - click to restart Dockle", UPDATE_DOT_ICONS.restart);
+    paintUpdateDot("ready", "Click to restart", UPDATE_DOT_ICONS.restart);
   } else if (dockle.behind === null) {
     if (dockle.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
     else paintUpdateDot("unknown", "Checking for updates…");
   } else if (dockle.behind > 0) {
-    paintUpdateDot("available", "Update available - click to download", UPDATE_DOT_ICONS.download);
+    paintUpdateDot("available", "Update available", UPDATE_DOT_ICONS.download);
   } else {
     paintUpdateDot("uptodate", "Up to date");
   }
+}
+
+/* Green, clicked: not a download, just "check again right now" -
+   pulses while the check runs (a real git fetch through a helper
+   container, so genuinely takes a moment), then settles on whatever
+   the check actually found via the normal renderVersions() path. */
+async function checkDockleUpdateNow() {
+  updateDotBusy = true;
+  updateDotState = "checking";
+  const dot = document.getElementById("updateDot");
+  dot.removeAttribute("role"); dot.removeAttribute("tabindex");
+  dot.classList.add("ud-busy");
+  dot.dataset.tip = "Checking…";
+  try {
+    await api("/api/system/self-update/check");
+  } catch (e) {
+    // Fall through regardless - renderVersions() below reflects whatever
+    // the cache actually holds, error included, rather than trusting
+    // this one request's own success/failure.
+  }
+  dot.classList.remove("ud-busy");
+  updateDotState = "unknown";  // let updateDotFromVersions repaint freely
+  updateDotBusy = false;
+  await renderVersions();
 }
 
 function startUpdateRing() {
@@ -1748,7 +1775,7 @@ async function downloadDockleUpdate() {
       }
     }
     if (!ok) throw new Error("Download failed - see Activity for details.");
-    paintUpdateDot("ready", "Downloaded - click to restart Dockle", UPDATE_DOT_ICONS.restart);
+    paintUpdateDot("ready", "Click to restart", UPDATE_DOT_ICONS.restart);
   } catch (e) {
     paintUpdateDot("error", e.message);
   } finally {
@@ -1791,17 +1818,17 @@ async function restartDockleForUpdate() {
   renderVersions();
 }
 
-document.getElementById("updateDot")?.addEventListener("click", () => {
+function onUpdateDotActivate() {
   if (updateDotBusy) return;
-  if (updateDotState === "available") downloadDockleUpdate();
+  if (updateDotState === "uptodate") checkDockleUpdateNow();
+  else if (updateDotState === "available") downloadDockleUpdate();
   else if (updateDotState === "ready") restartDockleForUpdate();
-});
+}
+document.getElementById("updateDot")?.addEventListener("click", onUpdateDotActivate);
 document.getElementById("updateDot")?.addEventListener("keydown", (e) => {
-  if (updateDotBusy) return;
   if (e.key !== "Enter" && e.key !== " ") return;
   e.preventDefault();
-  if (updateDotState === "available") downloadDockleUpdate();
-  else if (updateDotState === "ready") restartDockleForUpdate();
+  onUpdateDotActivate();
 });
 
 async function waitForDockleBack(panel) {
