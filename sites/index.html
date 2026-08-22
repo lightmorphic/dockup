@@ -266,17 +266,36 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
 
   <h2 id="install">Install</h2>
   <div class="two">
-    <pre><code><span class="c"># on your home server - no cloning, no building, just its compose file</span>
-mkdir -p /opt/dockle /opt/stacks &amp;&amp; cd /opt/dockle
-curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockle/main/compose.yaml
-echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" &gt; .env
-docker compose up -d</code></pre>
+    <pre><code><span class="c"># paste straight into Dockge, Portainer, or any compose tool - change</span>
+<span class="c"># the SECRET_KEY line below to your own random string, then deploy</span>
+services:
+  dockle:
+    image: ghcr.io/lightmorphic/dockle:latest
+    container_name: dockle
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:4000:5001"
+    environment:
+      SECRET_KEY: change-this-to-your-own-long-random-string
+      TZ: Europe/London
+      <span class="c"># real host path of the data/ folder above - only matters for</span>
+      <span class="c"># per-stack backups; skip if you don't use that feature</span>
+      DOCKLE_DATA_HOST_PATH: /opt/dockle/data
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks:/opt/stacks</code></pre>
     <div class="panel">
       <h3>Then</h3>
       <p style="color:var(--muted-fg);margin:0">Open <strong style="color:var(--fg)">http://your-server:4000</strong>,
-      create the admin account, and adopt what's already running. Updating later is
+      create the admin account, and adopt what's already running. Updating later is a plain
       <code>docker compose pull &amp;&amp; docker compose up -d</code> - or the dot in Dockle's
-      own top bar. Prefer Podman? The runbook covers the daemonless setup in four steps.</p>
+      own top bar. Prefer a terminal, the full file with comments, or Podman? The
+      <a href="https://github.com/lightmorphic/dockle/blob/main/compose.yaml">real compose.yaml</a>
+      and the runbook cover all three.</p>
     </div>
   </div>
 
