@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.3 - 2026-08-22
+
+- The page now actually reloads once Dockle reconnects after a restart-
+  to-update - it used to just repaint the dot, so the rest of the page
+  (and the JS/CSS serving it) looked untouched even though the update
+  had genuinely applied
+- The update dot dropped its download/restart icon overlays - plain
+  colour only now - and is 50% bigger (20px, up from 13px), with the
+  progress ring resized to match
+
 ## 1.6.2 - 2026-08-22
 
 - Fixed New stack / All stacks in the sidebar wrapping onto two lines

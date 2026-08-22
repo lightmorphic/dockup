@@ -1663,25 +1663,22 @@ async function installCompanion(btn) {
 /* Dockle's own update status, top bar, next to the name and version -
    see the update-widget skill (Charlie's standing pattern across his
    self-hosted tools). One dot, no separate button, no banner: colour
-   and overlay icon are the whole interface. Piggybacks on the same
+   alone is the interface, no overlay icon - Charlie's own call, the
+   skill's canonical spec uses one. Piggybacks on the same
    /api/system/versions poll the sidebar's version rows already use
    (renderVersions, elsewhere in this file) rather than running a second
    independent timer against the same data. */
-const RING_R = 8.5, RING_C = 2 * Math.PI * RING_R;
-const UPDATE_DOT_ICONS = {
-  download: '<svg viewBox="0 0 24 24"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 17v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  restart: '<svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-};
+const RING_R = 13, RING_C = 2 * Math.PI * RING_R;
 let updateDotState = "unknown";   // unknown | uptodate | available | downloading | ready | error
 let updateDotBusy = false;        // guards a second click while one action is in flight
 
-function paintUpdateDot(state, tip, iconSvg) {
+function paintUpdateDot(state, tip) {
   const dot = document.getElementById("updateDot");
   if (!dot) return;
   updateDotState = state;
   const cls = { uptodate: "ud-green", ready: "ud-blue", available: "ud-amber", error: "ud-red" }[state] || "";
   dot.className = "update-dot tip-below tip-align-start " + cls;
-  dot.innerHTML = iconSvg || "";
+  dot.innerHTML = "";
   // Green is also clickable - it's how you ask for a check right now
   // instead of waiting for the next background one.
   const clickable = state === "uptodate" || state === "available" || state === "ready";
@@ -1698,12 +1695,12 @@ function updateDotFromVersions(dockle) {
   const v = document.getElementById("topbarVersion");
   if (v && dockle.version) v.textContent = "v" + dockle.version;
   if (dockle.downloadReady) {
-    paintUpdateDot("ready", "Click to restart", UPDATE_DOT_ICONS.restart);
+    paintUpdateDot("ready", "Click to restart");
   } else if (dockle.upToDate === null) {
     if (dockle.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
     else paintUpdateDot("unknown", "Checking for updates…");
   } else if (dockle.upToDate === false) {
-    paintUpdateDot("available", "Update available", UPDATE_DOT_ICONS.download);
+    paintUpdateDot("available", "Update available");
   } else {
     paintUpdateDot("uptodate", "Up to date");
   }
@@ -1745,9 +1742,9 @@ function startUpdateRing() {
   dot.removeAttribute("role"); dot.removeAttribute("tabindex");
   dot.dataset.tip = "Downloading the update…";
   dot.setAttribute("aria-label", dot.dataset.tip);
-  dot.innerHTML = `<svg class="ud-ring-svg" viewBox="0 0 21 21">
-    <circle class="ud-ring-track" cx="10.5" cy="10.5" r="${RING_R}" fill="none" stroke-width="2.4"/>
-    <circle class="ud-ring-bar" id="udRingBar" cx="10.5" cy="10.5" r="${RING_R}" fill="none" stroke-width="2.4"
+  dot.innerHTML = `<svg class="ud-ring-svg" viewBox="0 0 32 32">
+    <circle class="ud-ring-track" cx="16" cy="16" r="${RING_R}" fill="none" stroke-width="2.6"/>
+    <circle class="ud-ring-bar" id="udRingBar" cx="16" cy="16" r="${RING_R}" fill="none" stroke-width="2.6"
       stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C}"/></svg>`;
 }
 function setUpdateRingProgress(frac) {
@@ -1781,7 +1778,7 @@ async function downloadDockleUpdate() {
       }
     }
     if (!ok) throw new Error("Download failed - see Activity for details.");
-    paintUpdateDot("ready", "Click to restart", UPDATE_DOT_ICONS.restart);
+    paintUpdateDot("ready", "Click to restart");
   } catch (e) {
     paintUpdateDot("error", e.message);
   } finally {
@@ -1815,13 +1812,12 @@ async function restartDockleForUpdate() {
   // only feedback while waiting to reconnect, matching the skill's
   // "no extra UI" rule; a real dot state, not a fake timer.
   await waitForDockleBack({ line() {}, closed: () => false, done() {} });
-  dot.classList.remove("ud-busy");
-  // We just booted the exact commit that was downloaded - no need to
-  // wait for the next background git-fetch to say so.
-  paintUpdateDot("uptodate", "Up to date");
-  updateDotBusy = false;
-  refreshStacks();
-  renderVersions();
+  // A full reload, not just re-fetching data in place: the whole point
+  // of the restart was to run newer code, and refreshStacks()/
+  // renderVersions() alone only ever repainted the dot - everything
+  // else on the page (and the JS/CSS serving it) stayed exactly as it
+  // was before the update, which is why nothing looked like it changed.
+  location.reload();
 }
 
 function onUpdateDotActivate() {
