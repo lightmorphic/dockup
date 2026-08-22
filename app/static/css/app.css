@@ -607,25 +607,32 @@ tr:last-child td { border-bottom: none; }
    style-src 'self' CSP holds - no unsafe-inline needed) ---- */
 
 .hint-tight { padding: 0 0.75rem; }
-.stack-title { font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 3rem; }
-/* The stack's name on its own row, full width - it used to share a
-   row with the action icons and lost the fight for space, shrinking
-   to a couple of letters on a narrow screen. The action row (web-UI
-   link, status dot, Start/Stop/Restart/Redeploy/Update/Down/Delete)
-   sits underneath instead. */
+.stack-title { font-size: 1.5rem; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 3rem; flex: 1 1 auto; }
+/* The stack's name on its own row - it used to share a row with the
+   action icons and lost the fight for space, shrinking to a couple of
+   letters on a narrow screen. Open web UI sits opposite it, on the
+   same row (there's nothing else competing with just the two of
+   them); the action buttons (status dot, Start/Stop/Restart/Redeploy/
+   Update/Down/Delete) get their own full-width row underneath. */
 .stack-head { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
-.stack-head .stack-title { margin: 0; }
+.stack-title-row { display: flex; align-items: center; gap: 0.75rem; }
 .stack-head .panel-head { margin-bottom: 0; }
-/* The action row itself: up to nine icons on one line. Fixed 34px
-   icons plus a 0.75rem gap between all of them still refused to fit a
-   narrow phone even with the title moved out of the way. Tying icon
-   size and gap to viewport width (clamp, not a fixed breakpoint) means
-   they shrink continuously as the window narrows and always stay on
-   screen, rather than overflowing or needing to scroll - full size is
-   unchanged above roughly 570px viewport width. */
-.stack-actions { gap: clamp(0.25rem, 1.5vw, 0.75rem); flex-wrap: nowrap; }
-.stack-actions .icon-btn { width: clamp(22px, 6vw, 34px); height: clamp(22px, 6vw, 34px); flex: none; }
-.stack-actions .icon-btn svg { width: clamp(14px, 4vw, 19px); height: clamp(14px, 4vw, 19px); }
+.stack-actions { flex-wrap: nowrap; }
+/* Below 720px (a phone, not a tablet): the action row stops being a
+   row of small fixed-size circular icons and becomes a single edge-to-
+   edge bar instead - every button flexes to fill an equal share of the
+   full row width, no gap between them, so they're bigger and easier to
+   tap the narrower the screen gets, rather than shrinking further. The
+   status dot stays its own small circle (a stretched dot would just
+   look like a broken button) with a little breathing room after it. */
+@media (max-width: 720px) {
+  .stack-actions { gap: 0; }
+  .stack-actions .status-dot { margin-right: 0.5rem; }
+  .stack-actions .icon-btn {
+    flex: 1 1 0; width: auto; height: 44px; border-radius: var(--radius);
+  }
+  .stack-actions .icon-btn svg { width: 20px; height: 20px; }
+}
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .btn-row.align-center { align-items: center; }
 .hint-mt { margin-top: 0.5rem; }

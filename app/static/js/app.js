@@ -794,11 +794,12 @@ async function viewStack(name) {
   const effectiveStatus = s.updateAvailable ? "update" : s.status;
   const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
   const head = el(`<div class="panel"><div class="stack-head">
-      <h1 class="stack-title">${esc(name)}</h1>
-      <div class="panel-head stack-actions">
+      <div class="stack-title-row">
+        <h1 class="stack-title">${esc(name)}</h1>
         <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
           target="_blank" rel="noopener" href="#">${ICONS.external}</a>
-        <span class="spacer"></span>
+      </div>
+      <div class="panel-head stack-actions">
         <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
           role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
         <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>

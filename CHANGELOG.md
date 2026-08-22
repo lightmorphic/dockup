@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.6 - 2026-08-22
+
+- On a stack's own page, Open web UI now sits opposite the name on its
+  title row instead of down with the action buttons
+- On a phone-width screen, the action buttons (status dot aside) now
+  fill the row edge to edge with no gap between them, growing bigger
+  as the screen narrows instead of shrinking - unchanged at desktop
+  widths
+
 ## 1.7.5 - 2026-08-22
 
 - On a stack's own page, its name now sits on its own full-width row
