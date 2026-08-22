@@ -328,12 +328,8 @@ async function route() {
 /* ---------- views ---------- */
 
 async function viewDashboard() {
-  content.innerHTML = `<div class="panel-head">
-    <h1>Stacks</h1><span class="spacer"></span>
-    <button class="btn" id="checkUpdatesBtn" data-tip="Check every stack for a newer image right now, instead of waiting for the next automatic pass">Check for updates</button>
-  </div>`;
+  content.innerHTML = `<div class="panel-head"><h1>Stacks</h1></div>`;
   await refreshStacks();
-  document.getElementById("checkUpdatesBtn")?.addEventListener("click", checkUpdatesNow);
 
   content.appendChild(el(`<div class="btn-row dash-actions">
     <a class="btn tip-below tip-align-start" href="#/" data-tip="Back to the dashboard" aria-label="All stacks">
@@ -344,7 +340,10 @@ async function viewDashboard() {
       <svg viewBox="0 0 24 24" class="btn-ico"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
       New stack
     </a>
+    <span class="spacer"></span>
+    <button class="btn" id="checkUpdatesBtn" data-tip="Check every stack for a newer image right now, instead of waiting for the next automatic pass">Check for updates</button>
   </div>`));
+  document.getElementById("checkUpdatesBtn")?.addEventListener("click", checkUpdatesNow);
 
   let discovered = { projects: [], standalone: [] };
   try { discovered = await api("/api/discover"); } catch (e) { /* non-fatal */ }
@@ -359,10 +358,12 @@ async function viewDashboard() {
 
   const updatable = managed.filter(s => s.updateAvailable);
   if (updatable.length) {
-    const panel = el(`<div class="panel"><div class="panel-head">
-      <h3>${updatable.length} update${updatable.length === 1 ? "" : "s"} available</h3><span class="spacer"></span>
-      <button class="btn btn-primary" id="updateAllBtn">Update all</button></div>
-      <p class="hint">Pulls the newest image and redeploys each one, one after another: ${esc(updatable.map(s => s.name).join(", "))}.</p></div>`);
+    const panel = el(`<div class="panel"><div class="panel-head mb-0">
+      <h3>${updatable.length} update${updatable.length === 1 ? "" : "s"} available</h3>
+      <span class="hint" data-tip="Pulls the newest image and redeploys each one, one after another">${esc(updatable.map(s => s.name).join(", "))}</span>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="updateAllBtn">Update all</button>
+    </div></div>`);
     content.appendChild(panel);
     panel.querySelector("#updateAllBtn").addEventListener("click", updateAll);
   }

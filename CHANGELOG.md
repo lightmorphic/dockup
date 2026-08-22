@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.3 - 2026-08-22
+
+- Check for updates moved down onto the same row as All stacks/New
+  stack, instead of its own row above them
+- The "updates available" notice is now one line - name and a note
+  next to the count, instead of a title row plus a separate paragraph
+  underneath
+
 ## 1.7.2 - 2026-08-22
 
 - On a stack's own page, its status dot moved from beside the name to

@@ -613,6 +613,7 @@ tr:last-child td { border-bottom: none; }
 .btn-row.align-center { align-items: center; }
 .hint-mt { margin-top: 0.5rem; }
 .mt-lg { margin-top: 1rem; }
+.mb-0 { margin-bottom: 0; }
 .form-grid.tight-below { margin-bottom: 1rem; }
 .nowrap { white-space: nowrap; }
 .qr-box { background: #fff; border-radius: 12px; padding: 12px; width: fit-content; }
