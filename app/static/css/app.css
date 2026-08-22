@@ -113,6 +113,16 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   grid-template-rows: auto 1fr auto;
   grid-template-areas: "top" "main" "footer";
   height: 100vh;
+  /* Full-bleed edge-to-edge read as too wide/empty once the sidebar's
+     column went away - a fixed, standard app-container width (same
+     order as Bootstrap's xxl/Tailwind's 2xl containers) keeps line
+     lengths and the card grid reasonable on a big monitor without
+     being an arbitrary fraction of whatever monitor it's on. A plain
+     max-width already behaves correctly on narrow screens with no
+     separate mobile override needed - it simply never kicks in below
+     1440px. */
+  max-width: 1440px;
+  margin: 0 auto;
 }
 .topbar {
   grid-area: top;

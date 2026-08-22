@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1 - 2026-08-22
+
+- The dashboard now caps at a standard 1440px width and centres itself
+  on wide monitors, instead of stretching edge to edge now that the
+  sidebar's gone
+
 ## 1.7.0 - 2026-08-22
 
 - Removed the left sidebar. All stacks/New stack now sit just above the

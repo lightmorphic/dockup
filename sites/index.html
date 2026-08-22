@@ -126,7 +126,13 @@ h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02
   background: var(--panel); border: 1px solid var(--panel-border);
   border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); padding: 1.75rem;
 }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin: 2.5rem 0; }
+/* minmax(400px, ...) is deliberate, not a rounder version of the old
+   240px: at this page's fixed 976px content width it forces exactly 2
+   columns - 240px let 3 columns fit, which reads fine for a multiple
+   of 3 but leaves a lopsided, mostly-empty last row for the 10-card
+   feature grid and the 4-card FAQ grid actually in use here (neither
+   divides evenly by 3; both divide evenly by 2). */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.25rem; margin: 2.5rem 0; }
 .grid h3 { margin: 0 0 .375rem; font-size: 1.0625rem; }
 .grid p { margin: 0; color: var(--muted-fg); font-size: .9375rem; }
 .grid .ico { width: 26px; height: 26px; margin-bottom: .75rem; color: var(--fg); }
@@ -298,7 +304,7 @@ services:
   </div>
 
   <h3>Optional: the dockle-companion</h3>
-  <p style="max-width:65ch">Unlocks host OS update checks and per-stack
+  <p>Unlocks host OS update checks and per-stack
   <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockle can't
   do through the Docker socket alone. It's the sole part of Dockle that needs root on the actual
   server rather than just Docker access, which is why it's a separate step you opt into, not
