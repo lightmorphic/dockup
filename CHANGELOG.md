@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1 - 2026-08-21
+
+- Cleanup release: removed the last leftovers of features replaced
+  earlier today - three orphaned CSS rules (the old circular All-stacks
+  button, the removed Settings check button's width reservation, the
+  old cloud button's amber tint) and a pre-implementation scoping memo
+  in docs/ whose decisions have long lived in companion/ and the
+  runbook. No behaviour change
+
 ## 1.6.0 - 2026-08-21
 
 - **Dockle now ships as a normal pre-built Docker image**

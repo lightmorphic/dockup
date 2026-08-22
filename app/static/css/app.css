@@ -164,7 +164,6 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    so the row never reflows and neighbouring buttons never jump sideways
    mid-click. */
 .btn-steady { min-width: 10.5rem; }
-.btn-steady-wide { min-width: 13.5rem; }
 
 .sidebar {
   grid-area: side;
@@ -277,7 +276,6 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .btn-danger { background: var(--danger); color: #fff; border-color: transparent; }
 .btn-danger:hover { filter: brightness(0.92); }
 .btn-block { width: 100%; }
-.btn-icon-square { padding: 0.5rem; width: 44px; flex: none; border-radius: 50%; }
 /* New stack / All stacks: same width, both look like real buttons -
    All stacks used to be a bare icon circle, easy to miss next to the
    filled New stack pill beside it. */
@@ -302,7 +300,6 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .icon-btn.confirming { background: var(--danger); color: #fff; }
 .icon-btn.success-flash { background: var(--success); color: #fff; }
 .icon-btn[disabled] { opacity: 0.45; cursor: progress; }
-.icon-btn.update-ready { color: var(--warning); }
 .icon-btn.busy { animation: dot-pulse 1s ease-in-out infinite; }
 .icon-btn.active { background: var(--accent-container); color: var(--on-accent-container); }
 
