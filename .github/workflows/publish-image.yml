@@ -13,6 +13,12 @@ on:
       - "**.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+  # Weekly rebuild with no code change: the Dockerfile's `apk upgrade`
+  # only patches OS packages when an image actually gets built, so
+  # without this, a quiet month would ship a steadily staler image.
+  # :latest and the current version tag both get refreshed.
+  schedule:
+    - cron: "20 4 * * 1"
 
 permissions:
   contents: read
