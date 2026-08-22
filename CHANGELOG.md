@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.5 - 2026-08-21
+
+- A stack's status dot now IS the update control, same as the dashboard
+  card - the separate cloud/check button next to it is gone. Not ready:
+  click checks this stack for an update right now. Ready: click runs the
+  same streaming update the Update button does.
+
 ## 1.5.4 - 2026-08-21
 
 - **Added a Help page** ("How Dockle works", the `?` icon next to Sign

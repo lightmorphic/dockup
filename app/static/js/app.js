@@ -814,13 +814,11 @@ async function viewStack(name) {
   const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
   const head = el(`<div class="panel"><div class="panel-head">
       <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
-        data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
+        role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
       <h1 class="stack-title">${esc(name)}</h1>
       <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
         target="_blank" rel="noopener" href="#">${ICONS.external}</a>
       <span class="spacer"></span>
-      <button class="icon-btn" id="checkUpdateBtn" data-tip="Check this stack for an update right now"
-        aria-label="Check for an update">${ICONS.checkUpdate}</button>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
       <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
@@ -834,52 +832,52 @@ async function viewStack(name) {
   content.appendChild(head);
   resolveWebUiLink(name, head.querySelector("#openWebBtn"));
 
-  const checkBtn = head.querySelector("#checkUpdateBtn");
   const statusDot = head.querySelector("#stackStatusDot");
-  const checkTipDefault = checkBtn.dataset.tip;
+  const checkTipDefault = "Check this stack for an update right now - click again once ready to update";
   const updateTipReady = "Update available - click to update";
+  statusDot.dataset.tip = s.updateAvailable ? updateTipReady : checkTipDefault;
+  statusDot.setAttribute("aria-label", statusDot.dataset.tip);
 
+  // The dot IS the update control - no separate button, same as the
+  // dashboard card. Not ready yet: click checks right now. Ready:
+  // click runs the same streaming update the Update button does, so
+  // its output shows line by line instead of a one-word verdict.
   function setStackStatus(effectiveStatus) {
-    const tip = STATUS_TIPS[effectiveStatus] || "Container is down";
+    const ready = effectiveStatus === "update";
+    const tip = ready ? updateTipReady : (STATUS_TIPS[effectiveStatus] || checkTipDefault);
     statusDot.className = `status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}`;
     statusDot.dataset.tip = tip;
     statusDot.setAttribute("aria-label", tip);
   }
-  if (s.updateAvailable) {
-    checkBtn.classList.add("update-ready");
-    checkBtn.dataset.tip = updateTipReady;
-  }
 
   async function doCheck() {
-    checkBtn.disabled = true;
-    checkBtn.classList.add("busy");
+    if (statusDot.classList.contains("busy")) return;
+    statusDot.classList.add("busy");
     try {
       const res = await api(`/api/stacks/${encodeURIComponent(name)}/check-update`, { method: "POST", body: {} });
       s.updateAvailable = res.available;
       if (res.available) {
-        checkBtn.classList.add("update-ready");
-        checkBtn.dataset.tip = updateTipReady;
-        popAlert(checkBtn, updateTipReady, "warning");
         setStackStatus("update");
+        popAlert(statusDot, updateTipReady, "warning");
       } else {
-        checkBtn.classList.remove("update-ready");
-        checkBtn.dataset.tip = checkTipDefault;
-        popAlert(checkBtn, "You're on the latest version", "success");
         setStackStatus(s.status);
+        popAlert(statusDot, "You're on the latest version", "success");
       }
       refreshStacks();
     } catch (e) {
-      popAlert(checkBtn, e.message, "danger", 4000);
+      popAlert(statusDot, e.message, "danger", 4000);
     } finally {
-      checkBtn.classList.remove("busy");
-      checkBtn.disabled = false;
+      statusDot.classList.remove("busy");
     }
   }
 
-  checkBtn.addEventListener("click", () => {
-    // The cloud runs the same streaming update the Update button does,
-    // so its output shows line by line instead of a one-word verdict.
-    if (checkBtn.classList.contains("update-ready")) runAction("update"); else doCheck();
+  const onDotActivate = () => {
+    if (statusDot.classList.contains("busy")) return;
+    if (s.updateAvailable) runAction("update"); else doCheck();
+  };
+  statusDot.addEventListener("click", onDotActivate);
+  statusDot.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDotActivate(); }
   });
 
   const tabs = el(`<div class="panel">
