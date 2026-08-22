@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.4 - 2026-08-22
+
+- Fixed the stack page's action icons overflowing off the right edge
+  of the screen on narrow viewports - icon size and spacing now scale
+  down continuously with viewport width instead of staying a fixed
+  size that didn't fit
+- Every status dot in the app (dashboard cards, a stack's own page,
+  the live action panel, the help examples) is now one consistent
+  size - it had drifted to two different sizes between the dashboard
+  card and the stack page
+
 ## 1.7.3 - 2026-08-22
 
 - Check for updates moved down onto the same row as All stacks/New

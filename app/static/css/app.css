@@ -206,16 +206,15 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    right in flex containers (cards, sidebar), which blockify their direct
    children regardless - anywhere else, like a plain table cell, the dot
    silently collapsed to 0x0 without this. */
-.status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--danger); }
+/* One consistent size everywhere this appears - dashboard cards, a
+   stack's own page, the live action panel, the help examples - only
+   the colour (state) ever changes, never the dot's own size. */
+.status-dot { display: inline-block; width: 13.5px; height: 13.5px; border-radius: 50%; flex: none; background: var(--danger); }
 .status-dot.running { background: var(--success); }
 .status-dot.warning, .status-dot.update { background: var(--warning); }
 .status-dot.inactive { background: var(--muted-fg); }
 .status-dot[role="button"] { cursor: pointer; }
 .status-dot.busy { animation: dot-pulse 1s ease-in-out infinite; }
-/* The stack page's own dot, grouped with the action buttons rather
-   than sitting quietly next to the title - 50% bigger than the base
-   size so it holds its own next to them. */
-.status-dot.status-dot-lg { width: 13.5px; height: 13.5px; }
 @keyframes dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 .content {
@@ -608,7 +607,19 @@ tr:last-child td { border-bottom: none; }
    style-src 'self' CSP holds - no unsafe-inline needed) ---- */
 
 .hint-tight { padding: 0 0.75rem; }
-.stack-title { font-size: 1.5rem; }
+.stack-title { font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 3rem; }
+/* The stack page's own action row: title, web-UI link, status dot,
+   Start/Stop/Restart/Redeploy/Update/Down/Delete - up to nine icons
+   plus the title on one line. Fixed 34px icons plus a 0.75rem gap
+   between all of them refused to fit a narrow phone and pushed the
+   right-most buttons off the edge of the page. Tying icon size and
+   gap to viewport width (clamp, not a fixed breakpoint) means they
+   shrink continuously as the window narrows and always stay on
+   screen, rather than overflowing or needing to scroll - full size is
+   unchanged above roughly 570px viewport width. */
+.stack-actions { gap: clamp(0.25rem, 1.5vw, 0.75rem); flex-wrap: nowrap; }
+.stack-actions .icon-btn { width: clamp(22px, 6vw, 34px); height: clamp(22px, 6vw, 34px); flex: none; }
+.stack-actions .icon-btn svg { width: clamp(14px, 4vw, 19px); height: clamp(14px, 4vw, 19px); }
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .btn-row.align-center { align-items: center; }
 .hint-mt { margin-top: 0.5rem; }
