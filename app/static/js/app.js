@@ -793,12 +793,12 @@ async function viewStack(name) {
   const effectiveStatus = s.updateAvailable ? "update" : s.status;
   const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
   const head = el(`<div class="panel"><div class="panel-head">
-      <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
-        role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
       <h1 class="stack-title">${esc(name)}</h1>
       <a class="icon-btn hidden" id="openWebBtn" data-tip="Open web UI" aria-label="Open web UI"
         target="_blank" rel="noopener" href="#">${ICONS.external}</a>
       <span class="spacer"></span>
+      <span class="status-dot status-dot-lg ${STATUS_DOT_CLASS[effectiveStatus] || ""}" id="stackStatusDot"
+        role="button" data-tip="${esc(dotTip)}" tabindex="0" aria-label="${esc(dotTip)}"></span>
       <button class="icon-btn" id="actStart" data-tip="Start" aria-label="Start stack">${ICONS.play}</button>
       <button class="icon-btn" id="actStop" data-tip="Stop" aria-label="Stop stack">${ICONS.stop}</button>
       <button class="icon-btn" id="actRestart" data-tip="Restart" aria-label="Restart stack">${ICONS.restart}</button>
@@ -1237,8 +1237,8 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>On a stack</h2>
-      <p>The status dot next to the name is itself the update control - not ready, click it to check this stack
-        for an update right now; ready, click it to pull and redeploy, streamed live. The icon row alongside it:</p>
+      <p>The status dot alongside the action buttons is itself the update control - not ready, click it to check
+        this stack for an update right now; ready, click it to pull and redeploy, streamed live. The icons next to it:</p>
       <div class="help-grid">
         ${helpTile(ICONS.external, "Open web UI", "Opens the stack's own address in a new tab - its Tailscale Serve address if set up, otherwise the host address you're already using.")}
         ${helpTile(ICONS.play, "Start", "Brings the stack up - creates containers the first time, starts them after.")}

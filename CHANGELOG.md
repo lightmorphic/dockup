@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.2 - 2026-08-22
+
+- On a stack's own page, its status dot moved from beside the name to
+  sit with the Start/Stop/Restart/Redeploy buttons, and is 50% bigger
+
 ## 1.7.1 - 2026-08-22
 
 - The dashboard now caps at a standard 1440px width and centres itself

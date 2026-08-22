@@ -212,6 +212,10 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .status-dot.inactive { background: var(--muted-fg); }
 .status-dot[role="button"] { cursor: pointer; }
 .status-dot.busy { animation: dot-pulse 1s ease-in-out infinite; }
+/* The stack page's own dot, grouped with the action buttons rather
+   than sitting quietly next to the title - 50% bigger than the base
+   size so it holds its own next to them. */
+.status-dot.status-dot-lg { width: 13.5px; height: 13.5px; }
 @keyframes dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 .content {
