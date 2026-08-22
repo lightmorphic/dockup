@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.9 - 2026-08-22
+
+- The footer badge now uses the real Lightmorphic logomark instead of
+  a placeholder icon
+
 ## 1.7.8 - 2026-08-22
 
 - The footer's Lightmorphic link is now a proper "Created by" badge -
