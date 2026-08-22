@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.4 - 2026-08-21
+
+- **Added a Help page** ("How Dockle works", the `?` icon next to Sign
+  out) walking through the sidebar and top bar, every button on a
+  stack's own page, what the status dot colours mean, how updates work
+  (Dockle's own and every other stack's), backups, the optional host
+  companion, and a short security summary
+- **Fixed tooltips clipping off the top and sides of the screen.** Any
+  tooltip inside the top bar now opens downward instead of the sitewide
+  default of upward - there's no room above it, it's the top of the
+  page. Buttons at the left or right edge (Menu, Restart Docker, Reboot
+  server, Help, Sign out) now anchor their tooltip to that same edge
+  instead of centering, so the bubble never runs off-screen either way
+
 ## 1.5.3 - 2026-08-21
 
 Security and cleanup pass (home-server threat model - no VPS hardening).

@@ -41,7 +41,7 @@ COMPOSE_PASSTHROUGH = (
 
 # Dockle's own version, shown in the sidebar. Kept in step with the top
 # entry in CHANGELOG.md by hand - one number, one place.
-VERSION = "1.5.3"
+VERSION = "1.5.4"
 
 SESSION_DAYS = 7
 LOGIN_MAX_FAILS = 5

@@ -331,6 +331,7 @@ const routes = [
   [/^#\/backups$/, viewBackups],
   [/^#\/settings$/, viewSettings],
   [/^#\/dockle$/, viewDockleStack],
+  [/^#\/help$/, viewHelp],
 ];
 
 async function route() {
@@ -1407,6 +1408,140 @@ const PRUNE_INFO = [
     "Everything else on this page only removes things Docker can rebuild; this removes real data, permanently. " +
     "Dockle lists each volume and whose it is before anything is deleted."],
 ];
+
+function helpTile(iconSvg, title, desc) {
+  return `<div class="help-tile"><div class="help-tile-icon">${iconSvg}</div>
+    <div><h4>${esc(title)}</h4><p>${esc(desc)}</p></div></div>`;
+}
+
+async function viewHelp() {
+  const NAV_ICO = {
+    allStacks: '<svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    newStack: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+    maintenance: '<svg viewBox="0 0 24 24"><path d="M4 17l6-6M14 4l-2.5 2.5a4 4 0 0 0 5.5 5.5L19.5 9.5A4 4 0 0 1 14 4zM4 17l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    activity: '<svg viewBox="0 0 24 24"><path d="M4 12h4l2-7 4 14 2-7h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    backups: '<svg viewBox="0 0 24 24"><path d="M12 3v10m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>',
+    menu: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+    signOut: '<svg viewBox="0 0 24 24"><path d="M9 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3M14 8l4 4-4 4M18 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    power: '<svg viewBox="0 0 24 24"><path d="M12 3v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+  };
+
+  content.innerHTML = `
+    <h1>How Dockle works</h1>
+
+    <div class="panel">
+      <h2>Getting around</h2>
+      <p>The sidebar and the bar along the top, and what each part does.</p>
+      <div class="help-grid">
+        ${helpTile(NAV_ICO.menu, "Menu", "Shows or hides the sidebar - only needed on a narrow screen.")}
+        ${helpTile(NAV_ICO.allStacks, "All stacks", "Back to the dashboard - every stack, one glance.")}
+        ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
+        ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
+        ${helpTile(NAV_ICO.activity, "Activity", "A running log of everything Dockle has done and any errors along the way.")}
+        ${helpTile(NAV_ICO.backups, "Backups", "Daily automatic backups of Dockle's own data, with one-click restore.")}
+        ${helpTile(NAV_ICO.settings, "Settings", "Account, email alerts, the host companion, and updating Dockle itself.")}
+        ${helpTile(NAV_ICO.power, "Restart Docker / Reboot server", "Only shown once the host companion is installed - real host-level actions, not container ones.")}
+        ${helpTile(NAV_ICO.signOut, "Sign out", "Ends your session immediately.")}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>On a stack</h2>
+      <p>The icon row at the top of a stack's own page.</p>
+      <div class="help-grid">
+        ${helpTile(ICONS.external, "Open web UI", "Opens the stack's own address in a new tab - its Tailscale Serve address if set up, otherwise the host address you're already using.")}
+        ${helpTile(ICONS.checkUpdate, "Check / cloud icon", "Checks this one stack for a newer image right now. Turns into an amber cloud when an update is waiting - click it to pull and redeploy, streamed live.")}
+        ${helpTile(ICONS.play, "Start", "Brings the stack up - creates containers the first time, starts them after.")}
+        ${helpTile(ICONS.stop, "Stop", "Stops the containers. Nothing is removed; Start brings them straight back.")}
+        ${helpTile(ICONS.restart, "Restart", "Restarts the same containers in place.")}
+        ${helpTile(ICONS.redeploy, "Redeploy", "Recreates the containers from the compose file - fixes a stuck one without pulling a new image.")}
+        ${helpTile(ICONS.update, "Update", "Pulls the newest images for every service, then redeploys.")}
+        ${helpTile(ICONS.down, "Down", "Stops the containers and removes them. The compose file and any data stay exactly where they are.")}
+        ${helpTile(ICONS.bin, "Delete", "Removes the stack for good: containers, compose file and image. Data can be deleted too, with an explicit opt-in.")}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Status dots</h2>
+      <p>Deliberately just three colours, the same on every card and page - one glance is enough to know whether a
+        stack needs you.</p>
+      <ul class="help-dots">
+        <li><span class="status-dot running"></span><span><strong>Green</strong> - running normally.</span></li>
+        <li><span class="status-dot update"></span><span><strong>Amber</strong> - an update is waiting; click the
+          dot to pull and redeploy.</span></li>
+        <li><span class="status-dot"></span><span><strong>Red</strong> - anything else that isn't simply running:
+          stopped, exited, restarting, or a health warning. One "needs attention" signal rather than a different
+          shade for every cause - open the stack to see which.</span></li>
+        <li><span class="status-dot inactive"></span><span><strong>Grey</strong> - no container at all, the one
+          exception: not a problem, just ready to archive or delete.</span></li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h2>Keeping stacks up to date</h2>
+      <p>Dockle checks every managed, running stack for a newer image every 30 minutes, on its own - it only ever
+        <strong>flags</strong> an update, never pulls one without you asking. <strong>Check for updates</strong> on
+        the dashboard runs that same check right now instead of waiting. From there you can update one stack at a
+        time (its cloud icon, or its own Update button) or everything that's flagged at once
+        (<strong>Update all</strong>). Every update streams its real output, so a slow pull or a failure both show
+        you exactly what happened rather than a single word.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Dockle itself</h2>
+      <p>Dockle is an ordinary container started by an ordinary compose file, so it shows up on the dashboard as an
+        ordinary card too - same status dot, same buttons. The only thing that's different is how those buttons
+        work: a command that stopped or replaced Dockle's own container would kill the very process running that
+        command, so every action on Dockle's own card runs from a short-lived helper container instead, never from
+        inside itself.</p>
+      <div class="help-cols">
+        <div class="help-col"><h4>Update</h4><p>Pulls the newest source, rebuilds and restarts. The page goes away
+          for a few seconds while that happens, then reconnects itself. Your other stacks are untouched throughout -
+          this only ever replaces Dockle's own container.</p></div>
+        <div class="help-col"><h4>Stop / Down / Delete</h4><p>These really do what they say, so they're offered
+          like any other stack's - but they're one-way from the browser: the page that ran them is the last one
+          you'll see until Dockle is brought back from a shell on the server.</p></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Backups</h2>
+      <div class="help-cols">
+        <div class="help-col"><h4>Backups page</h4><p>Automatic, daily, and covers Dockle's own data - the
+          database, settings, activity log. One-click restore, plus a download-everything zip for keeping a copy
+          yourself.</p></div>
+        <div class="help-col"><h4>A stack's own Backup tab</h4><p>Archives that one stack's compose file, its
+          .env, and its <strong>real data</strong> - bind-mounted folders and named volumes, read straight from
+          where they already live. Download a backup to move a stack to another machine, or upload one back in to
+          restore it.</p></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>The host companion (optional)</h2>
+      <p>Dockle's container access lets it manage every stack, but the server underneath - the operating system
+        itself - is outside that box on purpose. The companion is a small helper that runs directly on the host so
+        Dockle can reach the handful of things that need real root: host OS updates, and Tailscale Serve.</p>
+      <ol class="help-steps">
+        <li>Open <strong>Settings → Host OS & Tailscale</strong>.</li>
+        <li>Click <strong>Install companion</strong>. It installs a systemd service on the host.</li>
+        <li>Dockle reconnects to it automatically, restarting itself briefly as the last step.</li>
+      </ol>
+      <p class="hint">What it can do: exactly four things - check and apply host OS updates, install Tailscale, and
+        turn Tailscale Serve on or off for a port. Every request is one of that fixed list; there is no "run this
+        command" option, so nothing reaching that socket can ever ask it for anything else. Entirely optional -
+        Dockle works without it, you just won't see the Host OS panel or per-stack Tailscale toggle.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Security, in short</h2>
+      <p>Real server-side login with rate limiting and optional two-factor (TOTP) - no default password, no
+        skipping the login screen. Every state-changing request is CSRF-checked, session cookies are HttpOnly and
+        SameSite, and secrets like an SMTP password are encrypted at rest and never sent back to the browser.
+        Nothing calls home: no CDNs, no analytics, no tracking - everything Dockle needs is served by Dockle.</p>
+    </div>`;
+}
 
 async function viewMaintenance() {
   content.innerHTML = `<h1>Maintenance</h1>
