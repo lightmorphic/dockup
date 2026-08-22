@@ -28,10 +28,10 @@
   --panel-radius: 1.375rem;
   --term-bg: #101116;
 
-  /* tooltip/alert bubble: always inverted from the page - dark bubble
-     on a light page, light bubble on a dark page - so it pops regardless
-     of theme, the same way a native OS tooltip does. */
-  --tip-bg: #1c1c1f;  --tip-fg: #fafafa;
+  /* tooltip/alert bubble: an elevated card in the page's own palette -
+     white in light mode, dark slate (not black) in dark mode - lifted
+     off the page by --shadow-panel rather than by inverting colour. */
+  --tip-bg: var(--panel);  --tip-fg: var(--fg);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,7 +46,7 @@
     --success: #4bae4f;  --success-bg: #102611;
     --warning: #ffc006;  --warning-bg: #382a01;
     --info: #2295f1;     --info-bg: #072135;
-    --tip-bg: #fafafa;  --tip-fg: #1c1c1f;
+    --tip-bg: var(--panel);  --tip-fg: var(--fg);
   }
   .logo-navy { fill: #fafafa; }
 }
@@ -62,7 +62,7 @@
   --success: #4bae4f;  --success-bg: #102611;
   --warning: #ffc006;  --warning-bg: #382a01;
   --info: #2295f1;     --info-bg: #072135;
-  --tip-bg: #fafafa;  --tip-fg: #1c1c1f;
+  --tip-bg: var(--panel);  --tip-fg: var(--fg);
 }
 :root[data-theme="dark"] .logo-navy { fill: #fafafa; }
 
@@ -77,7 +77,7 @@
   --success: #38813a;  --success-bg: #f2f9f3;
   --warning: #8f6c03;  --warning-bg: #fffbee;
   --info: #1b74bc;     --info-bg: #f0f8fe;
-  --tip-bg: #1c1c1f;  --tip-fg: #fafafa;
+  --tip-bg: var(--panel);  --tip-fg: var(--fg);
 }
 :root[data-theme="light"] .logo-navy { fill: #111827; }
 
@@ -303,12 +303,14 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .icon-btn.busy { animation: dot-pulse 1s ease-in-out infinite; }
 .icon-btn.active { background: var(--accent-container); color: var(--on-accent-container); }
 
-/* tooltip/alert bubble: dark-on-light or light-on-dark (always inverted
-   from the page, see --tip-bg/--tip-fg), with a small arrow pointing
-   down at whatever element it's attached to. The single mechanism for
-   both hover-help tooltips and contextual action alerts (replacing the
-   old bottom-of-page toast) - severity, when there is one, is a text
-   colour on the same neutral bubble, not a different background. */
+/* tooltip/alert bubble: an elevated card (--tip-bg/--tip-fg, see
+   :root), lifted off the page with --shadow-panel, tail a small rounded
+   square rotated into a diamond rather than a sharp CSS triangle - a
+   softer speech-bubble point, same shape language as the panel corners
+   themselves (var(--radius)). The single mechanism for both hover-help
+   tooltips and contextual action alerts (replacing the old bottom-of-
+   page toast) - severity, when there is one, is a text colour on the
+   same neutral bubble, not a different background. */
 [data-tip] { position: relative; }
 [data-tip]::after {
   content: attr(data-tip);
@@ -321,13 +323,21 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   opacity: 0; visibility: hidden;
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
+/* A 10px square, rotated 45 into a diamond, centred exactly on the
+   bubble's own edge line (bottom/top offset minus half its own size -
+   no translate-based centring needed on that axis) so half sits behind
+   the bubble - covered by ::after's opaque background and higher
+   z-index - and half pokes out as the visible point. */
 [data-tip]::before {
-  content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
-  border: 6px solid transparent; border-top-color: var(--tip-bg);
-  pointer-events: none; z-index: 60;
+  content: ""; position: absolute; bottom: calc(100% + 5px); left: 50%;
+  width: 10px; height: 10px; border-radius: 2.5px;
+  background: var(--tip-bg);
+  transform: translateX(-50%) rotate(45deg);
+  pointer-events: none; z-index: 59;
   opacity: 0; visibility: hidden;
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
+[data-tip]::after { z-index: 60; }
 /* native tooltips don't appear instantly - a short hover delay before
    showing, but hide promptly once the pointer leaves */
 [data-tip]:hover::after, [data-tip]:focus-visible::after,
@@ -349,18 +359,23 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    automatically - nothing to remember per-button. */
 .topbar [data-tip]::after, .tip-below::after { top: calc(100% + 10px); bottom: auto; }
 .topbar [data-tip]::before, .tip-below::before {
-  top: calc(100% + 4px); bottom: auto;
-  border-top-color: transparent; border-bottom-color: var(--tip-bg);
+  /* Same centred-on-the-edge trick as the default tail, mirrored: the
+     box's top offset (minus half its height) puts its centre exactly
+     on the bubble's own top edge line, point now facing up. */
+  top: calc(100% + 5px); bottom: auto;
 }
 
 /* Edge alignment: a button hard against the left or right side of the
    screen needs its tooltip anchored to that same side instead of
    centered, or the bubble overflows the viewport. Utility classes, not
-   scoped to the top bar, so any edge button anywhere can opt in. */
+   scoped to the top bar, so any edge button anywhere can opt in. The
+   tail drops its centring translateX and sits at a fixed inset from
+   whichever edge the bubble itself is now anchored to, roughly under
+   where the button sits rather than the bubble's own far corner. */
 .tip-align-start::after { left: 0; transform: none; }
-.tip-align-start::before { left: 14px; transform: none; }
+.tip-align-start::before { left: 12px; transform: rotate(45deg); }
 .tip-align-end::after { left: auto; right: 0; transform: none; }
-.tip-align-end::before { left: auto; right: 14px; transform: none; }
+.tip-align-end::before { left: auto; right: 12px; transform: rotate(45deg); }
 
 /* Deliberately no colour-by-severity here - every bubble stays the
    same neutral --tip-fg (a dark charcoal on the light bubble, an

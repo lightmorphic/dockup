@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.9 - 2026-08-21
+
+- Restyled every tooltip: white bubble with dark text in light mode,
+  dark slate (not black) with light text in dark mode - was a hard
+  colour invert (dark bubble on light pages, light bubble on dark
+  pages), now it's the page's own panel colour lifted off the surface
+  with a shadow, like every other floating card in the app. The pointer
+  is now a small rounded square rotated into a soft speech-bubble tail
+  instead of a sharp CSS triangle
+
 ## 1.5.8 - 2026-08-21
 
 - **Dockle's own update status is now a dot in the top bar, next to its
