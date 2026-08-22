@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.6 - 2026-08-21
+
+- New stack and All stacks no longer scroll away with a long stack
+  list - they're pinned at the top of the sidebar (the section links
+  and version numbers stay pinned at the bottom too), only the stack
+  list itself scrolls. Fixed the All stacks tooltip being clipped
+  invisible near the top edge of the sidebar as part of the same change
+- All stacks is now a real button matching New stack's width and
+  style (was a bare 44px icon circle, easy to miss) with its own label
+
 ## 1.5.5 - 2026-08-21
 
 - A stack's status dot now IS the update control, same as the dashboard

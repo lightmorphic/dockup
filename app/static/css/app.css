@@ -150,9 +150,23 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   padding: 1rem;
   border-right: 1px solid var(--panel-border);
   background: var(--panel);
-  overflow-y: auto;
   display: flex; flex-direction: column; gap: 1.25rem;
+  /* visible, not auto: a tooltip on the pinned header row needs to
+     render outside the sidebar's own box without being clipped. Nothing
+     else should ever need to overflow it - the stack list scrolls
+     inside .stack-nav instead. min-height:0 overrides a grid item's
+     default "shrink no further than my content" sizing, which
+     otherwise grows the whole sidebar to fit every stack instead of
+     respecting the grid row's height. */
+  overflow: visible;
+  min-height: 0;
 }
+/* Everything except the stack list itself is pinned: New stack/All
+   stacks at the top, the section links and version numbers at the
+   bottom never scroll away. Only the (potentially long) list of stacks
+   scrolls, in its own bounded region. */
+.sidebar > .btn-row, .sidebar > .side-nav, .sidebar > .versions { flex: none; }
+.stack-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
 .nav-title {
   font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--muted-fg); margin: 0 0 0.25rem;
@@ -244,7 +258,10 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .btn-danger:hover { filter: brightness(0.92); }
 .btn-block { width: 100%; }
 .btn-icon-square { padding: 0.5rem; width: 44px; flex: none; border-radius: 50%; }
-.flex-1 { flex: 1; }
+/* New stack / All stacks: same width, both look like real buttons -
+   All stacks used to be a bare icon circle, easy to miss next to the
+   filled New stack pill beside it. */
+.sidebar > .btn-row > .btn { flex: 1 1 0; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 .icon-btn {
@@ -305,8 +322,8 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    inside .topbar opens downward instead, arrow flipped to point up at
    the button. Applies to any current or future topbar [data-tip]
    automatically - nothing to remember per-button. */
-.topbar [data-tip]::after { top: calc(100% + 10px); bottom: auto; }
-.topbar [data-tip]::before {
+.topbar [data-tip]::after, .tip-below::after { top: calc(100% + 10px); bottom: auto; }
+.topbar [data-tip]::before, .tip-below::before {
   top: calc(100% + 4px); bottom: auto;
   border-top-color: transparent; border-bottom-color: var(--tip-bg);
 }
