@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.0 - 2026-08-22
+
+- Removed the left sidebar. All stacks/New stack now sit just above the
+  dashboard's card grid, and the Dockle/Docker version numbers moved
+  into a small footer at the bottom of the page
+- Stack cards are a little smaller, and each card's "Open web UI" link
+  is now pinned to the card's own right edge instead of sitting in a
+  bottom action row
+- Reworked the mobile layout: the top bar's icon buttons scroll
+  horizontally instead of overflowing or wrapping, and the stack grid
+  drops to a single column on narrow screens
+
 ## 1.6.4 - 2026-08-22
 
 - Fixed "Open web UI" on a dashboard card doing nothing but navigate

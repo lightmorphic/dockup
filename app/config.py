@@ -39,10 +39,10 @@ COMPOSE_PASSTHROUGH = (
     "SSL_CERT_FILE", "SSL_CERT_DIR",
 )
 
-# Dockle's own version, shown in the sidebar. Kept in step with the top
+# Dockle's own version, shown in the footer. Kept in step with the top
 # entry in CHANGELOG.md by hand - one number, one place. CI reads this
 # same line to tag the published image (.github/workflows/publish-image.yml).
-VERSION = "1.6.4"
+VERSION = "1.7.0"
 
 # Where updates come from: the image CI publishes, and the raw config.py
 # on main whose VERSION line is the "is there a newer version?" source of

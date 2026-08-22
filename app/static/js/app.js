@@ -3,8 +3,7 @@
 
 const CSRF = document.querySelector('meta[name="csrf"]').content;
 const content = document.getElementById("content");
-const stackListEl = document.getElementById("stackList");
-const versionsEl = document.getElementById("versions");
+const versionsEl = document.getElementById("appFooter");
 
 let stacksCache = [];
 let liveSockets = [];
@@ -242,22 +241,20 @@ const ICONS = {
   checkUpdate: '<svg viewBox="0 0 24 24"><path d="M7 18h9.5a3.5 3.5 0 0 0 .5-6.96 5 5 0 0 0-9.71-1.79A4 4 0 0 0 7 18Z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M9 12.5l1.8 1.8L15 10" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
-/* ---------- sidebar / engine ---------- */
+/* ---------- engine ---------- */
 
 async function refreshStacks() {
   try {
     const data = await api("/api/stacks");
     stacksCache = data.stacks;
     dashboardDnsName = data.dnsName || "";
-    renderStackList();
   } catch (e) {
-    // Callers treat this as best-effort; the sidebar's Docker row is
-    // where an unreachable engine is actually reported now.
-    renderStackList();
+    // Callers treat this as best-effort; an unreachable engine is
+    // reported via the footer's Docker row instead.
   }
 }
 
-/* Versions, bottom of the sidebar: a number each for Dockle and Docker,
+/* Versions, in the footer: a number each for Dockle and Docker,
    with a tick when there's something real to tick. Dockle's tick means
    up to date with the repo; Docker's means Dockle is talking to it (the
    newest Docker release isn't knowable from inside a container, so a
@@ -303,25 +300,6 @@ async function renderVersions() {
   }
 }
 
-function renderStackList() {
-  const current = location.hash;
-  const managed = stacksCache.filter(s => s.managed);
-  stackListEl.innerHTML = "";
-  if (!managed.length) {
-    stackListEl.appendChild(el('<li class="hint hint-tight">No stacks yet</li>'));
-  }
-  for (const s of managed) {
-    const href = `#/stack/${encodeURIComponent(s.name)}`;
-    const effectiveStatus = s.updateAvailable ? "update" : s.status;
-    const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
-    const a = el(`<a href="${href}" ${current === href ? 'class="active"' : ""}>
-      <span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" data-tip="${esc(dotTip)}"></span><span>${esc(s.name)}</span></a>`);
-    const li = document.createElement("li");
-    li.appendChild(a);
-    stackListEl.appendChild(li);
-  }
-}
-
 /* ---------- router ---------- */
 
 const routes = [
@@ -337,10 +315,8 @@ const routes = [
 
 async function route() {
   closeLiveSockets();
-  document.getElementById("sidebar").classList.remove("open");
   document.querySelectorAll(".topbar-navlink").forEach(a =>
     a.classList.toggle("active", location.hash.startsWith(a.getAttribute("href"))));
-  renderStackList();
   const hash = location.hash || "#/";
   for (const [re, fn] of routes) {
     const m = hash.match(re);
@@ -358,6 +334,17 @@ async function viewDashboard() {
   </div>`;
   await refreshStacks();
   document.getElementById("checkUpdatesBtn")?.addEventListener("click", checkUpdatesNow);
+
+  content.appendChild(el(`<div class="btn-row dash-actions">
+    <a class="btn tip-below tip-align-start" href="#/" data-tip="Back to the dashboard" aria-label="All stacks">
+      <svg viewBox="0 0 24 24" class="btn-ico"><path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      All stacks
+    </a>
+    <a class="btn btn-primary" href="#/new" id="newStackBtn">
+      <svg viewBox="0 0 24 24" class="btn-ico"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      New stack
+    </a>
+  </div>`));
 
   let discovered = { projects: [], standalone: [] };
   try { discovered = await api("/api/discover"); } catch (e) { /* non-fatal */ }
@@ -568,10 +555,10 @@ function managedCard(s) {
     <h3><span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" data-tip="${esc(dotTip)}"
       ${updateReady ? 'role="button"' : ""} tabindex="0" aria-label="${esc(dotTip)}"></span><span>${esc(s.name)}</span></h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}${port ? ` · port ${port}` : ""}</span>
-    ${webUrl || inactive ? `<div class="btn-row card-actions">
-      ${webUrl ? `<a class="icon-btn" href="${esc(webUrl)}" target="_blank" rel="noopener" data-tip="Open web UI" aria-label="Open web UI">${ICONS.external}</a>` : ""}
-      ${inactive ? `<button class="btn" id="archiveBtn">Archive</button>
-      <button class="btn btn-danger" id="purgeBtn">Delete</button>` : ""}
+    ${webUrl ? `<a class="icon-btn web-link" href="${esc(webUrl)}" target="_blank" rel="noopener" data-tip="Open web UI" aria-label="Open web UI">${ICONS.external}</a>` : ""}
+    ${inactive ? `<div class="btn-row card-actions">
+      <button class="btn" id="archiveBtn">Archive</button>
+      <button class="btn btn-danger" id="purgeBtn">Delete</button>
     </div>` : ""}
   </div>`);
   // The whole card is clickable AND holds real nested interactive
@@ -592,7 +579,7 @@ function managedCard(s) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
   });
 
-  const webLink = card.querySelector("a.icon-btn");
+  const webLink = card.querySelector("a.icon-btn.web-link");
   if (webLink) {
     webLink.addEventListener("click", e => e.stopPropagation());
     webLink.addEventListener("keydown", e => e.stopPropagation());
@@ -1225,7 +1212,6 @@ async function viewHelp() {
     activity: '<svg viewBox="0 0 24 24"><path d="M4 12h4l2-7 4 14 2-7h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
     backups: '<svg viewBox="0 0 24 24"><path d="M12 3v10m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
     settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>',
-    menu: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
     signOut: '<svg viewBox="0 0 24 24"><path d="M9 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3M14 8l4 4-4 4M18 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
     power: '<svg viewBox="0 0 24 24"><path d="M12 3v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
   };
@@ -1235,11 +1221,10 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>Getting around</h2>
-      <p>The sidebar and the bar along the top, and what each part does.</p>
+      <p>The bar along the top, and what each part does.</p>
       <div class="help-grid">
-        ${helpTile(NAV_ICO.menu, "Menu", "Shows or hides the sidebar - only needed on a narrow screen.")}
         ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The update dot", "Sits next to Maintenance in the top bar. Green: up to date - click it to check again right now. Amber: a new version is published - click to download it. Once downloaded it turns blue - click to restart. No separate check button anywhere; it also keeps itself current on its own in the background.")}
-        ${helpTile(NAV_ICO.allStacks, "All stacks", "Back to the dashboard - every stack, one glance.")}
+        ${helpTile(NAV_ICO.allStacks, "All stacks", "Just above the dashboard's stack cards - back to the dashboard, every stack, one glance.")}
         ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
         ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
         ${helpTile(NAV_ICO.activity, "Activity", "A running log of everything Dockle has done and any errors along the way.")}
@@ -2026,9 +2011,6 @@ function applyAccent(name) {
 }
 
 /* ---------- boot ---------- */
-
-document.getElementById("sidebarToggle").addEventListener("click", () =>
-  document.getElementById("sidebar").classList.toggle("open"));
 
 window.addEventListener("hashchange", route);
 applyTheme();
