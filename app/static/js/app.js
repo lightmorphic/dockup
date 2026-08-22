@@ -1718,8 +1718,13 @@ async function checkDockleUpdateNow() {
   updateDotState = "checking";
   const dot = document.getElementById("updateDot");
   dot.removeAttribute("role"); dot.removeAttribute("tabindex");
-  dot.classList.add("ud-busy");
+  dot.classList.add("ud-checking");
   dot.dataset.tip = "Checking…";
+  // Two slow pulses (0.8s each, see .ud-checking) is a deliberate
+  // gesture, not just "however long the request happens to take" - wait
+  // out the full animation even if the real check resolves faster, so
+  // it never gets cut mid-pulse and always reads as a real check.
+  const minWait = new Promise(r => setTimeout(r, 1600));
   try {
     await api("/api/system/self-update/check");
   } catch (e) {
@@ -1727,7 +1732,8 @@ async function checkDockleUpdateNow() {
     // the cache actually holds, error included, rather than trusting
     // this one request's own success/failure.
   }
-  dot.classList.remove("ud-busy");
+  await minWait;
+  dot.classList.remove("ud-checking");
   updateDotState = "unknown";  // let updateDotFromVersions repaint freely
   updateDotBusy = false;
   await renderVersions();

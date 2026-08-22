@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.2 - 2026-08-22
+
+- Fixed New stack / All stacks in the sidebar wrapping onto two lines
+  ("All" / "stacks") - an earlier size reduction shrank them past the
+  point their own label fit, which made the two buttons noticeably
+  different heights and looked broken rather than deliberately compact
+- Clicking the update dot while green now pulses twice, slowly, before
+  settling on the check result - a deliberate "checking" gesture rather
+  than a flicker tied to however long the request happens to take
+
 ## 1.6.1 - 2026-08-21
 
 - Cleanup release: removed the last leftovers of features replaced
