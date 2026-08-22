@@ -337,7 +337,7 @@ const routes = [
 async function route() {
   closeLiveSockets();
   document.getElementById("sidebar").classList.remove("open");
-  document.querySelectorAll(".side-nav a").forEach(a =>
+  document.querySelectorAll(".topbar-navlink").forEach(a =>
     a.classList.toggle("active", location.hash.startsWith(a.getAttribute("href"))));
   renderStackList();
   const hash = location.hash || "#/";
@@ -1446,10 +1446,10 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>On a stack</h2>
-      <p>The icon row at the top of a stack's own page.</p>
+      <p>The status dot next to the name is itself the update control - not ready, click it to check this stack
+        for an update right now; ready, click it to pull and redeploy, streamed live. The icon row alongside it:</p>
       <div class="help-grid">
         ${helpTile(ICONS.external, "Open web UI", "Opens the stack's own address in a new tab - its Tailscale Serve address if set up, otherwise the host address you're already using.")}
-        ${helpTile(ICONS.checkUpdate, "Check / cloud icon", "Checks this one stack for a newer image right now. Turns into an amber cloud when an update is waiting - click it to pull and redeploy, streamed live.")}
         ${helpTile(ICONS.play, "Start", "Brings the stack up - creates containers the first time, starts them after.")}
         ${helpTile(ICONS.stop, "Stop", "Stops the containers. Nothing is removed; Start brings them straight back.")}
         ${helpTile(ICONS.restart, "Restart", "Restarts the same containers in place.")}

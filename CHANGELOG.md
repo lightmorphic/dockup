@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.7 - 2026-08-21
+
+- Maintenance, Activity, Backups and Settings moved out of the sidebar
+  and into the top bar as icons, alongside Restart Docker/Reboot
+  server/Help - no longer buried at the bottom of a long stack list.
+  The stack list now uses the space they left behind
+
 ## 1.5.6 - 2026-08-21
 
 - New stack and All stacks no longer scroll away with a long stack
