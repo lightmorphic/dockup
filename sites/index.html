@@ -4,28 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Lightmorphic Dockle - home-lab Docker Compose manager</title>
-<meta name="description" content="Self-hosted Docker Compose stack manager for home labs, with a real login and 2FA. Docker or Podman. Inspired by Dockge.">
+<title>Dockle - home-lab Docker Compose manager</title>
+<meta name="description" content="Self-hosted Docker Compose stack manager for home labs, with a real login and 2FA. Works with Docker or Podman.">
 <link rel="canonical" href="https://dockle.lightmorphic.co.uk/">
 <link rel="icon" href="dockle.svg" type="image/svg+xml">
 <meta name="robots" content="index, follow">
-<meta property="og:title" content="Lightmorphic Dockle">
+<meta property="og:title" content="Dockle">
 <meta property="og:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dockle.lightmorphic.co.uk/">
 <meta property="og:image" content="https://dockle.lightmorphic.co.uk/dockle.svg">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Lightmorphic Dockle">
+<meta name="twitter:title" content="Dockle">
 <meta name="twitter:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta name="twitter:image" content="https://dockle.lightmorphic.co.uk/dockle.svg">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Lightmorphic Dockle",
+  "name": "Dockle",
   "operatingSystem": "Linux",
   "applicationCategory": "DeveloperApplication",
-  "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman. Inspired by Dockge.",
+  "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman.",
   "url": "https://dockle.lightmorphic.co.uk/",
   "softwareVersion": "1.6.4",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
@@ -151,16 +151,14 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
   <div class="wrap">
     <div class="hero-brand">
       <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>
-      <span>Lightmorphic Dockle</span>
+      <span>Dockle</span>
     </div>
     <h1>Your home-lab stacks, one window, a proper login.</h1>
-    <p class="lede">Dockle is a self-hosted Docker&nbsp;Compose stack manager,
-    <strong>inspired by <a href="https://github.com/louislam/dockge">Dockge</a></strong> -
-    the same everyday job, fresh actively-maintained code, and security taken seriously
+    <p class="lede">Dockle is a self-hosted Docker&nbsp;Compose stack manager for home labs -
+    every stack, its logs and its terminal in one window, with security taken seriously
     from the first line. Works with <strong>Docker or Podman</strong>.</p>
     <div class="cta-row">
-      <a class="btn" href="https://github.com/lightmorphic/dockle">Get Dockle on GitHub</a>
-      <a class="btn ghost" href="#install">Install in two minutes</a>
+      <a class="btn" href="#install">Install in two minutes</a>
     </div>
     <p class="note">! Built for home labs on your own network - not hardened for public VPS hosting (yet).</p>
   </div>
@@ -300,29 +298,15 @@ services:
   </div>
 
   <h3>Optional: the dockle-companion</h3>
-  <div class="two">
-    <pre><code><span class="c"># one click in Settings does the whole thing - installs and reconnects</span>
+  <p style="max-width:65ch">Unlocks host OS update checks and per-stack
+  <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockle can't
+  do through the Docker socket alone. It's the sole part of Dockle that needs root on the actual
+  server rather than just Docker access, which is why it's a separate step you opt into, not
+  something bundled in by default. Skip it entirely and everything else works exactly the same.</p>
+  <pre><code><span class="c"># one click in Settings does the whole thing - installs and reconnects</span>
 <span class="c"># or, manually (its files live in the repo, not the image):</span>
 git clone https://github.com/lightmorphic/dockle /tmp/dockle-src
 cd /tmp/dockle-src/companion &amp;&amp; sudo sh install.sh</code></pre>
-    <div class="panel">
-      <h3>Why you'd want it</h3>
-      <p style="color:var(--muted-fg);margin:0">Unlocks host OS update checks and per-stack
-      <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockle can't
-      do through the Docker socket alone. It's the sole part of Dockle that needs root on the actual
-      server rather than just Docker access, which is why it's a separate step you opt into, not
-      something bundled in by default. Skip it entirely and everything else works exactly the same.</p>
-    </div>
-  </div>
-
-  <h2>Why not just Dockge?</h2>
-  <p style="max-width:65ch">Dockge is a great idea and Dockle borrows its shape unashamedly:
-  stacks as plain compose folders, a live editor, a <code>docker run</code> converter, logs and
-  a terminal in the browser. But it hasn't seen an update in a long while, and anything that
-  holds your Docker socket deserves active maintenance and a real front door. Dockle is that
-  same everyday tool, rebuilt fresh: secure login with 2FA, encrypted settings, email alerts,
-  scheduled backups with restores that actually restore - and your stacks folder stays plain
-  compose, so you can walk away any time.</p>
 
   <h2>Common questions</h2>
   <div class="grid" style="margin-top:0">
@@ -356,9 +340,7 @@ cd /tmp/dockle-src/companion &amp;&amp; sudo sh install.sh</code></pre>
 
 <footer>
   <div class="wrap">
-    <p>Lightmorphic Dockle · free and open source · inspired by
-    <a href="https://github.com/louislam/dockge">Dockge</a> ·
-    built for home labs, not VPS hosting ·
+    <p>Dockle · free and open source · built for home labs, not VPS hosting ·
     <a href="https://github.com/lightmorphic/dockle">source on GitHub</a></p>
     <p>No cookies, no tracking, no external calls - this page is just a page.</p>
   </div>
