@@ -27,8 +27,37 @@
   "applicationCategory": "DeveloperApplication",
   "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman. Inspired by Dockge.",
   "url": "https://dockle.lightmorphic.co.uk/",
+  "softwareVersion": "1.6.4",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
   "publisher": { "@type": "Organization", "name": "Lightmorphic" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does Dockle need root on my server?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Only for two things Docker access alone can't reach - host OS update checks and Tailscale Serve - and only if you opt into the small companion service. Everything else runs through the same Docker socket any container manager needs." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does updating Dockle mean rebuilding it?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Dockle ships as a pre-built image - updating is docker compose pull && docker compose up -d, or the dot in its own top bar. No git, no local build, ever." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I run Dockle on a public VPS?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not yet recommended. Dockle is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens to my stacks if I stop using Dockle?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nothing. Every stack stays a plain folder with a real compose file, unchanged by Dockle managing it - docker compose or any other tool works on it at any time." }
+    }
+  ]
 }
 </script>
 <style>
@@ -140,14 +169,14 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
 <main class="wrap">
 
   <figure class="shot" aria-label="Stylised view of the Dockle dashboard">
-    <svg viewBox="0 0 960 470" role="img" aria-hidden="true">
+    <svg viewBox="0 0 960 470" aria-hidden="true">
       <rect width="960" height="470" rx="22" fill="#1b1d29"/>
       <rect x="0" y="0" width="960" height="54" rx="22" fill="#111827"/>
       <rect x="0" y="30" width="960" height="24" fill="#111827"/>
       <rect x="24" y="16" width="22" height="22" rx="5" fill="#FBC711"/>
       <text x="58" y="33" fill="#fafafa" font-family="system-ui" font-size="16" font-weight="700">Dockle</text>
-      <rect x="130" y="14" width="150" height="26" rx="13" fill="none" stroke="#4bae4f"/>
-      <text x="145" y="32" fill="#4bae4f" font-family="system-ui" font-size="13">&#10003; Docker 29.7</text>
+      <circle cx="140" cy="27" r="8" fill="#4bae4f"/>
+      <text x="156" y="32" fill="#a1a1aa" font-family="system-ui" font-size="13">v1.6 &#183; up to date</text>
       <rect x="0" y="54" width="220" height="416" fill="#171925"/>
       <rect x="20" y="78" width="180" height="36" rx="10" fill="#FBC711"/>
       <text x="42" y="101" fill="#645007" font-family="system-ui" font-size="14" font-weight="700">+ New stack</text>
@@ -228,28 +257,35 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
       <h3>One click to the real thing</h3>
       <p>Open a stack's actual web UI in a new tab - its Tailscale Serve address if set up, otherwise whatever address got you to Dockle.</p>
     </div>
+    <div class="panel">
+      <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12.5l1.8 1.8L15 10"/></svg>
+      <h3>Updates itself, plainly</h3>
+      <p>A dot in the top bar - green up to date, amber a new version's out. Click to pull it, click again to restart onto it. No terminal, ever.</p>
+    </div>
   </div>
 
   <h2 id="install">Install</h2>
   <div class="two">
-    <pre><code><span class="c"># on your home server</span>
+    <pre><code><span class="c"># on your home server - no cloning, no building, just its compose file</span>
 mkdir -p /opt/dockle /opt/stacks &amp;&amp; cd /opt/dockle
-git clone https://github.com/lightmorphic/dockle.git .
+curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockle/main/compose.yaml
 echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" &gt; .env
-docker compose up -d --build</code></pre>
+docker compose up -d</code></pre>
     <div class="panel">
       <h3>Then</h3>
       <p style="color:var(--muted-fg);margin:0">Open <strong style="color:var(--fg)">http://your-server:4000</strong>,
-      create the admin account, and adopt what's already running. Prefer Podman?
-      The runbook covers the daemonless setup in four steps.</p>
+      create the admin account, and adopt what's already running. Updating later is
+      <code>docker compose pull &amp;&amp; docker compose up -d</code> - or the dot in Dockle's
+      own top bar. Prefer Podman? The runbook covers the daemonless setup in four steps.</p>
     </div>
   </div>
 
   <h3>Optional: the dockle-companion</h3>
   <div class="two">
     <pre><code><span class="c"># one click in Settings does the whole thing - installs and reconnects</span>
-<span class="c"># or, manually:</span>
-cd companion &amp;&amp; sudo sh install.sh</code></pre>
+<span class="c"># or, manually (its files live in the repo, not the image):</span>
+git clone https://github.com/lightmorphic/dockle /tmp/dockle-src
+cd /tmp/dockle-src/companion &amp;&amp; sudo sh install.sh</code></pre>
     <div class="panel">
       <h3>Why you'd want it</h3>
       <p style="color:var(--muted-fg);margin:0">Unlocks host OS update checks and per-stack
@@ -268,6 +304,26 @@ cd companion &amp;&amp; sudo sh install.sh</code></pre>
   same everyday tool, rebuilt fresh: secure login with 2FA, encrypted settings, email alerts,
   scheduled backups with restores that actually restore - and your stacks folder stays plain
   compose, so you can walk away any time.</p>
+
+  <h2>Common questions</h2>
+  <div class="grid" style="margin-top:0">
+    <div class="panel">
+      <h3>Does Dockle need root on my server?</h3>
+      <p>Only for two things Docker access alone can't reach - host OS update checks and Tailscale Serve - and only if you opt into the small companion service. Everything else runs through the same Docker socket any container manager needs.</p>
+    </div>
+    <div class="panel">
+      <h3>Does updating Dockle mean rebuilding it?</h3>
+      <p>No. Dockle ships as a pre-built image - updating is <code>docker compose pull &amp;&amp; docker compose up -d</code>, or the dot in its own top bar. No git, no local build, ever.</p>
+    </div>
+    <div class="panel">
+      <h3>Can I run Dockle on a public VPS?</h3>
+      <p>Not yet recommended. Dockle is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure.</p>
+    </div>
+    <div class="panel">
+      <h3>What happens to my stacks if I stop using Dockle?</h3>
+      <p>Nothing. Every stack stays a plain folder with a real compose file, unchanged by Dockle managing it - <code>docker compose</code> or any other tool works on it at any time.</p>
+    </div>
+  </div>
 
   <h2>Need something built?</h2>
   <div class="panel">
