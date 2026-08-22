@@ -574,9 +574,23 @@ function managedCard(s) {
       <button class="btn btn-danger" id="purgeBtn">Delete</button>` : ""}
     </div>` : ""}
   </div>`);
-  const open = () => location.hash = `#/stack/${encodeURIComponent(s.name)}`;
+  // The whole card is clickable AND holds real nested interactive
+  // elements (the web-UI link, Archive/Delete, the update-ready dot) -
+  // relying only on those children calling stopPropagation() is fragile
+  // (confirmed: it wasn't enough - clicking the web-UI link was
+  // triggering the card's own navigation instead of opening the link).
+  // Checking the actual click target here is the robust version: no
+  // matter how the event reached the card, a click that originated on
+  // an interactive child never opens the stack page.
+  const open = (e) => {
+    if (e && e.target.closest('a, button, [role="button"]')) return;
+    location.hash = `#/stack/${encodeURIComponent(s.name)}`;
+  };
   card.addEventListener("click", open);
-  card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  card.addEventListener("keydown", e => {
+    if (e.target.closest('a, button, [role="button"]')) return;
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+  });
 
   const webLink = card.querySelector("a.icon-btn");
   if (webLink) {

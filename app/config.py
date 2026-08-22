@@ -42,7 +42,7 @@ COMPOSE_PASSTHROUGH = (
 # Dockle's own version, shown in the sidebar. Kept in step with the top
 # entry in CHANGELOG.md by hand - one number, one place. CI reads this
 # same line to tag the published image (.github/workflows/publish-image.yml).
-VERSION = "1.6.3"
+VERSION = "1.6.4"
 
 # Where updates come from: the image CI publishes, and the raw config.py
 # on main whose VERSION line is the "is there a newer version?" source of

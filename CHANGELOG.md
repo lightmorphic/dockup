@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.4 - 2026-08-22
+
+- Fixed "Open web UI" on a dashboard card doing nothing but navigate
+  into that stack's own page - the same as clicking the card - instead
+  of opening the real address in a new tab. The card's click handler
+  now checks what was actually clicked before navigating, rather than
+  trusting the nested link to always stop the click from reaching it
+
 ## 1.6.3 - 2026-08-22
 
 - The page now actually reloads once Dockle reconnects after a restart-
