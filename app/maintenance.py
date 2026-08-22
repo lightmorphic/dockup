@@ -1,13 +1,17 @@
 """Maintenance: disk usage and pruning - each type separately or all at
 once. Volume pruning always shows exactly what will be deleted first.
 Also updating Dockle itself via the top-bar widget's download/restart
-endpoints - see runtime.self_update_prepare_stream/self_update_apply_stream
-for why that's split into two steps instead of one plain redeploy.
+endpoints: download is a plain pull of the published image, restart
+recreates the container from it - see runtime.self_pull_stream /
+self_update_apply_stream.
 """
 
 import math
+import re
+import socket
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -154,66 +158,73 @@ def _dockle_compose_dir():
     return str(Path(config.DATA_HOST_PATH).parent)
 
 
+_VERSION_LINE_RE = re.compile(r'VERSION = "([0-9][0-9.]*)"')
+
+
+def _fetch_remote_version() -> str:
+    """The newest published version, read from the VERSION line of
+    app/config.py on main - the same single line CI reads to tag the
+    image, so the two can't disagree. Raises on any failure; callers
+    decide what a failed check should look like."""
+    if config.MOCK_MODE:
+        return runtime.current().remote_version()
+    req = urllib.request.Request(config.UPDATE_VERSION_URL,
+                                 headers={"User-Agent": f"dockle/{config.VERSION}"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        text = resp.read(65536).decode("utf-8", "replace")
+    m = _VERSION_LINE_RE.search(text)
+    if not m:
+        raise RuntimeError("No VERSION line found at the update URL")
+    return m.group(1)
+
+
 @bp.get("/self-update/check")
 def api_self_update_check():
-    """Is there a newer Dockle to move to? Answerable only for a git
-    checkout; anything else reports plainly that it can't tell, rather
-    than guessing."""
-    compose_dir = _dockle_compose_dir()
-    if not compose_dir:
-        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
-                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    """Is there a newer Dockle published? One HTTPS request, no git, no
+    helper container - works identically for every install style."""
     try:
-        result = runtime.current().self_update_check(compose_dir)
-    except runtime.RuntimeError_ as exc:
-        return jsonify({"error": str(exc)}), 502
-    note_self_check(result)  # the sidebar's tick rides on this answer too
-    return jsonify(result)
+        latest = _fetch_remote_version()
+    except Exception as exc:
+        note_self_check({"latest": None, "error": str(exc)})
+        return jsonify({"current": config.VERSION, "latest": None, "error": str(exc)}), 502
+    note_self_check({"latest": latest, "error": None})
+    return jsonify({"current": config.VERSION, "latest": latest})
 
 
-# The top-bar update widget's own two-step flow (see the update-widget
-# skill): download builds the new image without touching the running
-# container, so a browser can walk away mid-build and Dockle stays up
-# throughout; restart is the short, separate step that actually replaces
-# it. _download_ready survives across requests (not just this one's
-# response) so reloading the page after a download - or opening it fresh
-# on another device - still shows "ready to restart" rather than losing
-# that state.
-
-_download_ready = {"ready": False}
-_download_ready_lock = threading.Lock()
+# The top-bar update widget's two-step flow (see the update-widget
+# skill): download pulls the published image without touching the
+# running container - Dockle stays up throughout, and a browser can walk
+# away mid-pull; restart is the short, separate step that actually
+# replaces it. "Ready to restart" isn't remembered in a flag anywhere:
+# it's computed from the daemon's own state (is the pulled image newer
+# than the one running?), so it survives page reloads, Dockle restarts,
+# and even a `docker compose pull` done entirely outside Dockle.
 
 
 def _progress_fraction(lines_seen: int) -> float:
-    """A build has no fixed, predictable step count - the Dockerfile can
-    change - so this doesn't try to track "step 7 of 15". Instead each
-    real line of output nudges an asymptotic curve that climbs fast at
-    first and slows near the end, capped below 1.0 until the process has
-    actually exited 0. Approximate, not exact, but genuinely driven by
-    real Docker output rather than a fake clock - a real build typically
-    prints 20-30+ lines, which is enough for this to feel proportionate."""
+    """A pull has no fixed, predictable line count - layer count and
+    sizes vary per release - so this doesn't try to track "layer 3 of
+    9". Instead each real line of pull output nudges an asymptotic curve
+    that climbs fast at first and slows near the end, capped below 1.0
+    until the process has actually exited 0. Approximate, not exact, but
+    genuinely driven by real Docker output rather than a fake clock."""
     return min(0.95, 1 - math.exp(-0.12 * lines_seen))
 
 
 @bp.post("/self-update/download")
 def api_self_update_download():
-    """Pull + rebuild only - see runtime.self_update_prepare_stream. No
-    output is streamed to the client beyond progress fractions; the
-    widget has no text log by design (see the update-widget skill), the
-    real lines still go to Activity on success/failure for anyone who
-    wants the detail."""
-    compose_dir = _dockle_compose_dir()
-    if not compose_dir:
-        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
-                                 "real path on the host - see the runbook to set it in compose.yaml."}), 400
+    """Pull the published image - see runtime.self_pull_stream. Only
+    progress fractions are streamed to the client; the widget has no
+    text log by design (see the update-widget skill), the real pull
+    output still goes to Activity on failure for anyone who wants it."""
     rt = runtime.current()
-    activity.log("info", "dockle-update", "Dockle update download started")
+    activity.log("info", "dockle-update", f"Pulling {config.UPDATE_IMAGE}")
 
     def generate():
         ok = True
         lines, seen = [], 0
         try:
-            for line in rt.self_update_prepare_stream(compose_dir):
+            for line in rt.self_pull_stream(config.UPDATE_IMAGE):
                 if line.startswith("[dockle-exit:"):
                     ok = line == "[dockle-exit:0]"
                     continue
@@ -227,8 +238,6 @@ def api_self_update_download():
             ok = False
             lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
         if ok:
-            with _download_ready_lock:
-                _download_ready["ready"] = True
             activity.log("info", "dockle-update", "Dockle update downloaded - ready to restart")
             yield "[dockle-progress:1.000]\n[dockle-done:ok]\n"
         else:
@@ -273,14 +282,12 @@ def api_self_update_restart():
             ok = False
             lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
         if ok:
-            with _download_ready_lock:
-                _download_ready["ready"] = False
-            # We just booted the exact commit self-update/download built -
-            # no need to wait up to 6 hours for the next background check
-            # to notice. Without this, both the widget and the sidebar's
-            # version row would keep reporting the pre-update commit
-            # count as still outstanding until that next check runs.
-            note_self_check({"git": True, "behind": 0})
+            # In real life this generator usually dies with the replaced
+            # container and a fresh process re-checks on its own; when it
+            # does survive (mock mode, or compose deciding nothing needed
+            # recreating), refresh the cached remote version so the dot
+            # doesn't keep advertising the update just applied.
+            _refresh_self_check()
             activity.log("info", "dockle-update", "Dockle restarted on the new version")
             yield "[dockle-done:ok]\n"
         else:
@@ -292,9 +299,9 @@ def api_self_update_restart():
 
 
 # -- versions in the sidebar ----------------------------------------------
-# The Dockle half of this needs a `git fetch` on the host, which means a
-# helper container - far too slow to run while a page is loading. So the
-# answer is cached, served instantly however stale, and refreshed in the
+# The remote-version lookup is one HTTPS request, but still not something
+# every page load should wait on (or hammer GitHub with) - so the answer
+# is cached, served instantly however stale, and refreshed in the
 # background when it ages out. The sidebar shows a tick or nothing; it
 # never blocks on a check.
 
@@ -304,27 +311,30 @@ _self_check_lock = threading.Lock()
 
 
 def note_self_check(result: dict):
-    """Remember a check someone else already paid for - the Settings
-    button's check refreshes this cache rather than racing it."""
+    """Remember a check someone else already paid for - the update dot's
+    click-to-check refreshes this cache rather than racing it."""
     with _self_check_lock:
         _self_check["at"] = time.time()
         _self_check["result"] = result
 
 
-def _refresh_self_check(app, compose_dir):
-    with app.app_context():
-        try:
-            note_self_check(runtime.current().self_update_check(compose_dir))
-        except Exception:
-            # A failed check must never be worse than no check: the
-            # sidebar simply shows the version without a tick.
-            with _self_check_lock:
-                _self_check["at"] = time.time()
+def _refresh_self_check():
+    try:
+        note_self_check({"latest": _fetch_remote_version(), "error": None})
+    except Exception as exc:
+        # A failed check must never be worse than no check: the sidebar
+        # simply shows the version without a tick.
+        note_self_check({"latest": None, "error": str(exc)})
+
+
+def _self_container_id() -> str:
+    """Docker sets a container's hostname to its short id - the same
+    fact the adopt list's self-exclusion already relies on."""
+    return socket.gethostname()[:12]
 
 
 @bp.get("/versions")
 def api_versions():
-    from flask import current_app
     rt = runtime.current()
     try:
         engine = rt.ping()
@@ -333,27 +343,27 @@ def api_versions():
 
     with _self_check_lock:
         cached, checked_at = _self_check["result"], _self_check["at"]
-    compose_dir = _dockle_compose_dir()
-    if compose_dir and time.time() - checked_at > _SELF_CHECK_TTL:
-        threading.Thread(target=_refresh_self_check,
-                         args=(current_app._get_current_object(), compose_dir),
-                         daemon=True).start()
+    if time.time() - checked_at > _SELF_CHECK_TTL:
+        note_self_check(cached or {"latest": None, "error": None})  # claim the slot before the thread runs
+        threading.Thread(target=_refresh_self_check, daemon=True).start()
 
-    behind = cached.get("behind") if cached else None
-    with _download_ready_lock:
-        download_ready = _download_ready["ready"]
+    latest = cached.get("latest") if cached else None
+    try:
+        download_ready = rt.self_update_ready(_self_container_id(), config.UPDATE_IMAGE)
+    except Exception:
+        download_ready = False
     return jsonify({
         "dockle": {
             "version": config.VERSION,
             # None means "not known yet" - a tick is only ever shown for
             # a real, current answer.
-            "behind": behind,
-            "upToDate": (behind == 0) if behind is not None else None,
+            "latest": latest,
+            "upToDate": (latest == config.VERSION) if latest else None,
             "checkedAt": checked_at or None,
-            # An update already downloaded and built, just waiting on the
-            # (separate, deliberate) restart click - survives a page
-            # reload, though not a restart of Dockle itself, since a
-            # successful restart is a fresh process by definition.
+            # A newer image already pulled, waiting only on the restart
+            # click. Computed from the daemon's state, not remembered -
+            # right after page reloads, Dockle restarts, or a pull done
+            # entirely outside Dockle.
             "downloadReady": download_ready,
         },
         "docker": {

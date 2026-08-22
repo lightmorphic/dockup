@@ -31,6 +31,10 @@ RUN rm -rf /usr/local/lib/python3.13/site-packages/pip* \
 # folders to match - see the runbook.
 RUN addgroup -g 1000 dockle && adduser -u 1000 -G dockle -D dockle
 
+# Links the GHCR package to this repo (shows the README on the package
+# page and ties visibility/permissions to it).
+LABEL org.opencontainers.image.source="https://github.com/lightmorphic/dockle"
+
 WORKDIR /app
 COPY app ./app
 COPY run.py .

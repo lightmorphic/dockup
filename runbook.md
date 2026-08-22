@@ -5,11 +5,14 @@ UI or a couple of copy-paste commands - no deep terminal knowledge needed.
 
 ## Install (Docker host)
 
+Dockle is a normal pre-built image (`ghcr.io/lightmorphic/dockle`) -
+nothing to clone or build, just its compose file:
+
 ```bash
 mkdir -p /opt/dockle /opt/stacks && cd /opt/dockle
-# copy the repo contents here, then:
+curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockle/main/compose.yaml
 echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" > .env
-docker compose up -d --build
+docker compose up -d
 ```
 
 Dockle runs as a non-root user with UID 1000 inside its container, matching
@@ -40,17 +43,22 @@ the systemd service on the host for you (a short-lived, one-time
 privileged action - nothing standing afterward beyond the service
 itself), then tells you the one remaining manual step below.
 
-**Manually**, if you'd rather:
+**Manually**, if you'd rather (the companion's three files live in the
+repo, not the image, so grab them with a throwaway clone):
 
 ```bash
-cd /opt/dockle/companion && sudo sh install.sh
+git clone https://github.com/lightmorphic/dockle /tmp/dockle-src
+cd /tmp/dockle-src/companion && sudo sh install.sh
 ```
 
-Either way, finish by uncommenting the companion socket line in
-`compose.yaml`:
+Either way, finish by giving Dockle the companion socket in
+`compose.override.yaml` (see the per-machine settings section below):
 
 ```yaml
-- /run/dockle-companion.sock:/run/dockle-companion.sock
+services:
+  dockle:
+    volumes:
+      - /run/dockle-companion.sock:/run/dockle-companion.sock
 ```
 
 and restart Dockle (`docker compose up -d`). Settings → Host OS & Tailscale and each
@@ -111,27 +119,30 @@ telling you to set it - the daily/global backup above doesn't need it.
 
 ## Roll back Dockle itself
 
-Dockle's code is in git. To go back to the previous working version:
+Every release is published as its own image tag. To go back to a
+previous version, pin the tag in `compose.override.yaml`:
 
-```bash
-cd /opt/dockle
-git log --oneline -5        # find the commit you want
-git checkout <commit> && docker compose up -d --build
+```yaml
+services:
+  dockle:
+    image: ghcr.io/lightmorphic/dockle:1.5.11
 ```
 
-Your data (stacks, database, backups) is untouched by rollbacks - it
-lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
+then `docker compose up -d`. Remove the override and pull to move
+forward again. Your data (stacks, database, backups) is untouched by
+rollbacks - it lives in `/opt/stacks` and `/opt/dockle/data`, outside
+the image.
 
 ## Restart / update Dockle
 
 The small dot next to "Dockle" in the top bar, top-left of every page,
 is the only control Dockle offers over itself - deliberately not a
 stack you can act on otherwise. Green means up to date; amber means a
-new version is ready - click it to download and rebuild in the
+new version is published - click it to download the new image in the
 background (Dockle keeps running as-is the whole time), then click the
-same dot again once it turns into a restart icon. No separate check
-button - it keeps itself current on its own, same pattern as Charlie's
-other self-hosted tools.
+same dot again once it turns blue. No separate check button - it keeps
+itself current on its own, same pattern as Charlie's other self-hosted
+tools.
 
 Dockle can't apply that update the way it redeploys any other stack:
 `compose up` stops Dockle's container, which kills the process running
@@ -145,12 +156,13 @@ Needs `DOCKLE_DATA_HOST_PATH` set in compose.yaml (it's how Dockle knows
 its own folder on the host) - the documented install already sets this,
 so it's only a concern if compose.yaml was hand-edited.
 
-From a shell, if you prefer or if Dockle won't start:
+From a shell, if you prefer or if Dockle won't start - the same two
+commands as any other composed app:
 
 ```bash
 cd /opt/dockle
-docker compose restart            # just restart
-git pull && docker compose up -d --build   # update to latest
+docker compose restart                     # just restart
+docker compose pull && docker compose up -d   # update to latest
 ```
 
 ## Per-machine settings: compose.override.yaml
@@ -158,10 +170,9 @@ git pull && docker compose up -d --build   # update to latest
 Anything specific to one server - the companion socket mount, a
 different published port, an extra volume - belongs in
 `compose.override.yaml` next to `compose.yaml`, not in `compose.yaml`
-itself. Compose reads and merges it automatically, and it's gitignored,
-so `git pull` (and the in-app Update button, which uses
-`git pull --ff-only`) never collide with your local edits. Editing the
-tracked `compose.yaml` is what makes an update refuse to run.
+itself. Compose reads and merges it automatically, so a newer
+`compose.yaml` (fetched by hand, or by a future Dockle) never collides
+with your local edits.
 
 ```yaml
 services:

@@ -279,9 +279,9 @@ async function renderVersions() {
   let dockleMark = "", dockleTip = "Version check hasn't run yet";
   if (d.downloadReady) { dockleMark = tick; dockleTip = "Downloaded - click the update dot (next to Maintenance) to restart"; }
   else if (d.upToDate === true) { dockleMark = tick; dockleTip = "Up to date"; }
-  else if (d.behind > 0) {
+  else if (d.upToDate === false) {
     dockleMark = '<span class="version-behind" aria-hidden="true">↑</span>';
-    dockleTip = `${d.behind} newer commit${d.behind === 1 ? "" : "s"} available - click the update dot (next to Maintenance)`;
+    dockleTip = `v${d.latest} available - click the update dot (next to Maintenance)`;
   }
   rows.push(`<div class="version-row" data-tip="${esc(dockleTip)}">
     <span class="version-name">Dockle</span>
@@ -1224,7 +1224,7 @@ async function viewHelp() {
       <p>The sidebar and the bar along the top, and what each part does.</p>
       <div class="help-grid">
         ${helpTile(NAV_ICO.menu, "Menu", "Shows or hides the sidebar - only needed on a narrow screen.")}
-        ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The update dot", "Sits next to Maintenance in the top bar. Green: up to date - click it to check again right now. Amber: a new version is ready to download (click it). Once downloaded it turns blue - click to restart. No separate check button anywhere; it also keeps itself current on its own in the background.")}
+        ${helpTile('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#4BAE4F"/></svg>', "The update dot", "Sits next to Maintenance in the top bar. Green: up to date - click it to check again right now. Amber: a new version is published - click to download it. Once downloaded it turns blue - click to restart. No separate check button anywhere; it also keeps itself current on its own in the background.")}
         ${helpTile(NAV_ICO.allStacks, "All stacks", "Back to the dashboard - every stack, one glance.")}
         ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
         ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
@@ -1284,8 +1284,8 @@ async function viewHelp() {
         manage everything else is a mistake worth designing out, not just warning about. Its own update is the
         one control it offers: the update dot in the top bar, next to Maintenance. Green means up to date -
         click it any time to check again right now, rather than waiting for the next background check. Amber
-        means a new version is ready - click it to download and rebuild in the background while Dockle keeps
-        running as it is. Once that finishes the same dot turns blue; click it again and the page goes away for
+        means a new version is published - click it to download the new image in the background while Dockle
+        keeps running as it is. Once that finishes the same dot turns blue; click it again and the page goes away for
         a few seconds while Dockle replaces itself, then comes back on its own.</p>
     </div>
 
@@ -1699,10 +1699,10 @@ function updateDotFromVersions(dockle) {
   if (v && dockle.version) v.textContent = "v" + dockle.version;
   if (dockle.downloadReady) {
     paintUpdateDot("ready", "Click to restart", UPDATE_DOT_ICONS.restart);
-  } else if (dockle.behind === null) {
+  } else if (dockle.upToDate === null) {
     if (dockle.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
     else paintUpdateDot("unknown", "Checking for updates…");
-  } else if (dockle.behind > 0) {
+  } else if (dockle.upToDate === false) {
     paintUpdateDot("available", "Update available", UPDATE_DOT_ICONS.download);
   } else {
     paintUpdateDot("uptodate", "Up to date");

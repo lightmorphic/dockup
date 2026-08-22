@@ -448,88 +448,47 @@ class Runtime:
     # companion install does - the daemon finishes the job whether or not
     # anything is still listening.
 
-    # git run by root over a folder owned by someone else (the normal
-    # case: /opt/dockle belongs to the admin who cloned it, these
-    # commands run as root inside the host's namespaces) refuses with
-    # "detected dubious ownership in repository" and nothing else - so
-    # every git call here declares the directory safe explicitly. Scoped
-    # to this one path per command, never a global config change on the
-    # host.
-    @staticmethod
-    def _host_git(quoted_dir: str) -> str:
-        return f"git -c safe.directory={quoted_dir} -C {quoted_dir}"
-
     def _host_nsenter(self, inner_script: str) -> str:
         return ("nsenter --target 1 --mount --uts --ipc --net --pid -- "
                 f"sh -c {shlex.quote(inner_script)}")
 
-    def self_update_check(self, compose_host_dir: str) -> dict:
-        """How far behind is this install? Only answerable for a git
-        checkout (what the README's install steps produce); a copied or
-        unpacked folder has nothing to compare against, which is not an
-        error - it just means "rebuild" is the only thing on offer."""
-        d = shlex.quote(compose_host_dir)
-        git = self._host_git(d)
-        script = ("apk add --no-cache util-linux-misc >/dev/null && " + self._host_nsenter(
-            f"cd {d} || exit 9; "
-            "if [ ! -d .git ]; then echo dockle-nogit; exit 0; fi; "
-            "command -v git >/dev/null || { echo dockle-nogitbin; exit 0; }; "
-            f'err=$({git} fetch 2>&1) || {{ echo "dockle-fetchfail=$err"; exit 0; }}; '
-            f'echo "dockle-behind=$({git} rev-list --count HEAD..@{{u}} 2>/dev/null || echo unknown)"'
-        ))
-        out = self._run(["run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-                         "alpine", "sh", "-c", script], timeout=180)
-        for line in out.splitlines():
-            line = line.strip()
-            if line == "dockle-nogit":
-                return {"git": False, "reason": "not a git checkout"}
-            if line == "dockle-nogitbin":
-                return {"git": False, "reason": "git isn't installed on the host"}
-            if line.startswith("dockle-fetchfail"):
-                _, _, why = line.partition("=")
-                return {"git": True, "behind": None, "reason": why.strip() or "no reason given"}
-            if line.startswith("dockle-behind="):
-                value = line.split("=", 1)[1]
-                return {"git": True, "behind": None if value == "unknown" else int(value)}
-        raise RuntimeError_("Couldn't work out whether an update is available:\n" + out.strip()[-400:])
-
-    def self_update_prepare_stream(self, compose_host_dir: str):
-        """Pull newer source and newer/rebuilt images, but stop short of
-        recreating the container - the "download" half of the top-bar
-        update widget's two-step flow (see maintenance.py). Splitting the
-        build out from the recreate means the risky, container-replacing
-        step only happens on a second, explicit click, and the build's
-        own step-by-step output gives the widget's progress ring
-        something real to track (see _progress_fraction)."""
-        d = shlex.quote(compose_host_dir)
-        git = self._host_git(d)
-        script = " && ".join([
-            "apk add --no-cache util-linux-misc >/dev/null",
-            self._host_nsenter(
-                f"cd {d} || exit 9; "
-                "if [ -d .git ] && command -v git >/dev/null; then "
-                f'echo "Pulling the latest source..."; {git} pull --ff-only || exit 1; '
-                'else echo "Not a git checkout - rebuilding from the files already here."; fi'),
-            self._host_nsenter(f"cd {d} && docker compose pull --ignore-pull-failures || true"),
-            self._host_nsenter(f"cd {d} && docker compose config --quiet"),
-            self._host_nsenter(f"cd {d} && docker compose build"),
-        ])
-        args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-                "alpine", "sh", "-c", script]
-        proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
+    def self_pull_stream(self, image_ref: str):
+        """`docker pull` of Dockle's own published image - the "download"
+        half of the top-bar update widget's two-step flow. Runs straight
+        through the socket from inside Dockle's own container (no compose
+        file or helper container needed for a plain pull); nothing about
+        the running container changes until the separate restart click.
+        Pull output arrives line by line, which is what the widget's
+        progress ring tracks (see maintenance._progress_fraction)."""
+        proc = subprocess.Popen([_DOCKER_BIN, "pull", image_ref],
+                                env=self._env(), stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, bufsize=1)
         for line in proc.stdout:
             yield line.rstrip("\n")
         proc.wait()
         yield f"[dockle-exit:{proc.returncode}]"
 
+    def self_update_ready(self, container_id: str, image_ref: str) -> bool:
+        """Is a newer image already pulled and waiting for a restart?
+        True when the image the tag currently points at locally is not
+        the image this very container is running from. Computed from the
+        daemon's own state rather than remembered in a flag, so it's
+        right after a page reload, a Dockle restart, or a pull done
+        outside Dockle entirely (a manual `docker compose pull`)."""
+        try:
+            running = self._run(["inspect", container_id, "--format", "{{.Image}}"], timeout=15).strip()
+            pulled = self._run(["image", "inspect", image_ref, "--format", "{{.Id}}"], timeout=15).strip()
+        except RuntimeError_:
+            return False  # image never pulled here, or container not found
+        return bool(running and pulled and running != pulled)
+
     def self_update_apply_stream(self, compose_host_dir: str):
-        """Recreate Dockle's container from the image self_update_prepare_
-        stream already built - the "restart" half of the widget's flow.
-        No --build here: the point is this step is just a recreate, fast
-        and predictable, not another lengthy build. Recreating Dockle's
-        own container ends this stream abruptly partway through -
-        expected, not a failure."""
+        """Recreate Dockle's container from the already-pulled image -
+        the "restart" half of the widget's flow. Needs the compose file,
+        which lives on the host, so this one still goes through a helper
+        container in the host's namespaces. Recreating Dockle's own
+        container ends this stream abruptly partway through - expected,
+        not a failure."""
         d = shlex.quote(compose_host_dir)
         script = " && ".join([
             "apk add --no-cache util-linux-misc >/dev/null",

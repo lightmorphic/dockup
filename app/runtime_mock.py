@@ -245,31 +245,36 @@ class MockRuntime:
         yield "dockle-companion reconnected (mock) - no real restart in dev mode."
         yield "[dockle-exit:0]"
 
-    def self_update_check(self, compose_host_dir):
-        return {"git": True, "behind": 2}
+    # Mock self-update: pretends a newer published version exists until a
+    # pull-then-restart cycle has run, so the whole widget flow can be
+    # exercised in dev mode - amber, ring, blue, back to green.
+    _pulled_newer = False
+    _mock_updated = False
 
-    def self_update_prepare_stream(self, compose_host_dir):
-        yield "Pulling the latest source (mock)..."
-        time.sleep(0.2)
-        for i, step in enumerate([
-            "[internal] load build definition from Dockerfile",
-            "[internal] load metadata for docker.io/library/python:3.13-alpine",
-            "[build 1/4] FROM docker.io/library/python:3.13-alpine",
-            "[build 2/4] WORKDIR /app",
-            "[build 3/4] COPY requirements.txt .",
-            "[build 4/4] RUN pip install --no-cache-dir --prefix=/install -r requirements.txt",
-            "[stage-1  2/11] RUN apk update && apk upgrade --no-cache",
-            "[stage-1  3/11] COPY --from=build /install /usr/local",
-            "[stage-1  7/11] COPY app ./app",
-            "[stage-1 11/11] RUN chmod +x /usr/local/bin/docker-entrypoint.sh",
-            "exporting to image",
-        ]):
+    def remote_version(self):
+        from . import config
+        return config.VERSION if self._mock_updated else "9.9.9"
+
+    def self_pull_stream(self, image_ref):
+        yield f"latest: Pulling from {image_ref.split(':')[0]} (mock)"
+        for layer in ("a1b2c3d4", "e5f6a7b8", "c9d0e1f2", "a3b4c5d6"):
             time.sleep(0.15)
-            yield f" => {step} (mock)"
+            yield f"{layer}: Pulling fs layer"
+            time.sleep(0.15)
+            yield f"{layer}: Downloading"
+            time.sleep(0.1)
+            yield f"{layer}: Pull complete"
+        yield "Status: Downloaded newer image (mock)"
+        self._pulled_newer = True
         yield "[dockle-exit:0]"
+
+    def self_update_ready(self, container_id, image_ref):
+        return self._pulled_newer
 
     def self_update_apply_stream(self, compose_host_dir):
         yield "(mock) docker compose up -d"
         time.sleep(0.3)
         yield " dockle: Container dockle  Recreated"
+        self._pulled_newer = False
+        self._mock_updated = True
         yield "[dockle-exit:0]"

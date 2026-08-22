@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.0 - 2026-08-21
+
+- **Dockle now ships as a normal pre-built Docker image**
+  (`ghcr.io/lightmorphic/dockle`, amd64 + arm64), published by CI on
+  every release. Installing is fetching one compose file and
+  `docker compose up -d`; updating is `docker compose pull` - or the
+  update dot, same as before - and works in Dockge or any other
+  compose manager exactly like every other app. No git, no local
+  builds, ever (building from source stays possible via `build: .` in
+  a compose.override.yaml)
+- The update check is now one HTTPS request comparing the running
+  version against the newest published one - no git on the host, no
+  helper container, works identically for every install style. The dot's
+  "download" is a plain `docker pull` of the published image
+- "Ready to restart" is no longer remembered in a flag - it's computed
+  from whether the pulled image is newer than the running one, so it's
+  correct even after a `docker compose pull` done entirely outside
+  Dockle
+- Rollback is now pinning a version tag (every release is one) instead
+  of a git checkout
+
 ## 1.5.11 - 2026-08-21
 
 - The update-status dot moved from beside the "Dockle" wordmark to

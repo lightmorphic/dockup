@@ -40,8 +40,17 @@ COMPOSE_PASSTHROUGH = (
 )
 
 # Dockle's own version, shown in the sidebar. Kept in step with the top
-# entry in CHANGELOG.md by hand - one number, one place.
-VERSION = "1.5.11"
+# entry in CHANGELOG.md by hand - one number, one place. CI reads this
+# same line to tag the published image (.github/workflows/publish-image.yml).
+VERSION = "1.6.0"
+
+# Where updates come from: the image CI publishes, and the raw config.py
+# on main whose VERSION line is the "is there a newer version?" source of
+# truth. Overridable for forks.
+UPDATE_IMAGE = os.environ.get("DOCKLE_UPDATE_IMAGE", "ghcr.io/lightmorphic/dockle:latest")
+UPDATE_VERSION_URL = os.environ.get(
+    "DOCKLE_UPDATE_VERSION_URL",
+    "https://raw.githubusercontent.com/lightmorphic/dockle/main/app/config.py")
 
 SESSION_DAYS = 7
 LOGIN_MAX_FAILS = 5

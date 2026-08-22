@@ -39,13 +39,13 @@ fresh code, different look, security first.
 - One click to open a stack's real web UI in a new tab - its Tailscale
   Serve address if set up, otherwise the host address you're already
   using to reach Dockle
-- **Its own update-status dot, top bar, next to the name** - green up
-  to date, amber a new version's ready (click to download and rebuild
-  in the background while Dockle keeps running as it is), then click
-  again to restart. No separate check button; it keeps itself current
-  on its own. Deliberately not a stack you can act on otherwise -
-  stopping or deleting the tool managing everything else isn't a risk
-  worth a click away
+- **Its own update-status dot in the top bar** - green up to date,
+  amber a new version's published (click to download it in the
+  background while Dockle keeps running as it is), then blue: click
+  again to restart onto it. No separate check button; it keeps itself
+  current on its own. Deliberately not a stack you can act on
+  otherwise - stopping or deleting the tool managing everything else
+  isn't a risk worth a click away
 - Optional dockle-companion for host OS update checks and per-stack
   Tailscale Serve toggles - the one part of Dockle that needs root on
   the actual server rather than just Docker access, so it's a separate
@@ -61,14 +61,28 @@ fresh code, different look, security first.
 
 ## Install
 
+Dockle ships as a normal pre-built image
+(`ghcr.io/lightmorphic/dockle`) - no cloning, no building. All you need
+is the compose file:
+
 ```bash
 mkdir -p /opt/dockle /opt/stacks && cd /opt/dockle
-# (copy this repo here)
+curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockle/main/compose.yaml
 echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" > .env
-docker compose up -d --build
+docker compose up -d
 ```
 
-Open `http://<server-ip>:4000`, create the admin account, done.
+Open `http://<server-ip>:4000`, create the admin account, done. Updating
+later is the update dot in Dockle's own top bar, or the usual:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+(Prefer building from source? Clone the repo into `/opt/dockle` instead
+and put `build: .` in a `compose.override.yaml` - everything else is
+identical.)
+
 `/opt/stacks` is the recommended stacks folder - each stack is a plain
 folder with a compose file, so there's no lock-in: the folder works with
 plain `docker compose` (or any other manager) at any time.
@@ -81,11 +95,12 @@ Easiest way: Settings → Host OS & Tailscale → "Install companion" (one click
 Dockle itself is running). Or manually:
 
 ```bash
-cd companion && sudo sh install.sh
+git clone https://github.com/lightmorphic/dockle /tmp/dockle-src
+cd /tmp/dockle-src/companion && sudo sh install.sh
 ```
 
-Then uncomment the companion socket line in `compose.yaml` and restart
-Dockle. Full steps in [runbook.md](runbook.md).
+Then add the companion socket mount in a `compose.override.yaml` and
+restart Dockle. Full steps in [runbook.md](runbook.md).
 
 ### Podman instead of Docker
 

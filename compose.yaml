@@ -1,7 +1,11 @@
 services:
   dockle:
-    build: .
-    image: dockle:latest
+    # Pre-built image, published by CI on every release - updating is
+    # `docker compose pull && docker compose up -d` (or the update dot in
+    # the top bar), never a local build. Building from source is still
+    # possible if you want it: replace this line with `build: .` in
+    # compose.override.yaml.
+    image: ghcr.io/lightmorphic/dockle:latest
     container_name: dockle
     restart: unless-stopped
     cap_drop: [ALL]
