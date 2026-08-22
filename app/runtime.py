@@ -493,34 +493,13 @@ class Runtime:
                 return {"git": True, "behind": None if value == "unknown" else int(value)}
         raise RuntimeError_("Couldn't work out whether an update is available:\n" + out.strip()[-400:])
 
-    def self_compose_stream(self, compose_host_dir: str, args: list):
-        """One `docker compose <args>` against Dockle's own folder, run
-        from a helper container in the host's namespaces. Dockle's own
-        lifecycle actions all come through here for the same reason the
-        update does: any command that stops Dockle's container would
-        otherwise kill the process running it, leaving the job half
-        done. Streams output; ends abruptly whenever the action being
-        run is one that replaces or stops Dockle itself."""
-        inner = (f"cd {shlex.quote(compose_host_dir)} && docker compose "
-                 + " ".join(shlex.quote(a) for a in args))
-        script = "apk add --no-cache util-linux-misc >/dev/null && " + self._host_nsenter(inner)
-        proc = subprocess.Popen(
-            [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-             "alpine", "sh", "-c", script],
-            env=self._env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1)
-        for line in proc.stdout:
-            yield line.rstrip("\n")
-        proc.wait()
-        yield f"[dockle-exit:{proc.returncode}]"
-
     def self_update_prepare_stream(self, compose_host_dir: str):
         """Pull newer source and newer/rebuilt images, but stop short of
         recreating the container - the "download" half of the top-bar
-        update widget's two-step flow (see maintenance.py). Splitting
-        this out from self_update_stream means the risky, container-
-        replacing step only happens on a second, explicit click, and the
-        build's own step-by-step output gives the widget's progress ring
+        update widget's two-step flow (see maintenance.py). Splitting the
+        build out from the recreate means the risky, container-replacing
+        step only happens on a second, explicit click, and the build's
+        own step-by-step output gives the widget's progress ring
         something real to track (see _progress_fraction)."""
         d = shlex.quote(compose_host_dir)
         git = self._host_git(d)
@@ -548,58 +527,14 @@ class Runtime:
         """Recreate Dockle's container from the image self_update_prepare_
         stream already built - the "restart" half of the widget's flow.
         No --build here: the point is this step is just a recreate, fast
-        and predictable, not another lengthy build. Ends abruptly like
-        every other self-action - see self_compose_stream."""
+        and predictable, not another lengthy build. Recreating Dockle's
+        own container ends this stream abruptly partway through -
+        expected, not a failure."""
         d = shlex.quote(compose_host_dir)
         script = " && ".join([
             "apk add --no-cache util-linux-misc >/dev/null",
             self._host_nsenter(f"cd {d} && docker compose config --quiet"),
             self._host_nsenter(f"cd {d} && docker compose up -d"),
-        ])
-        args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-                "alpine", "sh", "-c", script]
-        proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True, bufsize=1)
-        for line in proc.stdout:
-            yield line.rstrip("\n")
-        proc.wait()
-        yield f"[dockle-exit:{proc.returncode}]"
-
-    def container_logs_process(self, container: str, tail=200):
-        """`docker logs -f` for one container. Dockle's own stack streams
-        its logs this way rather than through `compose logs`, which needs
-        the compose file - and Dockle's own folder isn't mounted into its
-        container."""
-        return subprocess.Popen(
-            [_DOCKER_BIN, "logs", "-f", "--tail", str(tail), container],
-            env=self._env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1)
-
-    def self_update_stream(self, compose_host_dir: str):
-        """Pull newer source (git checkouts), pull newer published images,
-        then rebuild and recreate. Covers both install styles: built from
-        source (`build: .`, the documented one) and plain published
-        images, where the build step simply has nothing to do. Recreating
-        Dockle's own container ends this stream abruptly partway through -
-        expected, not a failure."""
-        d = shlex.quote(compose_host_dir)
-        git = self._host_git(d)
-        script = " && ".join([
-            "apk add --no-cache util-linux-misc >/dev/null",
-            self._host_nsenter(
-                f"cd {d} || exit 9; "
-                "if [ -d .git ] && command -v git >/dev/null; then "
-                f'echo "Pulling the latest source..."; {git} pull --ff-only || exit 1; '
-                'else echo "Not a git checkout - rebuilding from the files already here."; fi'),
-            # Published-image installs get their new image here; a
-            # build-from-source install has nothing to pull, which is why
-            # a failure at this step is never fatal on its own.
-            self._host_nsenter(f"cd {d} && docker compose pull --ignore-pull-failures || true"),
-            # Refuse to touch a running Dockle if the compose file it
-            # would be recreated from doesn't parse - better to stop here
-            # with Dockle still up than halfway through with it down.
-            self._host_nsenter(f"cd {d} && docker compose config --quiet"),
-            self._host_nsenter(f"cd {d} && docker compose up -d --build"),
         ])
         args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
                 "alpine", "sh", "-c", script]

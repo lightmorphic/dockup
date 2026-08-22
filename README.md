@@ -39,16 +39,13 @@ fresh code, different look, security first.
 - One click to open a stack's real web UI in a new tab - its Tailscale
   Serve address if set up, otherwise the host address you're already
   using to reach Dockle
-- **Dockle appears on the dashboard as a card like any other stack** -
-  same status dot, same containers, logs and terminal, and the same
-  buttons including Update, Redeploy and Delete. No terminal needed to
-  update it: one button pulls the newest version, rebuilds and restarts.
-  Your stacks keep running throughout; only Dockle's own page blinks
-  out for a few seconds
 - **Its own update-status dot, top bar, next to the name** - green up
   to date, amber a new version's ready (click to download and rebuild
-  in the background), then click again to restart. No separate check
-  button; it keeps itself current on its own
+  in the background while Dockle keeps running as it is), then click
+  again to restart. No separate check button; it keeps itself current
+  on its own. Deliberately not a stack you can act on otherwise -
+  stopping or deleting the tool managing everything else isn't a risk
+  worth a click away
 - Optional dockle-companion for host OS update checks and per-stack
   Tailscale Serve toggles - the one part of Dockle that needs root on
   the actual server rather than just Docker access, so it's a separate

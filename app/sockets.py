@@ -80,27 +80,6 @@ def _relay(ws, proc):
             pass
 
 
-@sock.route("/ws/logs-container/<container>")
-def ws_container_logs(ws, container):
-    """Logs for one named container, used by Dockle's own stack page -
-    `compose logs` needs the compose file, and Dockle's own folder isn't
-    mounted inside its container."""
-    if not _authed() or not _same_origin():
-        ws.close()
-        return
-    if not _CONTAINER_RE.match(container):
-        ws.close()
-        return
-    rt = runtime.current()
-    try:
-        proc = rt.container_logs_process(container)
-    except OSError:
-        ws.send("Could not start the log stream for this container.")
-        ws.close()
-        return
-    _relay(ws, proc)
-
-
 @sock.route("/ws/logs/<name>")
 def ws_logs(ws, name):
     if not _authed() or not _same_origin():

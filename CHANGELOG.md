@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.10 - 2026-08-21
+
+- **Removed the Dockle dashboard card and its dedicated page.** Showing
+  Dockle as an ordinary stack meant Stop, Down and Delete were one
+  misclick away from taking down the tool managing everything else -
+  not a risk worth keeping just for consistency with the other cards.
+  Dockle's own update is still fully available, entirely through the
+  top-bar dot next to its name; nothing else about acting on Dockle
+  itself is offered through the UI. The removed backend routes/helper-
+  container methods that only existed to serve that card are gone too
+- The sidebar's New stack / All stacks buttons are noticeably smaller
+  now - they were sized like the app's usual page-level buttons, which
+  read as oversized for a compact sidebar header
+
 ## 1.5.9 - 2026-08-21
 
 - Restyled every tooltip: white bubble with dark text in light mode,

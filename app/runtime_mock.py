@@ -248,15 +248,6 @@ class MockRuntime:
     def self_update_check(self, compose_host_dir):
         return {"git": True, "behind": 2}
 
-    def self_update_stream(self, compose_host_dir):
-        for line in ("Pulling the latest source (mock)...",
-                     "Building dockle image (mock)...",
-                     "Recreating container dockle (mock)..."):
-            time.sleep(0.5)
-            yield line
-        yield "Dockle would restart here - no real restart in dev mode."
-        yield "[dockle-exit:0]"
-
     def self_update_prepare_stream(self, compose_host_dir):
         yield "Pulling the latest source (mock)..."
         time.sleep(0.2)
@@ -281,19 +272,4 @@ class MockRuntime:
         yield "(mock) docker compose up -d"
         time.sleep(0.3)
         yield " dockle: Container dockle  Recreated"
-        self.states["dockle"] = "running"
         yield "[dockle-exit:0]"
-
-    def self_compose_stream(self, compose_host_dir, args):
-        yield f"(mock) docker compose {' '.join(args)} in {compose_host_dir}"
-        time.sleep(0.4)
-        if args and args[0] == "down":
-            yield " dockle: Container dockle  Removed"
-            self.states.pop("dockle", None)
-        else:
-            yield " dockle: Container dockle  Recreated"
-            self.states["dockle"] = "running"
-        yield "[dockle-exit:0]"
-
-    def container_logs_process(self, container, tail=200):
-        return _FakeLogsProc(container)

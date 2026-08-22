@@ -124,35 +124,26 @@ lives in `/opt/stacks` and `/opt/dockle/data`, outside the image.
 
 ## Restart / update Dockle
 
-Easiest: the small dot next to "Dockle" in the top bar, top-left of every
-page. Green means up to date; amber means a new version is ready - click
-it to download and rebuild in the background (Dockle keeps running as-is
-the whole time), then click the same dot again once it turns into a
-restart icon. No separate check button - it keeps itself current on its
-own, same pattern as Charlie's other self-hosted tools.
+The small dot next to "Dockle" in the top bar, top-left of every page,
+is the only control Dockle offers over itself - deliberately not a
+stack you can act on otherwise. Green means up to date; amber means a
+new version is ready - click it to download and rebuild in the
+background (Dockle keeps running as-is the whole time), then click the
+same dot again once it turns into a restart icon. No separate check
+button - it keeps itself current on its own, same pattern as Charlie's
+other self-hosted tools.
 
-Dockle's own dashboard card also has a plain **Update** button that does
-the same pull-rebuild-restart in one streamed step, no separate download
-click - exactly like any other stack's Update button, if you'd rather
-that than the two-step dot.
-
-Dockle can't do this the way it redeploys any other stack: `compose up`
-stops Dockle's container, which kills the process running the command
-before it can start anything again. So the update is handed to a
-short-lived helper container that isn't the one being replaced - the
-same approach the companion installer already uses. That's also why the
-output stops mid-flight: the page it was streaming to has gone.
+Dockle can't apply that update the way it redeploys any other stack:
+`compose up` stops Dockle's container, which kills the process running
+the command before it can start anything again. So the update is handed
+to a short-lived helper container that isn't the one being replaced -
+the same approach the companion installer already uses. That's also why
+the page briefly goes away when you click restart: the container
+serving it just got replaced.
 
 Needs `DOCKLE_DATA_HOST_PATH` set in compose.yaml (it's how Dockle knows
-its own folder on the host); the button says so plainly if it isn't.
-
-Dockle's card carries the full set of buttons - Start, Stop, Restart,
-Redeploy, Update, Down and Delete - plus its logs and a terminal. Stop,
-Down and Delete do exactly what they say, so the page they were pressed
-from is the last one you'll see until you bring Dockle back from a
-shell. Delete offers the same opt-in "and its data" checkbox every other
-stack does; ticking it removes Dockle's own folder, settings, activity
-log and login along with the container.
+its own folder on the host) - the documented install already sets this,
+so it's only a concern if compose.yaml was hand-edited.
 
 From a shell, if you prefer or if Dockle won't start:
 

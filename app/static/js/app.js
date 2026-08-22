@@ -332,7 +332,6 @@ const routes = [
   [/^#\/activity$/, viewActivity],
   [/^#\/backups$/, viewBackups],
   [/^#\/settings$/, viewSettings],
-  [/^#\/dockle$/, viewDockleStack],
   [/^#\/help$/, viewHelp],
 ];
 
@@ -394,13 +393,6 @@ async function viewDashboard() {
   content.appendChild(grid);
   const statusByName = Object.fromEntries(stacksCache.map(s => [s.name, s.status]));
   for (const s of managed) grid.appendChild(managedCard(s));
-  // Dockle is a container like any other and belongs in the same grid -
-  // its card just leads to a page whose buttons know they're acting on
-  // the thing serving them.
-  try {
-    const self = await api("/api/system/self");
-    if (self.available) grid.appendChild(dockleCard(self));
-  } catch (e) { /* non-fatal - the rest of the dashboard still stands */ }
   for (const p of discovered.projects) grid.appendChild(unmanagedCard(p, statusByName[p.name] || "running"));
   for (const c of discovered.standalone) grid.appendChild(standaloneCard(c));
 
@@ -643,21 +635,6 @@ function managedCard(s) {
       if ((location.hash || "#/") === "#/") viewDashboard();
     }, "permanently delete this stack and its image - nothing kept");
   }
-  return card;
-}
-
-function dockleCard(self) {
-  const dotTip = STATUS_TIPS[self.status] || "Container is down";
-  const port = self.ports && self.ports.length ? self.ports[0] : null;
-  const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="Open Dockle - ${esc(dotTip)}">
-    <h3><span class="status-dot ${STATUS_DOT_CLASS[self.status] || ""}" data-tip="${esc(dotTip)}"
-      tabindex="0" aria-label="${esc(dotTip)}"></span><span>${esc(self.name)}</span>
-      <span class="pill">this is Dockle</span></h3>
-    <span class="hint">${self.containers.length} container${self.containers.length === 1 ? "" : "s"}${port ? ` · port ${port}` : ""}</span>
-  </div>`);
-  const open = () => location.hash = "#/dockle";
-  card.addEventListener("click", open);
-  card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
   return card;
 }
 
@@ -1137,194 +1114,6 @@ async function viewStack(name) {
   }
 }
 
-/* Dockle's own stack page. Same shape as any other stack's - status,
-   containers, actions, output - and every button is offered, Delete
-   included. What differs is only the plumbing: each action runs in a
-   helper container on the host, because a command that stops or replaces
-   Dockle's container kills the process running it partway through. */
-async function viewDockleStack() {
-  let self;
-  try { self = await api("/api/system/self"); }
-  catch (e) { content.innerHTML = `<p class="alert alert-danger">! ${esc(e.message)}</p>`; return; }
-  if (!self.available) {
-    content.innerHTML = `<p class="alert alert-warning">! ${esc(self.error || "Dockle isn't running as a compose project here.")}</p>`;
-    return;
-  }
-
-  content.innerHTML = "";
-  const dotTip = STATUS_TIPS[self.status] || "Container is down";
-  const head = el(`<div class="panel"><div class="panel-head">
-      <span class="status-dot ${STATUS_DOT_CLASS[self.status] || ""}" data-tip="${esc(dotTip)}"
-        tabindex="0" aria-label="${esc(dotTip)}"></span>
-      <h1 class="stack-title">${esc(self.name)}</h1>
-      <span class="pill">this is Dockle</span>
-      <span class="spacer"></span>
-      <button class="icon-btn" id="selfStart" data-tip="Start" aria-label="Start Dockle">${ICONS.play}</button>
-      <button class="icon-btn" id="selfStop" data-tip="Stop (you'll lose this page until you start it from a shell)" aria-label="Stop Dockle">${ICONS.stop}</button>
-      <button class="icon-btn" id="selfRestart" data-tip="Restart" aria-label="Restart Dockle">${ICONS.restart}</button>
-      <button class="icon-btn" id="selfRedeploy" data-tip="Redeploy (recreate the container from compose.yaml)" aria-label="Redeploy Dockle">${ICONS.redeploy}</button>
-      <button class="icon-btn" id="selfUpdate" data-tip="Update (pull the newest Dockle, rebuild, restart)" aria-label="Update Dockle">${ICONS.update}</button>
-      <button class="icon-btn" id="selfDown" data-tip="Down (stop and remove the container)" aria-label="Take Dockle down">${ICONS.down}</button>
-      <button class="icon-btn" id="selfDelete" data-tip="Delete Dockle" aria-label="Delete Dockle">${ICONS.bin}</button>
-    </div>
-    <p class="hint">Runs from <code>${esc(self.dir || "unknown")}</code> on the host. Your stacks keep running
-      through anything you do here - only this page goes away.</p>
-    <div class="log-view action-output" id="selfOut" aria-live="polite"></div>
-  </div>`);
-  content.appendChild(head);
-  const out = head.querySelector("#selfOut");
-
-  if (!self.canAct) {
-    head.querySelectorAll(".panel-head .icon-btn").forEach(b => b.disabled = true);
-    head.appendChild(el(`<p class="alert alert-warning">! DOCKLE_DATA_HOST_PATH isn't set, so Dockle
-      can't tell where its own folder lives on the host - see the runbook. Everything here is
-      read-only until it is.</p>`));
-  }
-
-  const run = (action, deleteData = false) => streamSelfAction(action, out, deleteData);
-  head.querySelector("#selfStart").addEventListener("click", () => run(self.status === "inactive" ? "up" : "start"));
-  head.querySelector("#selfStop").addEventListener("click", () => run("stop"));
-  head.querySelector("#selfRestart").addEventListener("click", () => run("restart"));
-  head.querySelector("#selfRedeploy").addEventListener("click", () => run("redeploy"));
-  head.querySelector("#selfUpdate").addEventListener("click", () => run("update"));
-  head.querySelector("#selfDown").addEventListener("click", () => run("down"));
-
-  // Delete is offered like it is for any other stack - it's your server.
-  // What it can't be is quiet about what you lose: this is the tool
-  // you'd use to put it back.
-  const deletePanel = el(`<div class="panel hidden" id="selfDeletePanel">
-    <p class="alert alert-danger">! Delete Dockle itself? This stops and removes its container and
-      image. The web UI goes away for good - bringing it back means a shell on the server
-      (<code>cd ${esc(self.dir || "/opt/dockle")} && docker compose up -d --build</code>).
-      Your stacks and their data are not touched.</p>
-    <div class="check-row"><input type="checkbox" id="selfDeleteData">
-      <label for="selfDeleteData">Also delete Dockle's own folder - compose file, settings, activity
-        log and login, everything in <code>${esc(self.dir || "/opt/dockle")}</code></label></div>
-    <p class="hint hint-tight">With that ticked there is nothing left to bring back: reinstalling
-      means cloning the repo again and starting over.</p>
-    <div class="btn-row">
-      <button class="btn btn-danger" id="selfDeleteConfirm">Delete Dockle</button>
-      <button class="btn" id="selfDeleteCancel">Cancel</button>
-    </div></div>`);
-  head.insertAdjacentElement("afterend", deletePanel);
-  head.querySelector("#selfDelete").addEventListener("click", () => deletePanel.classList.remove("hidden"));
-  deletePanel.querySelector("#selfDeleteCancel").addEventListener("click", () => deletePanel.classList.add("hidden"));
-  deletePanel.querySelector("#selfDeleteConfirm").addEventListener("click", () => {
-    deletePanel.classList.add("hidden");
-    run("delete", deletePanel.querySelector("#selfDeleteData").checked);
-  });
-
-  const tabs = el(`<div class="panel">
-    <div class="tabs" role="tablist">
-      <button data-tab="overview" class="active">Overview</button>
-      <button data-tab="logs">Logs</button>
-      <button data-tab="terminal">Terminal</button>
-    </div>
-    <div id="tabBody"></div></div>`);
-  content.appendChild(tabs);
-  const tabBody = tabs.querySelector("#tabBody");
-
-  const renderTab = {
-    overview() {
-      const rows = self.containers.map(c => `<tr>
-        <td>${esc(c.name)}</td><td>${esc(c.service || "-")}</td><td>${esc(c.image)}</td>
-        <td>${cardDot(c.state)}</td><td class="hint">${esc(c.status)}</td></tr>`).join("");
-      tabBody.innerHTML = `<div class="table-wrap"><table>
-        <caption>Dockle's own container(s)</caption>
-        <thead><tr><th>Container</th><th>Service</th><th>Image</th><th>State</th><th>Detail</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" class="hint">Nothing running.</td></tr>'}</tbody></table></div>`;
-    },
-    logs() {
-      const running = self.containers.filter(c => c.state === "running");
-      if (!running.length) {
-        tabBody.innerHTML = '<p class="alert alert-warning">! Nothing running to stream logs from.</p>';
-        return;
-      }
-      tabBody.innerHTML = `<div class="log-view" id="liveLogs" aria-live="off"></div>
-        <p class="hint hint-mt">Streaming live. Error lines show in red, warnings in amber.</p>`;
-      const view = tabBody.querySelector("#liveLogs");
-      const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/logs-container/${encodeURIComponent(running[0].name)}`);
-      ws.onmessage = (ev) => appendLog(view, ev.data);
-      ws.onclose = () => appendLog(view, "-- log stream closed --");
-      liveSockets.push(ws);
-    },
-    terminal() {
-      const running = self.containers.filter(c => c.state === "running");
-      if (!running.length) {
-        tabBody.innerHTML = '<p class="alert alert-warning">! Nothing running to open a terminal into.</p>';
-        return;
-      }
-      tabBody.innerHTML = "";
-      const host = el('<div class="term-host"><div class="terminal" id="term"></div></div>');
-      tabBody.appendChild(host);
-      const term = new Terminal({ fontSize: 13, convertEol: true, cursorBlink: true,
-        theme: { background: "#101116" } });
-      term.open(host.querySelector("#term"));
-      const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/terminal/${encodeURIComponent(running[0].name)}`);
-      ws.onopen = () => ws.send(`\x00resize:${term.cols}x${term.rows}`);
-      ws.onmessage = (ev) => term.write(ev.data);
-      ws.onclose = () => term.write("\r\n-- session ended --\r\n");
-      term.onData(d => { if (ws.readyState === 1) ws.send(d); });
-      term.onResize(({ cols, rows }) => { if (ws.readyState === 1) ws.send(`\x00resize:${cols}x${rows}`); });
-      liveSockets.push(ws);
-    },
-  };
-  tabs.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
-    closeLiveSockets();
-    tabs.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
-    renderTab[b.dataset.tab]();
-  }));
-  renderTab.overview();
-}
-
-/* Streams one of Dockle's own actions. Anything that stops or replaces
-   Dockle cuts this stream off mid-line - "[dockle-restarting]" is the
-   server's warning that it's about to happen, after which we wait for
-   /health rather than calling the dropped connection a failure. An
-   action that deliberately leaves Dockle down (stop, down, delete) says
-   so plainly instead of waiting forever for a page that isn't coming
-   back. */
-async function streamSelfAction(action, out, deleteData = false) {
-  const staysDown = action === "stop" || action === "down" || action === "delete";
-  out.innerHTML = "";
-  appendLog(out, `$ ${action} dockle`);
-  document.querySelectorAll(".panel-head .icon-btn").forEach(b => b.disabled = true);
-  let restarting = false;
-  let ok = true;
-  try {
-    const qs = deleteData ? "?deleteData=1" : "";
-    const res = await fetch(`/api/system/self/action/${action}${qs}`, {
-      method: "POST", headers: { "X-CSRF": CSRF },
-    });
-    const r = await readDockleStream(res, {
-      onLine: line => appendLog(out, line),
-      onRestarting: () => { restarting = true; },
-    });
-    ok = r.ok;
-  } catch (e) {
-    if (!restarting) {
-      appendLog(out, "ERROR: " + e.message);
-      popAlert(out, e.message, "danger");
-      document.querySelectorAll(".panel-head .icon-btn").forEach(b => b.disabled = false);
-      return;
-    }
-  }
-  if (staysDown) {
-    appendLog(out, action === "delete"
-      ? "Dockle has been deleted. This page is all that's left of it - bring it back with docker compose up -d --build on the server."
-      : "Dockle is down. Start it again from a shell: docker compose up -d in its folder.");
-    return; // deliberately leave the buttons disabled: there's nothing behind them now
-  }
-  const progress = openProgressPanel(`Dockle: ${action}`);
-  progress.line(restarting ? "Dockle is restarting itself…" : `${action} finished.`);
-  if (restarting) {
-    await waitForDockleBack(progress);
-  } else {
-    progress.done(ok);
-  }
-  if (location.hash === "#/dockle") await viewDockleStack();
-}
-
 /* Every one of Dockle's streaming actions speaks the same wire format:
    newline-delimited output plus a few control tokens. This reads one
    such response, calling onLine for each content line and onRestarting
@@ -1491,22 +1280,12 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>Dockle itself</h2>
-      <p>Dockle is an ordinary container started by an ordinary compose file, so it shows up on the dashboard as an
-        ordinary card too - same status dot, same buttons. The only thing that's different is how those buttons
-        work: a command that stopped or replaced Dockle's own container would kill the very process running that
-        command, so every action on Dockle's own card runs from a short-lived helper container instead, never from
-        inside itself.</p>
-      <div class="help-cols">
-        <div class="help-col"><h4>The dot next to the logo</h4><p>Amber means a new version is ready - click it to
-          download and rebuild in the background, while Dockle keeps running as it is. Once that finishes the same
-          dot turns into a restart button; click it again and the page goes away for a few seconds while Dockle
-          replaces itself, then comes back on its own.</p></div>
-        <div class="help-col"><h4>This card's own Update button</h4><p>Does the same pull-rebuild-restart in one
-          go, streamed, exactly like any other stack's Update button - no separate download step.</p></div>
-        <div class="help-col"><h4>Stop / Down / Delete</h4><p>These really do what they say, so they're offered
-          like any other stack's - but they're one-way from the browser: the page that ran them is the last one
-          you'll see until Dockle is brought back from a shell on the server.</p></div>
-      </div>
+      <p>Dockle doesn't appear as a stack you can act on - stopping or deleting the very thing you're using to
+        manage everything else is a mistake worth designing out, not just warning about. Its own update is the
+        one control it offers: the dot next to the logo, top-left of every page. Amber means a new version is
+        ready - click it to download and rebuild in the background while Dockle keeps running as it is. Once
+        that finishes the same dot turns into a restart button; click it again and the page goes away for a few
+        seconds while Dockle replaces itself, then comes back on its own.</p>
     </div>
 
     <div class="panel">
