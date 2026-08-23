@@ -1522,7 +1522,10 @@ async function viewSettings() {
         <div class="btn-row">
           <button class="btn" id="testRuntime">Test connection</button></div>
       </div></div>
-    <div class="panel"><div class="panel-head"><h2>Email alerts</h2></div>
+    <div class="panel"><div class="panel-head"><h2>Email alerts</h2><span class="spacer"></span>
+      <span class="hint" data-tip="${s._smtp_ready ? "Host, sender, and recipient are all set" : "Fill in server, sender, and recipient below"}">${s._smtp_ready
+        ? '<span class="version-tick" aria-hidden="true">✓</span> Active'
+        : '<span class="version-behind" aria-hidden="true">↑</span> Not set up'}</span></div>
       <div class="form-grid">
         <div class="two-col">
           <div class="field"><label for="smtpHost">SMTP server</label><input id="smtpHost" spellcheck="false"></div>
@@ -1534,7 +1537,7 @@ async function viewSettings() {
         <div class="two-col">
           <div class="field"><label for="smtpUser">SMTP username</label><input id="smtpUser" autocomplete="off" spellcheck="false"></div>
           <div class="field"><label for="smtpPass">SMTP password</label><input id="smtpPass" type="password" autocomplete="new-password" placeholder="unchanged">
-            <span class="hint">Stored encrypted. Leave blank to keep the saved one.</span></div>
+            <span class="hint">Stored encrypted. Leave blank to keep the saved one.${s["smtp.password"] ? ' <span class="version-tick" aria-hidden="true">✓</span> Password is set.' : " Not set."}</span></div>
         </div>
         <div class="two-col">
           <div class="field"><label for="smtpFrom">Send from</label><input id="smtpFrom" spellcheck="false" placeholder="dockle@yourdomain"></div>
@@ -1568,7 +1571,7 @@ async function viewSettings() {
     <div class="panel">
       <div class="form-grid"><button class="btn btn-primary" id="saveSettings">Save settings</button></div>
     </div>
-    <p class="hint mt-lg">Dockle is inspired by <a href="https://github.com/louislam/dockge" rel="noopener">Dockge</a>. Built for home labs.</p>`;
+    <p class="hint mt-lg">Built for home labs.</p>`;
 
   const f = (id) => document.getElementById(id);
   f("setEngine").value = s["runtime.engine"];
@@ -1634,6 +1637,13 @@ async function viewSettings() {
         "alerts.email_to": f("alertTo").value,
       } });
       popAlert(f("testSmtp"), r.message, "success");
+      // A successful test just saved these settings server-side (see
+      // test_smtp) - let the success message show first, then refresh
+      // the whole panel so the "Active"/password-set indicators and
+      // every field reflect what's now actually saved, not just what
+      // happened to still be sitting in the form.
+      await new Promise(res => setTimeout(res, 1500));
+      if ((location.hash || "#/") === "#/settings") viewSettings();
     } catch (e) { popAlert(f("testSmtp"), e.message, "danger"); }
   });
   f("pwBtn").addEventListener("click", async () => {

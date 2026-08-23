@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.13 - 2026-08-22
+
+- A successful "Send test email" now saves those settings too, instead
+  of only proving they work and then losing them on the next page
+  load - typing SMTP details and testing them, without a separate
+  Save, no longer looks like the settings vanished
+- The Email alerts section now shows a clear Active/Not set up status,
+  and the password field says outright whether one is saved
+
 ## 1.7.12 - 2026-08-22
 
 - Emails now follow the recipient's own light/dark mode setting

@@ -43,8 +43,14 @@ def test_smtp():
     except Exception as exc:
         activity.log("warning", "email", "SMTP test failed", str(exc))
         return jsonify({"error": f"Sending failed: {exc}"}), 400
+    # A successful test just proved these exact values work - save them
+    # so a page refresh doesn't lose what was only ever typed into the
+    # form, never pressed "Save settings" for. (set_many already treats
+    # a blank/masked secret as "keep what's there", so this can't wipe
+    # a real saved password even though override always carries a value.)
+    settingsvc.set_many(override)
     activity.log("info", "email", "SMTP test email sent")
-    return jsonify({"ok": True, "message": "Test email sent - check the inbox."})
+    return jsonify({"ok": True, "message": "Test email sent and settings saved - check the inbox."})
 
 
 @bp.post("/test-runtime")
