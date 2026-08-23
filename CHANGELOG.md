@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.12 - 2026-08-22
+
+- Emails now follow the recipient's own light/dark mode setting
+  (where their mail client supports it), using the same dark palette
+  as the app itself. The navy header stays navy either way - it's
+  the brand, not a themed panel.
+
 ## 1.7.11 - 2026-08-22
 
 - Emails (the test email and error alerts) are now HTML with a
