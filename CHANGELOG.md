@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.10 - 2026-08-22
+
+- Fixed "Send test email" always testing whatever SMTP settings were
+  last *saved*, ignoring anything typed into the form since - it now
+  tests exactly what's on screen, falling back to the saved value only
+  for fields left blank on purpose (like the password)
+
 ## 1.7.9 - 2026-08-22
 
 - The footer badge now uses the real Lightmorphic logomark instead of

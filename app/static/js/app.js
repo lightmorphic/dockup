@@ -1621,8 +1621,20 @@ async function viewSettings() {
   });
   f("testSmtp").addEventListener("click", async () => {
     popAlert(f("testSmtp"), "Sending test email…", "info");
-    try { const r = await api("/api/settings/test-smtp", { method: "POST", body: {} }); popAlert(f("testSmtp"), r.message, "success"); }
-    catch (e) { popAlert(f("testSmtp"), e.message, "danger"); }
+    try {
+      // Test whatever's actually on screen right now, not just
+      // whatever was last saved - matches testRuntime below.
+      const r = await api("/api/settings/test-smtp", { method: "POST", body: {
+        "smtp.host": f("smtpHost").value,
+        "smtp.port": f("smtpPort").value,
+        "smtp.security": f("smtpSec").value,
+        "smtp.username": f("smtpUser").value,
+        "smtp.password": f("smtpPass").value,
+        "smtp.from": f("smtpFrom").value,
+        "alerts.email_to": f("alertTo").value,
+      } });
+      popAlert(f("testSmtp"), r.message, "success");
+    } catch (e) { popAlert(f("testSmtp"), e.message, "danger"); }
   });
   f("pwBtn").addEventListener("click", async () => {
     try {

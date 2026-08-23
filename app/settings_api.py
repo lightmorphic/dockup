@@ -24,11 +24,21 @@ def save_settings():
 
 @bp.post("/test-smtp")
 def test_smtp():
+    # Test whatever is currently on the settings screen, not just what
+    # was last saved - a field typed in but not yet saved should still
+    # be what gets tested. Blank fields (in particular the password,
+    # left blank on purpose to keep the saved one) fall back to the
+    # stored value, same as save_settings treats a blank secret.
+    data = request.get_json(force=True) or {}
+    keys = ["smtp.host", "smtp.port", "smtp.security", "smtp.username",
+            "smtp.password", "smtp.from", "alerts.email_to"]
+    override = {k: (data.get(k) or settingsvc.get(k)) for k in keys}
     try:
         activity.send_email(
             "Dockle test email",
             "This is the test email from Dockle's settings screen. "
             "If you're reading it, email alerts are working.\n\n- Dockle",
+            override=override,
         )
     except Exception as exc:
         activity.log("warning", "email", "SMTP test failed", str(exc))
