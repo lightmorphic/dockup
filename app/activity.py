@@ -3,18 +3,23 @@ optionally emailed - and if email isn't fully set up, the failure to send
 is itself recorded so nothing silently looks like it worked.
 """
 
+import html
 import smtplib
 import ssl
 import threading
 import time
 from email.message import EmailMessage
 from email.utils import formatdate
+from pathlib import Path
 
 from . import db, settingsvc
 
 _email_lock = threading.Lock()
 _last_email_at = 0.0
 EMAIL_THROTTLE_SECONDS = 300  # at most one alert email per 5 minutes
+
+_LOGO_PATH = Path(__file__).parent / "static" / "icons" / "dockle-email-96.png"
+_LOGO_CID = "dockle-logo"
 
 
 def log(level: str, category: str, message: str, detail: str = ""):
@@ -91,6 +96,41 @@ def _maybe_email_error(category, message, detail):
             pass
 
 
+def _html_body(subject: str, body: str) -> str:
+    # The plain-text body always ends "- Dockle" as its sign-off for
+    # clients that only show the text part - redundant once the HTML
+    # version has a branded header doing the same job, so drop it here.
+    text = body.rstrip()
+    if text.endswith("- Dockle"):
+        text = text[: -len("- Dockle")].rstrip()
+    paragraphs = "".join(
+        f'<p style="margin:0 0 12px;white-space:pre-wrap;">{html.escape(p).replace(chr(10), "<br>")}</p>'
+        for p in text.split("\n\n") if p.strip()
+    )
+    return f"""\
+<!doctype html>
+<html>
+<body style="margin:0;padding:24px;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:14px;overflow:hidden;">
+<tr><td style="background:#111827;padding:20px 24px;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="padding-right:10px;"><img src="cid:{_LOGO_CID}" width="32" height="32" alt="Dockle" style="display:block;border-radius:7px;"></td>
+<td style="color:#ffffff;font-size:18px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Dockle</td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:24px;color:#09090b;font-size:15px;line-height:1.6;">
+<p style="margin:0 0 16px;font-weight:700;font-size:16px;">{html.escape(subject)}</p>
+{paragraphs}
+</td></tr>
+<tr><td style="padding:16px 24px;border-top:1px solid #e4e4e7;color:#71717a;font-size:12px;">
+Sent automatically by your Dockle instance.
+</td></tr>
+</table>
+</body>
+</html>
+"""
+
+
 def send_email(subject: str, body: str, override: dict | None = None):
     """Send via configured SMTP. Raises on failure so callers can report it."""
     s = override if override is not None else settingsvc.get_many(settingsvc.SCHEMA.keys())
@@ -105,6 +145,11 @@ def send_email(subject: str, body: str, override: dict | None = None):
     msg["To"] = s["alerts.email_to"]
     msg["Date"] = formatdate(localtime=True)
     msg.set_content(body)
+    msg.add_alternative(_html_body(subject, body), subtype="html")
+    if _LOGO_PATH.exists():
+        msg.get_payload()[1].add_related(
+            _LOGO_PATH.read_bytes(), maintype="image", subtype="png", cid=f"<{_LOGO_CID}>",
+        )
 
     ctx = ssl.create_default_context()
     if security == "tls":

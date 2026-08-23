@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.11 - 2026-08-22
+
+- Emails (the test email and error alerts) are now HTML with a
+  branded header - the Dockle logo and wordmark on a navy bar - instead
+  of plain text. Plain-text clients still get a sensible fallback.
+
 ## 1.7.10 - 2026-08-22
 
 - Fixed "Send test email" always testing whatever SMTP settings were
