@@ -104,6 +104,19 @@ body {
 a { color: var(--link); }
 .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
 header.hero { padding: 4rem 0 2.5rem; }
+/* The hero is the single most important screen on the page - it gets
+   its own wider container than the rest of the page's 64rem reading
+   width, so the screenshot sitting beside the copy has real room
+   instead of being squeezed. Below 960px there isn't room for both
+   side by side without cramming either the copy or the screenshot -
+   stack them instead, screenshot first so it's still the very first
+   thing a visitor sees on a narrow screen too. */
+.hero-wrap { max-width: 78rem; }
+.hero-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3rem; align-items: center; }
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .hero-grid .shot { order: -1; }
+}
 .hero-brand { display: flex; align-items: center; gap: .875rem; margin-bottom: 1.75rem; }
 .hero-brand span { font-weight: 700; font-size: 1.25rem; letter-spacing: -.01em; }
 h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 1rem; max-width: 21ch; }
@@ -180,7 +193,9 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
 <body>
 
 <header class="hero">
-  <div class="wrap">
+  <div class="wrap hero-wrap">
+    <div class="hero-grid">
+    <div class="hero-copy">
     <div class="hero-brand">
       <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>
       <span>Dockle</span>
@@ -199,12 +214,9 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
       <li class="tag tag-amber">Self-updating</li>
     </ul>
     <p class="note">! Built for home labs on your own network - not hardened for public VPS hosting (yet).</p>
-  </div>
-</header>
+    </div>
 
-<main class="wrap">
-
-  <figure class="shot" aria-label="Stylised view of the Dockle dashboard">
+    <figure class="shot" aria-label="Stylised view of the Dockle dashboard">
     <svg viewBox="0 0 960 470" aria-hidden="true">
       <rect width="960" height="470" rx="22" fill="#1b1d29"/>
       <rect x="0" y="0" width="960" height="54" rx="22" fill="#111827"/>
@@ -244,7 +256,12 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
         <text x="272" y="392" fill="#d6d8e0">web-1 | "GET /library HTTP/1.1" 200</text>
       </g>
     </svg>
-  </figure>
+    </figure>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
 
   <h2 class="visually-hidden">Features</h2>
   <div class="highlight-grid">
