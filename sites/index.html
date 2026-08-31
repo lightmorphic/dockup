@@ -27,7 +27,7 @@
   "applicationCategory": "DeveloperApplication",
   "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman.",
   "url": "https://dockle.lightmorphic.co.uk/",
-  "softwareVersion": "1.6.4",
+  "softwareVersion": "1.7.13",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
   "publisher": { "@type": "Organization", "name": "Lightmorphic" }
 }
@@ -122,6 +122,18 @@ h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02
   border-radius: var(--radius); padding: .625rem 1rem; font-weight: 600;
   max-width: fit-content; margin: 1.75rem 0 0; font-size: .9375rem;
 }
+.tag-row { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; margin: 1.5rem 0 0; padding: 0; }
+.tag { border-radius: 999px; padding: .375rem .875rem; font-size: .875rem; font-weight: 700; }
+.tag-teal { background: #e1f2f1; color: #003933; }
+.tag-indigo { background: #e8eaf6; color: #171f44; }
+.tag-green { background: #e9f5ea; color: #1c421e; }
+.tag-amber { background: #fff7e1; color: #614902; }
+@media (prefers-color-scheme: dark) {
+  .tag-teal { background: #002d29; color: #8dcfc9; }
+  .tag-indigo { background: #1b2451; color: #a8b1dd; }
+  .tag-green { background: #173418; color: #aedbb0; }
+  .tag-amber { background: #4d3a02; color: #ffe38f; }
+}
 .panel {
   background: var(--panel); border: 1px solid var(--panel-border);
   border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); padding: 1.75rem;
@@ -133,6 +145,20 @@ h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02
    feature grid and the 4-card FAQ grid actually in use here (neither
    divides evenly by 3; both divide evenly by 2). */
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.25rem; margin: 2.5rem 0; }
+.highlight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.25rem; margin: 3rem 0 1.25rem; }
+.panel.highlight {
+  background: var(--accent-container); border-color: transparent;
+}
+.panel.highlight h3 { font-size: 1.25rem; }
+.panel.highlight .ico { width: 32px; height: 32px; }
+.panel.highlight .ico.accent { color: var(--on-accent-container); }
+.panel.highlight p { color: var(--on-accent-container); opacity: .8; }
+.cta-dark {
+  background: var(--brand-navy); border-color: transparent; color: #fafafa;
+  text-align: center; padding: 2.5rem 2rem;
+}
+.cta-dark h3 { margin: 0 0 .75rem; font-size: 1.5rem; }
+.cta-dark p { color: #a1a1aa; max-width: 46ch; margin: 0 auto 1.5rem; }
 .grid h3 { margin: 0 0 .375rem; font-size: 1.0625rem; }
 .grid p { margin: 0; color: var(--muted-fg); font-size: .9375rem; }
 .grid .ico { width: 26px; height: 26px; margin-bottom: .75rem; color: var(--fg); }
@@ -166,6 +192,12 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
     <div class="cta-row">
       <a class="btn" href="#install">Install in two minutes</a>
     </div>
+    <ul class="tag-row" aria-label="At a glance">
+      <li class="tag tag-teal">Docker or Podman</li>
+      <li class="tag tag-indigo">2FA login</li>
+      <li class="tag tag-green">Daily backups</li>
+      <li class="tag tag-amber">Self-updating</li>
+    </ul>
     <p class="note">! Built for home labs on your own network - not hardened for public VPS hosting (yet).</p>
   </div>
 </header>
@@ -180,7 +212,7 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
       <rect x="24" y="16" width="22" height="22" rx="5" fill="#FBC711"/>
       <text x="58" y="33" fill="#fafafa" font-family="system-ui" font-size="16" font-weight="700">Dockle</text>
       <circle cx="140" cy="27" r="8" fill="#4bae4f"/>
-      <text x="156" y="32" fill="#a1a1aa" font-family="system-ui" font-size="13">v1.6 &#183; up to date</text>
+      <text x="156" y="32" fill="#a1a1aa" font-family="system-ui" font-size="13">v1.7 &#183; up to date</text>
       <rect x="0" y="54" width="220" height="416" fill="#171925"/>
       <rect x="20" y="78" width="180" height="36" rx="10" fill="#FBC711"/>
       <text x="42" y="101" fill="#645007" font-family="system-ui" font-size="14" font-weight="700">+ New stack</text>
@@ -215,12 +247,20 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
   </figure>
 
   <h2 class="visually-hidden">Features</h2>
-  <div class="grid">
-    <div class="panel">
+  <div class="highlight-grid">
+    <div class="panel highlight">
       <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="7" height="7" rx="1.5"/><rect x="14" y="11" width="7" height="7" rx="1.5"/><rect x="8.5" y="3" width="7" height="7" rx="1.5"/></svg>
       <h3>Everything in one window</h3>
       <p>Every stack, its logs, its editor and its terminal on a single page. No hunting through tabs.</p>
     </div>
+    <div class="panel highlight">
+      <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12.5l1.8 1.8L15 10"/></svg>
+      <h3>Updates itself, plainly</h3>
+      <p>A dot in the top bar - green up to date, amber a new version's out. Click to pull it, click again to restart onto it. No terminal, ever.</p>
+    </div>
+  </div>
+
+  <div class="grid">
     <div class="panel">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
       <h3>A login that means it</h3>
@@ -260,11 +300,6 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"/></svg>
       <h3>One click to the real thing</h3>
       <p>Open a stack's actual web UI in a new tab - its Tailscale Serve address if set up, otherwise whatever address got you to Dockle.</p>
-    </div>
-    <div class="panel">
-      <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12.5l1.8 1.8L15 10"/></svg>
-      <h3>Updates itself, plainly</h3>
-      <p>A dot in the top bar - green up to date, amber a new version's out. Click to pull it, click again to restart onto it. No terminal, ever.</p>
     </div>
   </div>
 
@@ -334,12 +369,13 @@ cd /tmp/dockle-src/companion &amp;&amp; sudo sh install.sh</code></pre>
     </div>
   </div>
 
-  <h2>Need something built?</h2>
-  <div class="panel">
-    <p style="color:var(--muted-fg);margin:0 0 1.25rem">Lightmorphic is the small studio behind
+  <h2 class="visually-hidden">Need something built?</h2>
+  <div class="panel cta-dark">
+    <h3>Need something built?</h3>
+    <p>Lightmorphic is the small studio behind
     Dockle and a handful of other self-hosted, no-lock-in tools. If you've got a web app, an
     internal tool, or a self-hosted service that needs building, get in touch and we'll take a look.</p>
-    <a class="btn" href="https://code.lightmorphic.co.uk">Get in touch at code.lightmorphic.co.uk</a>
+    <a class="btn" href="https://lightmorphic.com">Get in touch at lightmorphic.com</a>
   </div>
 
 </main>
