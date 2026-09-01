@@ -13,11 +13,14 @@
 <meta property="og:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dockle.lightmorphic.co.uk/">
-<meta property="og:image" content="https://dockle.lightmorphic.co.uk/dockle.svg">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://dockle.lightmorphic.co.uk/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dockle">
 <meta name="twitter:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
-<meta name="twitter:image" content="https://dockle.lightmorphic.co.uk/dockle.svg">
+<meta name="twitter:image" content="https://dockle.lightmorphic.co.uk/social-card.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -28,8 +31,14 @@
   "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman.",
   "url": "https://dockle.lightmorphic.co.uk/",
   "softwareVersion": "1.7.13",
+  "image": "https://dockle.lightmorphic.co.uk/social-card.png",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
-  "publisher": { "@type": "Organization", "name": "Lightmorphic" }
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lightmorphic",
+    "url": "https://lightmorphic.com",
+    "sameAs": ["https://github.com/lightmorphic"]
+  }
 }
 </script>
 <script type="application/ld+json">
@@ -63,7 +72,7 @@
 <style>
 @font-face {
   font-family: "Manrope";
-  src: url("fonts/Manrope-VariableFont_wght.ttf") format("truetype-variations");
+  src: url("fonts/Manrope-Variable.woff2") format("woff2-variations");
   font-weight: 200 800;
   font-display: swap;
 }
@@ -102,6 +111,13 @@ body {
   background: var(--bg); color: var(--fg); line-height: 1.6; font-size: 1.0625rem;
 }
 a { color: var(--link); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  background: var(--panel); color: var(--fg); padding: .75rem 1.25rem;
+  border-radius: var(--radius); box-shadow: var(--shadow-panel);
+}
+.skip-link:focus { left: 1rem; top: 1rem; }
 .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
 header.hero { padding: 4rem 0 2.5rem; }
 /* The hero is the single most important screen on the page - it gets
@@ -159,6 +175,14 @@ h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02
    divides evenly by 3; both divide evenly by 2). */
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.25rem; margin: 2.5rem 0; }
 .highlight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.25rem; margin: 3rem 0 1.25rem; }
+/* minmax's 400px floor is a hard minimum, not a suggestion - below
+   about 868px viewport (820px of content plus padding, the point two
+   400px columns plus the gap stop fitting) the grid can't shrink
+   itself and the cards spill past the edge of the page instead. Force
+   a single column explicitly rather than let that happen. */
+@media (max-width: 868px) {
+  .grid, .highlight-grid { grid-template-columns: 1fr; }
+}
 .panel.highlight {
   background: var(--accent-container); border-color: transparent;
 }
@@ -186,11 +210,17 @@ pre .c { color: #6a6f85; }
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
 footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0 3rem; color: var(--muted-fg); font-size: .9375rem; }
 footer .wrap { padding-top: 0; padding-bottom: 0; }
+footer nav a { color: var(--muted-fg); text-decoration: none; margin-right: 1rem; }
+footer nav a:hover { color: var(--fg); text-decoration: underline; }
+footer nav a:last-child { margin-right: 0; }
+footer .legal { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: .8125rem; }
+footer .legal p { margin: 0 0 1rem; }
 .shot { margin: 0; }
 .shot svg { width: 100%; height: auto; border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); display: block; }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#content">Skip to content</a>
 
 <header class="hero">
   <div class="wrap hero-wrap">
@@ -261,7 +291,7 @@ footer .wrap { padding-top: 0; padding-bottom: 0; }
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap" id="content">
 
   <h2 class="visually-hidden">Features</h2>
   <div class="highlight-grid">
@@ -356,7 +386,7 @@ services:
   </div>
 
   <h3>Optional: the dockle-companion</h3>
-  <p>Unlocks host OS update checks and per-stack
+  <p>Adds host OS update checks and per-stack
   <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockle can't
   do through the Docker socket alone. It's the sole part of Dockle that needs root on the actual
   server rather than just Docker access, which is why it's a separate step you opt into, not
@@ -402,6 +432,18 @@ cd /tmp/dockle-src/companion &amp;&amp; sudo sh install.sh</code></pre>
     <p>Dockle · free and open source · built for home labs, not VPS hosting ·
     <a href="https://github.com/lightmorphic/dockle">source on GitHub</a></p>
     <p>No cookies, no tracking, no external calls - this page is just a page.</p>
+    <div class="legal">
+      <p>&copy; Lightmorphic Ltd. Registered in England and Wales, company number 17423646.<br>
+      Registered office: 82A James Carter Road, Mildenhall, IP28 7DE.<br>
+      Page last updated 1 September 2026.</p>
+      <nav aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="cookies.html">Cookies</a>
+        <a href="terms.html">Terms</a>
+        <a href="accessibility.html">Accessibility</a>
+        <a href="complaints.html">Complaints</a>
+      </nav>
+    </div>
   </div>
 </footer>
 
