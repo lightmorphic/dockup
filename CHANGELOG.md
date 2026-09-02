@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.14 - 2026-09-01
+
+- A running container in a stack's container table now shows a plain
+  "running" tick instead of a coloured dot - that table is read-only,
+  and the dot looked like the clickable update-status dots elsewhere
+
 ## 1.7.13 - 2026-08-22
 
 - A successful "Send test email" now saves those settings too, instead

@@ -104,6 +104,10 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 #content:focus-visible { outline: none; }
 
 .hint { font-size: 0.8125rem; color: var(--muted-fg); font-weight: 400; }
+/* A plain tick, not the usual coloured status dot - see the container
+   table in viewStack(). Same colour as ordinary body text on purpose,
+   so it reads as a report, not a control. */
+.state-ok { color: var(--fg); }
 
 /* ---- shell: one window ---- */
 

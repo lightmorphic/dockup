@@ -917,9 +917,18 @@ async function viewStack(name) {
 
   const renderTab = {
     overview() {
+      // Plain text here, not the usual coloured dot - this table is a
+      // read-only report, not a control, and a green circle sitting
+      // next to a row of buttons elsewhere in the app reads as
+      // something you can click to do something. A running state is
+      // just a quiet tick that blends with the rest of the text;
+      // anything else still gets the real dot, since a wrong or down
+      // container is worth the colour drawing the eye.
       const rows = (s.containers || []).map(c => `<tr>
         <td>${esc(c.name)}</td><td>${esc(c.service || "-")}</td><td>${esc(c.image)}</td>
-        <td>${cardDot(c.state)}</td>
+        <td>${c.state === "running"
+          ? `<span class="state-ok" data-tip="${esc(STATUS_TIPS.running)}">&#10003; running</span>`
+          : cardDot(c.state)}</td>
         <td class="hint">${esc(c.status)}</td></tr>`).join("");
       tabBody.innerHTML = `<div class="table-wrap"><table>
         <caption>Containers in this stack</caption>
