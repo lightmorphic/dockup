@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="csrf" content="{{ csrf }}">
+<meta property="csp-nonce" content="{{ csp_nonce }}">
 <title>Dockle</title>
 <link rel="icon" href="/static/icons/dockle.svg" type="image/svg+xml">
 <link rel="manifest" href="/static/manifest.webmanifest">
 <meta name="theme-color" content="#111827">
 <link rel="stylesheet" href="/static/css/app.css">
 <link rel="stylesheet" href="/static/vendor/xterm.css">
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.css">
 <link rel="stylesheet" href="/static/css/editor.css">
 </head>
 <body>
@@ -60,10 +60,7 @@
   <footer class="app-footer" id="appFooter" role="status" aria-label="Versions"></footer>
 </div>
 <script src="/static/vendor/xterm.js"></script>
-<script src="/static/vendor/codemirror/codemirror.js"></script>
-<script src="/static/vendor/codemirror/yaml.js"></script>
-<script src="/static/vendor/codemirror/matchbrackets.js"></script>
-<script src="/static/vendor/codemirror/active-line.js"></script>
+<script src="/static/vendor/codemirror6/codemirror6.bundle.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

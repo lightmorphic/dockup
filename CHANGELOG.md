@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.15 - 2026-09-02
+
+- Upgraded the code editor (compose file, .env) from CodeMirror 5 to
+  CodeMirror 6, the actively developed generation - same look and
+  behaviour, one smaller bundle instead of four separate vendor files
+
 ## 1.7.14 - 2026-09-01
 
 - A running container in a stack's container table now shows a plain

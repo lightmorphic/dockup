@@ -176,11 +176,19 @@ function attachCodeEditor(textareaEl, { mode = null, validate = false, getName =
   textareaEl.parentNode.insertBefore(frame, textareaEl);
   frame.appendChild(textareaEl);
 
-  const cm = CodeMirror.fromTextArea(textareaEl, {
-    mode, lineNumbers: true, matchBrackets: true,
-    styleActiveLine: true, tabSize: 2, indentUnit: 2,
-    viewportMargin: Infinity,
-  });
+  // The CM6 bundle (static/vendor/codemirror6) is built once with
+  // esbuild from the real npm packages, not hand-rolled - see
+  // LICENSES.txt for versions. onChange is wired up below rather than
+  // passed in here so `check` (defined further down, needs `cm`
+  // itself for getValue()) can close over it in the same shape the
+  // CM5 "change" event handler used to.
+  let onChangeCb = null;
+  const view = DockleEditor.makeEditor(textareaEl, { mode, onChange: () => onChangeCb && onChangeCb() });
+  const cm = {
+    getValue: () => view.state.doc.toString(),
+    setValue: (text) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } }),
+    on: (event, cb) => { if (event === "change") onChangeCb = cb; },
+  };
 
   if (!validate) return cm;
 

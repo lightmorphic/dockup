@@ -1,6 +1,7 @@
+import secrets
 from datetime import timedelta
 
-from flask import Flask, jsonify, redirect, request, session, url_for
+from flask import Flask, g, jsonify, redirect, request, session, url_for
 
 from . import config
 
@@ -52,6 +53,20 @@ def create_app():
     PUBLIC = {"auth.login", "auth.setup", "views.health", "views.favicon", "static"}
 
     @app.before_request
+    def make_csp_nonce():
+        # CodeMirror 6 themes itself by injecting a <style> tag at
+        # runtime rather than shipping a separate CSS file - blocked
+        # outright by a plain style-src 'self'. The editor bundle reads
+        # the nonce below from app.html's <meta property="csp-nonce">
+        # and passes it through CM6's own EditorView.cspNonce facet, so
+        # that one style tag carries a nonce the CSP header allows.
+        g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.context_processor
+    def inject_csp_nonce():
+        return {"csp_nonce": getattr(g, "csp_nonce", "")}
+
+    @app.before_request
     def raise_limit_for_backup_uploads():
         # Restoring real app data needs far more room than the 8MB
         # default meant for JSON/compose bodies. Scoped to this one
@@ -93,9 +108,10 @@ def create_app():
             "Permissions-Policy",
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
         )
+        nonce = getattr(g, "csp_nonce", "")
         resp.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data:; style-src 'self'; "
+            f"default-src 'self'; img-src 'self' data:; style-src 'self' 'nonce-{nonce}'; "
             "script-src 'self'; connect-src 'self' ws: wss:; "
             "base-uri 'self'; frame-ancestors 'none'",
         )
