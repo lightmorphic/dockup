@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.17 - 2026-09-05
+
+- Lines you can actually see: panel outlines, dividers, table rules and
+  input borders were about 1.3:1 against the page in both light and dark
+  mode - close to invisible. They are now solid greys at roughly 2.5:1
+  (light) and 2.5-2.9:1 (dark), measured on every page in both modes.
+  The code editor's gutter line is brought up the same way
+
 ## 1.7.16 - 2026-09-04
 
 - Security: "Also permanently delete this stack's data" now leaves

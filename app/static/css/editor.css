@@ -9,6 +9,10 @@
 
 .cm-editor { min-height: 22rem; }
 .cm-scroller { overflow: auto; }
+/* The line between the gutter and the code was 8% white on the dark
+   editor - about 1.2:1, invisible. Three classes here outrank the two
+   CM6's injected theme uses, so no !important needed. */
+.editor-frame .cm-editor .cm-gutters { border-right: 1px solid rgba(255, 255, 255, 0.24); }
 
 .editor-frame { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .editor-status {
