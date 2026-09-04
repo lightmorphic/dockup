@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.7.16 - 2026-09-04
+
+- Security: "Also permanently delete this stack's data" now leaves
+  alone any mount that is read-only, a system path (/, /etc, /proc,
+  /sys, the Docker socket and so on) or a top-level folder - a
+  monitoring stack that mounts the host's root read-only could have
+  had the host wiped by that checkbox
+- Security: the two-factor code step now shares the password step's
+  lockout (5 wrong codes in 15 minutes), so a six-digit code can't be
+  guessed by brute force
+- Security: helper containers run a pinned `alpine:3.22` rather than a
+  floating `latest`; the host companion's socket is never briefly
+  world-accessible on start-up
+- Tooltips are now positioned by script instead of pure CSS: they stay
+  inside the screen on buttons near an edge, wrap long text, flip
+  below a button when there's no room above, and are no longer cut off
+  inside the top bar's scrolling icon strip on a phone
+- Phones: every icon button is at least 44px, the version number leaves
+  the top bar under 480px (it was pushing the page wider than the
+  screen at 320-340px), and the app uses the real visible height so the
+  footer isn't hidden under the browser's address bar
+- Fixed the offline cache, which was still listing the old editor's
+  files and so never installed
+
 ## 1.7.15 - 2026-09-02
 
 - Upgraded the code editor (compose file, .env) from CodeMirror 5 to

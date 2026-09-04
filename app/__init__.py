@@ -1,3 +1,4 @@
+import hmac
 import secrets
 from datetime import timedelta
 
@@ -95,7 +96,7 @@ def create_app():
         # CSRF: state-changing requests must echo the session token
         if request.method in ("POST", "PUT", "DELETE") and not request.path.startswith("/ws/"):
             token = request.headers.get("X-CSRF") or request.form.get("csrf")
-            if not token or token != session.get("csrf"):
+            if not token or not hmac.compare_digest(token, session.get("csrf", "")):
                 return jsonify({"error": "Session expired - reload the page"}), 403
         return None
 

@@ -137,12 +137,120 @@ function armedAction(btn, run, label) {
   });
 }
 
+/* ---------- tooltips ----------
+   Any element with a data-tip attribute gets a bubble on hover, on
+   keyboard focus, or on tap. One shared bubble element lives on the
+   body and is placed by measuring the target: centred above it by
+   default (below it for anything in the top bar, or with .tip-below),
+   flipped to the other side when there is no room, and shifted
+   sideways so it never leaves the viewport - with the tail kept under
+   the target. A pseudo-element per button couldn't do any of that. */
+const tip = { el: null, target: null, timer: null, observer: null };
+
+function tipEl() {
+  if (!tip.el) {
+    tip.el = document.createElement("div");
+    tip.el.className = "tip-bubble";
+    tip.el.setAttribute("role", "tooltip");
+    document.body.appendChild(tip.el);
+  }
+  return tip.el;
+}
+
+function placeTip() {
+  const target = tip.target;
+  if (!target || !document.contains(target)) return hideTip();
+  const b = tipEl();
+  const r = target.getBoundingClientRect();
+  // clientWidth, not innerWidth: the latter includes a scrollbar the
+  // bubble can't actually sit on top of
+  const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+  const margin = 8, gap = 10;
+  // Measure from the top-left corner, where the bubble has the whole
+  // viewport to lay itself out in, so the width is its natural one.
+  b.style.left = "0px";
+  b.style.top = "0px";
+  const w = b.offsetWidth, h = b.offsetHeight;
+  const preferBelow = target.classList.contains("tip-below") || !!target.closest(".topbar");
+  let below = preferBelow;
+  if (!below && r.top - gap - h < margin) below = true;
+  else if (below && r.bottom + gap + h > vh - margin && r.top - gap - h >= margin) below = false;
+  const top = below ? r.bottom + gap : r.top - gap - h;
+  const centre = r.left + r.width / 2;
+  const left = Math.max(margin, Math.min(centre - w / 2, vw - w - margin));
+  b.style.left = `${Math.round(left)}px`;
+  b.style.top = `${Math.round(top)}px`;
+  // The tail follows the target, but stays inside the bubble's own
+  // rounded corners.
+  b.style.setProperty("--tail-x", `${Math.round(Math.max(12, Math.min(centre - left, w - 12)))}px`);
+  b.classList.toggle("below", below);
+}
+
+function showTip(target) {
+  clearTimeout(tip.timer);
+  const text = target?.dataset.tip;
+  if (!text) return hideTip();
+  const b = tipEl();
+  if (tip.observer) tip.observer.disconnect();
+  tip.target = target;
+  b.textContent = text;
+  placeTip();
+  b.classList.add("show");
+  // A target whose text changes while it's showing (the update dot
+  // moving through its states, an alert replacing hover help) keeps
+  // the bubble current.
+  tip.observer = new MutationObserver(() => {
+    if (tip.target === target) {
+      if (!target.dataset.tip) return hideTip();
+      b.textContent = target.dataset.tip;
+      placeTip();
+    }
+  });
+  tip.observer.observe(target, { attributes: true, attributeFilter: ["data-tip"] });
+}
+
+function hideTip() {
+  clearTimeout(tip.timer);
+  tip.timer = null;
+  if (tip.observer) tip.observer.disconnect();
+  tip.observer = null;
+  tip.target = null;
+  if (tip.el) tip.el.classList.remove("show");
+}
+
+// Native tooltips don't appear instantly - a short delay on hover, but
+// hide promptly once the pointer leaves. Keyboard focus shows at once.
+document.addEventListener("mouseover", (e) => {
+  const target = e.target.closest?.("[data-tip]");
+  if (!target || target === tip.target) return;
+  if (target._alertUntil > Date.now()) return;
+  clearTimeout(tip.timer);
+  tip.timer = setTimeout(() => showTip(target), 500);
+});
+document.addEventListener("mouseout", (e) => {
+  const target = e.target.closest?.("[data-tip]");
+  if (!target || target.contains(e.relatedTarget)) return;
+  if (target._alertUntil > Date.now()) return;
+  if (tip.target === target) hideTip(); else clearTimeout(tip.timer);
+});
+document.addEventListener("focusin", (e) => {
+  const target = e.target.closest?.("[data-tip]");
+  if (target && target.matches(":focus-visible")) showTip(target);
+});
+document.addEventListener("focusout", (e) => {
+  const target = e.target.closest?.("[data-tip]");
+  if (target && tip.target === target && !(target._alertUntil > Date.now())) hideTip();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+document.addEventListener("scroll", () => { if (tip.target) placeTip(); }, true);
+window.addEventListener("resize", () => { if (tip.target) placeTip(); });
+
 /* The one mechanism for every contextual alert in the app: a bubble
    anchored to whatever element the message is actually about, with an
    arrow pointing at it - never a generic toast lost at the bottom of
-   the page. Reuses the [data-tip] tooltip CSS (forced open instead of
-   waiting for hover), and restores whatever hover tooltip the element
-   already had once the alert fades. */
+   the page. The same tooltip bubble, forced open with the message in
+   place of the element's usual hover text, which is restored once the
+   alert fades. */
 function popAlert(el, message, kind = "info", ms = 3500) {
   if (!el) return;
   // kind is accepted (danger/success/warning/info) for callers to stay
@@ -156,12 +264,14 @@ function popAlert(el, message, kind = "info", ms = 3500) {
   // isn't clobbered back to a stale value once this fades.
   if (!el._tipTimer) el._tipRestingValue = el.dataset.tip ?? "";
   el.dataset.tip = message;
-  el.classList.add("tip-visible");
+  el._alertUntil = Date.now() + ms;
+  showTip(el);
   clearTimeout(el._tipTimer);
   el._tipTimer = setTimeout(() => {
-    el.classList.remove("tip-visible");
     el.dataset.tip = el._tipRestingValue;
     el._tipTimer = null;
+    el._alertUntil = 0;
+    if (tip.target === el) hideTip();
   }, ms);
 }
 
@@ -330,6 +440,7 @@ const routes = [
 
 async function route() {
   closeLiveSockets();
+  hideTip();
   document.querySelectorAll(".topbar-navlink").forEach(a =>
     a.classList.toggle("active", location.hash.startsWith(a.getAttribute("href"))));
   const hash = location.hash || "#/";
@@ -347,7 +458,7 @@ async function viewDashboard() {
   await refreshStacks();
 
   content.appendChild(el(`<div class="btn-row dash-actions">
-    <a class="btn tip-below tip-align-start" href="#/" data-tip="Back to the dashboard" aria-label="All stacks">
+    <a class="btn tip-below" href="#/" data-tip="Back to the dashboard" aria-label="All stacks">
       <svg viewBox="0 0 24 24" class="btn-ico"><path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       All stacks
     </a>
@@ -1726,7 +1837,7 @@ function paintUpdateDot(state, tip) {
   if (!dot) return;
   updateDotState = state;
   const cls = { uptodate: "ud-green", ready: "ud-blue", available: "ud-amber", error: "ud-red" }[state] || "";
-  dot.className = "update-dot tip-below tip-align-start " + cls;
+  dot.className = "update-dot tip-below " + cls;
   dot.innerHTML = "";
   // Green is also clickable - it's how you ask for a check right now
   // instead of waiting for the next background one.
@@ -1787,7 +1898,7 @@ async function checkDockleUpdateNow() {
 
 function startUpdateRing() {
   const dot = document.getElementById("updateDot");
-  dot.className = "update-dot tip-below tip-align-start ud-ring";
+  dot.className = "update-dot tip-below ud-ring";
   dot.removeAttribute("role"); dot.removeAttribute("tabindex");
   dot.dataset.tip = "Downloading the update…";
   dot.setAttribute("aria-label", dot.dataset.tip);

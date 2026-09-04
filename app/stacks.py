@@ -3,6 +3,7 @@ compose file is a stack, exactly as Dockge treats them. API + streaming
 actions live here.
 """
 
+import os
 import re
 import shutil
 import socket
@@ -241,10 +242,41 @@ def _stack_data_paths(name):
     envp = d / ".env"
     env_text = envp.read_text() if envp.exists() else ""
     mounts = stackbackup._parse_mounts(compose_text, env_text)
+    result = []
     for m in mounts:
         if m["type"] == "bind":
-            m["source"] = stackbackup._resolve_bind_source(m["source"], d)
-    return mounts
+            m["source"] = os.path.normpath(stackbackup._resolve_bind_source(m["source"], d))
+            if not _deletable_bind(m["source"], m["readonly"]):
+                continue
+        result.append(m)
+    return result
+
+
+# Top-level host paths that are never a stack's own data, however a
+# compose file mounts them. Anything at or under one of these is left
+# alone by "also delete this stack's data".
+_SYSTEM_PATHS = ("/etc", "/proc", "/sys", "/dev", "/usr", "/bin", "/sbin", "/lib",
+                 "/lib64", "/boot", "/root", "/run", "/var/run", "/var/lib/docker",
+                 "/var/log", "/tmp")
+
+
+def _deletable_bind(source: str, readonly: bool) -> bool:
+    """Whether a bind mount is plausibly this stack's own data, safe to
+    wipe on delete. Monitoring stacks routinely mount /, /proc, /sys,
+    /etc/localtime or the Docker socket into their containers; none of
+    that is the stack's data, and wiping it would take the host with
+    it. Read-only mounts are by definition something the stack only
+    looks at. And the root of the filesystem or any top-level folder
+    (/, /opt, /home) is far too broad to ever be one stack's data."""
+    if readonly:
+        return False
+    parts = Path(source).parts
+    if len(parts) < 3:
+        return False
+    for sysp in _SYSTEM_PATHS:
+        if source == sysp or source.startswith(sysp + "/"):
+            return False
+    return True
 
 
 @bp.get("/stacks/<name>")

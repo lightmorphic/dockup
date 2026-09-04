@@ -23,32 +23,32 @@
     </a>
     <span class="spacer"></span>
     <span class="topbar-version" id="topbarVersion"></span>
-    <button class="update-dot tip-below tip-align-start" id="updateDot" data-tip="Checking…" aria-label="Update status"></button>
+    <button class="update-dot tip-below" id="updateDot" data-tip="Checking…" aria-label="Update status"></button>
     <nav class="topbar-actions" aria-label="App">
-      <a class="icon-btn tip-below tip-align-end topbar-navlink" href="#/maintenance" data-tip="Maintenance" aria-label="Maintenance">
+      <a class="icon-btn tip-below topbar-navlink" href="#/maintenance" data-tip="Maintenance" aria-label="Maintenance">
         <svg viewBox="0 0 24 24"><path d="M4 17l6-6M14 4l-2.5 2.5a4 4 0 0 0 5.5 5.5L19.5 9.5A4 4 0 0 1 14 4zM4 17l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       </a>
-      <a class="icon-btn tip-below tip-align-end topbar-navlink" href="#/activity" data-tip="Activity" aria-label="Activity">
+      <a class="icon-btn tip-below topbar-navlink" href="#/activity" data-tip="Activity" aria-label="Activity">
         <svg viewBox="0 0 24 24"><path d="M4 12h4l2-7 4 14 2-7h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       </a>
-      <a class="icon-btn tip-below tip-align-end topbar-navlink" href="#/backups" data-tip="Backups" aria-label="Backups">
+      <a class="icon-btn tip-below topbar-navlink" href="#/backups" data-tip="Backups" aria-label="Backups">
         <svg viewBox="0 0 24 24"><path d="M12 3v10m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       </a>
-      <a class="icon-btn tip-below tip-align-end topbar-navlink" href="#/settings" data-tip="Settings" aria-label="Settings">
+      <a class="icon-btn tip-below topbar-navlink" href="#/settings" data-tip="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>
       </a>
-      <button class="icon-btn hidden tip-align-end" id="topbarDockerRestartBtn" data-tip="Restart Docker" aria-label="Restart Docker">
+      <button class="icon-btn hidden" id="topbarDockerRestartBtn" data-tip="Restart Docker" aria-label="Restart Docker">
         <svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <button class="icon-btn hidden tip-align-end" id="topbarRebootBtn" data-tip="Reboot server" aria-label="Reboot server">
+      <button class="icon-btn hidden" id="topbarRebootBtn" data-tip="Reboot server" aria-label="Reboot server">
         <svg viewBox="0 0 24 24"><path d="M12 3v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
       </button>
-      <a class="icon-btn tip-align-end" href="#/help" data-tip="Help" aria-label="Help">
+      <a class="icon-btn" href="#/help" data-tip="Help" aria-label="Help">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9.3 9.5a2.7 2.7 0 0 1 5.2.9c0 1.6-2.2 1.9-2.4 3.3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
       </a>
       <form method="post" action="/logout" class="inline-form">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="icon-btn tip-align-end" type="submit" data-tip="Sign out" aria-label="Sign out">
+        <button class="icon-btn" type="submit" data-tip="Sign out" aria-label="Sign out">
           <svg viewBox="0 0 24 24"><path d="M9 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3M14 8l4 4-4 4M18 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
         </button>
       </form>

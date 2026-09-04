@@ -33,16 +33,20 @@ def _parse_mounts(compose_text: str, env_text: str = "") -> list:
             continue
         for v in svc.get("volumes") or []:
             if isinstance(v, str):
-                source = envsub.substitute(v.split(":")[0], env)
+                parts = v.split(":")
+                source = envsub.substitute(parts[0], env)
                 kind = "bind" if source.startswith(("/", "./", "../", "~")) else "volume"
+                readonly = len(parts) > 2 and "ro" in parts[2].split(",")
             elif isinstance(v, dict) and v.get("type") in ("bind", "volume"):
                 kind, source = v["type"], envsub.substitute(v.get("source", ""), env)
+                readonly = bool(v.get("read_only"))
             else:
                 continue
             if not source or (kind, source) in seen:
                 continue
             seen.add((kind, source))
-            mounts.append({"service": service_name, "type": kind, "source": source})
+            mounts.append({"service": service_name, "type": kind, "source": source,
+                           "readonly": readonly})
     return mounts
 
 

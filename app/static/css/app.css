@@ -116,7 +116,11 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
   grid-template-areas: "top" "main" "footer";
+  /* dvh, not vh: on a phone the address bar comes and goes, and a
+     plain 100vh is taller than the visible screen while it's showing,
+     pushing the footer under the bar. Older browsers fall back to vh. */
   height: 100vh;
+  height: 100dvh;
   /* Full-bleed edge-to-edge read as too wide/empty once the sidebar's
      column went away - a fixed, standard app-container width (same
      order as Bootstrap's xxl/Tailwind's 2xl containers) keeps line
@@ -321,72 +325,43 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
    themselves (var(--radius)). The single mechanism for both hover-help
    tooltips and contextual action alerts (replacing the old bottom-of-
    page toast) - severity, when there is one, is a text colour on the
-   same neutral bubble, not a different background. */
-[data-tip] { position: relative; }
-[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+   same neutral bubble, not a different background.
+
+   One shared bubble element, positioned by script (see showTip in
+   app.js) rather than a CSS pseudo-element on each button: a pure-CSS
+   bubble can't know where the screen edge is, so it ran off the right
+   of the window on any button near that edge, was clipped inside every
+   scrolling strip (the top bar's icon row on a phone), and long text
+   couldn't wrap. Fixed-position on the body, it's above everything,
+   clamps itself inside the viewport, flips below the button when there
+   is no room above, and wraps to a sensible maximum width. */
+.tip-bubble {
+  position: fixed; left: 0; top: 0; z-index: 60;
+  max-width: min(20rem, calc(100vw - 1rem));
   background: var(--tip-bg); color: var(--tip-fg);
-  border: none; border-radius: var(--radius);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-panel);
-  padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600;
-  white-space: nowrap; pointer-events: none; z-index: 60;
+  padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600; line-height: 1.4;
+  overflow-wrap: anywhere; pointer-events: none;
   opacity: 0; visibility: hidden;
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
-/* A 10px square, rotated 45 into a diamond, centred exactly on the
-   bubble's own edge line (bottom/top offset minus half its own size -
-   no translate-based centring needed on that axis) so half sits behind
-   the bubble - covered by ::after's opaque background and higher
-   z-index - and half pokes out as the visible point. */
-[data-tip]::before {
-  content: ""; position: absolute; bottom: calc(100% + 5px); left: 50%;
-  width: 10px; height: 10px; border-radius: 2.5px;
-  background: var(--tip-bg);
-  transform: translateX(-50%) rotate(45deg);
-  pointer-events: none; z-index: 59;
-  opacity: 0; visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
-}
-[data-tip]::after { z-index: 60; }
-/* native tooltips don't appear instantly - a short hover delay before
-   showing, but hide promptly once the pointer leaves */
-[data-tip]:hover::after, [data-tip]:focus-visible::after,
-[data-tip]:hover::before, [data-tip]:focus-visible::before {
-  opacity: 1; visibility: visible;
-  transition-delay: 0.5s;
-}
-/* forced open from JS - e.g. the result of a click, not a hover - so it
-   needs to appear instantly, no hover delay */
-[data-tip].tip-visible::after, [data-tip].tip-visible::before {
+.tip-bubble.show {
   opacity: 1; visibility: visible;
   transition-delay: 0s;
 }
-
-/* Top-bar tooltips: the page's top edge is right there, so the sitewide
-   default of opening upward would run the bubble off-screen. Anything
-   inside .topbar opens downward instead, arrow flipped to point up at
-   the button. Applies to any current or future topbar [data-tip]
-   automatically - nothing to remember per-button. */
-.topbar [data-tip]::after, .tip-below::after { top: calc(100% + 10px); bottom: auto; }
-.topbar [data-tip]::before, .tip-below::before {
-  /* Same centred-on-the-edge trick as the default tail, mirrored: the
-     box's top offset (minus half its height) puts its centre exactly
-     on the bubble's own top edge line, point now facing up. */
-  top: calc(100% + 5px); bottom: auto;
+/* The tail: a 10px square rotated into a diamond, half hidden behind
+   the bubble's own edge and half poking out as the point. --tail-x is
+   set by script so the point stays under the button even when the
+   bubble itself has been shifted sideways to stay on screen. */
+.tip-bubble::before {
+  content: ""; position: absolute; left: var(--tail-x, 50%); bottom: -5px;
+  width: 10px; height: 10px; border-radius: 2.5px;
+  background: var(--tip-bg);
+  transform: translateX(-50%) rotate(45deg);
+  z-index: -1;
 }
-
-/* Edge alignment: a button hard against the left or right side of the
-   screen needs its tooltip anchored to that same side instead of
-   centered, or the bubble overflows the viewport. Utility classes, not
-   scoped to the top bar, so any edge button anywhere can opt in. The
-   tail drops its centring translateX and sits at a fixed inset from
-   whichever edge the bubble itself is now anchored to, roughly under
-   where the button sits rather than the bubble's own far corner. */
-.tip-align-start::after { left: 0; transform: none; }
-.tip-align-start::before { left: 12px; transform: rotate(45deg); }
-.tip-align-end::after { left: auto; right: 0; transform: none; }
-.tip-align-end::before { left: auto; right: 12px; transform: rotate(45deg); }
+.tip-bubble.below::before { bottom: auto; top: -5px; }
 
 /* Deliberately no colour-by-severity here - every bubble stays the
    same neutral --tip-fg (a dark charcoal on the light bubble, an
@@ -595,7 +570,7 @@ tr:last-child td { border-bottom: none; }
 
 /* ---- auth pages ---- */
 
-.auth-page { display: grid; place-items: center; min-height: 100vh; padding: 1.5rem; }
+.auth-page { display: grid; place-items: center; min-height: 100vh; min-height: 100dvh; padding: 1.5rem; }
 .auth-wrap { width: 100%; max-width: 25rem; }
 .auth-panel { display: grid; gap: 1.25rem; }
 .auth-logo { display: flex; align-items: center; gap: 0.75rem; }
@@ -618,6 +593,30 @@ tr:last-child td { border-bottom: none; }
   }
   .topbar-actions::-webkit-scrollbar { display: none; }
   .topbar-actions > * { flex: none; }
+}
+/* On the narrowest phones the brand, version, dot and the 40vw icon
+   strip no longer fit on one line and the whole page went 3-15px wider
+   than the screen. The version number is the one thing there that's
+   decorative - it's repeated in the footer - so it goes. */
+@media (max-width: 480px) {
+  .topbar-version { display: none; }
+}
+
+/* Touch screens: every control at least 44px in both directions (the
+   WCAG target size), rather than a 34px circle that's easy to miss on
+   a phone. The row of icon buttons only gets a little taller. */
+@media (max-width: 1023px) {
+  .icon-btn { width: 44px; height: 44px; }
+  /* ...and the top bar gives back that extra height through its
+     padding, so it never takes more than 15% of a phone held sideways. */
+  .topbar { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  /* The update dot stays its size visually but gets an invisible 44px
+     tap area around it. */
+  .update-dot::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 44px; height: 44px; transform: translate(-50%, -50%);
+  }
+}
   .dash-actions { margin-bottom: 1rem; }
   .stack-grid { grid-template-columns: 1fr; }
 }

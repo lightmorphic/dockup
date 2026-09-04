@@ -20,6 +20,12 @@ from . import config, settingsvc
 
 _DOCKER_BIN = shutil.which("docker") or "docker"
 
+# The throwaway helper image every backup/restore/delete/install helper
+# runs in. Pinned to a release line rather than the floating `latest`,
+# so a changed tag on the registry can't silently swap in something
+# else under a container that mounts host paths as root.
+HELPER_IMAGE = "alpine:3.22"
+
 COMPOSE_ACTIONS = {
     "up": ["up", "-d", "--remove-orphans"],
     "down": ["down"],
@@ -320,7 +326,7 @@ class Runtime:
         path in both Dockle's container and the host, so no host-path
         translation is needed here unlike the backup helpers below."""
         self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
-                   "alpine", "rm", "-rf", f"/target/{dirname}"], timeout=60)
+                   HELPER_IMAGE, "rm", "-rf", f"/target/{dirname}"], timeout=60)
 
     def rmdir_if_empty(self, parent_host_path: str, dirname: str):
         """Remove a directory only if it's genuinely empty - `rmdir`
@@ -333,7 +339,7 @@ class Runtime:
         vanish - deleted by hand, or never created - between when the
         stack stopped and when this cleanup runs)."""
         self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
-                   "alpine", "rmdir", f"/target/{dirname}"], timeout=30)
+                   HELPER_IMAGE, "rmdir", f"/target/{dirname}"], timeout=30)
 
     # -- per-stack data backup/restore ------------------------------------
     # A short-lived helper container does the actual file access, mounting
@@ -354,12 +360,12 @@ class Runtime:
     def archive_path_to_backup(self, host_source: str, dest_filename: str):
         dest_host_dir = self._require_host_path()
         self._run(["run", "--rm", "-v", f"{host_source}:/src:ro", "-v", f"{dest_host_dir}:/dest",
-                   "alpine", "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
+                   HELPER_IMAGE, "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
 
     def archive_volume_to_backup(self, volume_name: str, dest_filename: str):
         dest_host_dir = self._require_host_path()
         self._run(["run", "--rm", "-v", f"{volume_name}:/src:ro", "-v", f"{dest_host_dir}:/dest",
-                   "alpine", "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
+                   HELPER_IMAGE, "tar", "czf", f"/dest/{dest_filename}", "-C", "/src", "."], timeout=900)
 
     def restore_path_from_backup(self, host_dest: str, src_filename: str):
         dest_host_dir = self._require_host_path()
@@ -367,12 +373,12 @@ class Runtime:
         # bind mount's source directory is created by the daemon anyway
         # when it doesn't exist yet, so tar can run as a plain argv.
         self._run(["run", "--rm", "-v", f"{host_dest}:/dest", "-v", f"{dest_host_dir}:/src:ro",
-                   "alpine", "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
+                   HELPER_IMAGE, "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
 
     def restore_volume_from_backup(self, volume_name: str, src_filename: str):
         dest_host_dir = self._require_host_path()
         self._run(["run", "--rm", "-v", f"{volume_name}:/dest", "-v", f"{dest_host_dir}:/src:ro",
-                   "alpine", "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
+                   HELPER_IMAGE, "tar", "xzf", f"/src/{src_filename}", "-C", "/dest"], timeout=900)
 
     # -- one-click companion install --------------------------------------
     # `install.sh` writes to /etc/systemd/system, creates a group, and
@@ -393,7 +399,7 @@ class Runtime:
         args = [
             _DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host",
             "-v", "/:/host", "-v", f"{staging_host_dir}:/staging:ro",
-            "alpine", "sh", "-c",
+            HELPER_IMAGE, "sh", "-c",
             "apk add --no-cache util-linux-misc >/dev/null && "
             "mkdir -p /host/tmp/dockle-companion-install && "
             "cp /staging/dockle-companion.py /staging/dockle-companion.service /staging/install.sh "
@@ -430,7 +436,7 @@ class Runtime:
             f"sh -c 'cd {shlex.quote(compose_host_dir)} && docker compose up -d'"
         )
         args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-                "alpine", "sh", "-c", script]
+                HELPER_IMAGE, "sh", "-c", script]
         proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, bufsize=1)
         for line in proc.stdout:
@@ -496,7 +502,7 @@ class Runtime:
             self._host_nsenter(f"cd {d} && docker compose up -d"),
         ])
         args = [_DOCKER_BIN, "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host",
-                "alpine", "sh", "-c", script]
+                HELPER_IMAGE, "sh", "-c", script]
         proc = subprocess.Popen(args, env=self._env(), stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, bufsize=1)
         for line in proc.stdout:

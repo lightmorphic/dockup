@@ -103,17 +103,32 @@ def login():
             user = db.get().execute("SELECT * FROM users WHERE id=?",
                                     (session["pending_uid"],)).fetchone()
             code = (request.form.get("code") or "").replace(" ", "")
-            if user and user["totp_enabled"] and pyotp.TOTP(user["totp_secret"]).verify(code, valid_window=1):
+            # The code step shares the password step's lockout: a
+            # six-digit code is small enough to guess by brute force
+            # if wrong answers cost nothing, and someone at this step
+            # already holds the password.
+            if user and _too_many_failures(ip, user["username"]):
+                session.pop("pending_uid", None)
+                activity.log("error", "auth",
+                             f"Login locked out for '{user['username']}' from {ip}",
+                             "Too many wrong two-factor codes in 15 minutes.")
+                error = "Too many failed attempts. Wait 15 minutes and try again."
+            elif user and user["totp_enabled"] and pyotp.TOTP(user["totp_secret"]).verify(code, valid_window=1):
                 session.clear()
                 session["uid"] = user["id"]
                 session["csrf"] = secrets.token_urlsafe(32)
                 session.permanent = True
                 _record_attempt(ip, user["username"], True)
                 return redirect(url_for("views.index"))
-            error = "That code wasn't right. Try again."
-            show_totp = True
+            else:
+                if user:
+                    _record_attempt(ip, user["username"], False)
+                error = "That code wasn't right. Try again."
+                show_totp = True
         else:
-            username = (request.form.get("username") or "").strip()
+            # Capped so a script can't bloat the attempts table or the
+            # activity log with kilobyte-long made-up usernames.
+            username = (request.form.get("username") or "").strip()[:64]
             password = request.form.get("password") or ""
             if _too_many_failures(ip, username):
                 activity.log("error", "auth",

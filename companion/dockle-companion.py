@@ -202,9 +202,12 @@ class UnixSocketServer(socketserver.UnixStreamServer):
 def main():
     if os.path.exists(SOCKET_PATH):
         os.unlink(SOCKET_PATH)
-    server = UnixSocketServer(SOCKET_PATH, Handler)
     # group-readable/writable only - the group is what Dockle's
     # container joins at startup (matches the docker.sock pattern).
+    # The umask is set before the socket is created so it is never
+    # world-accessible, not even for the instant before the chmod.
+    os.umask(0o117)
+    server = UnixSocketServer(SOCKET_PATH, Handler)
     os.chmod(SOCKET_PATH, 0o660)
     try:
         server.serve_forever()
