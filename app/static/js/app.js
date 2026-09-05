@@ -61,6 +61,52 @@ function appendLog(view, line) {
   if (stick) view.scrollTop = view.scrollHeight;
 }
 
+/* Copy button for a log panel. Reading a log is one thing; getting it
+   out of the browser to paste into a bug report meant dragging a
+   selection over hundreds of scrolling lines. The button sits in the
+   panel's own top-right corner rather than on a row above it, so it
+   stays put while the log scrolls and costs no height. */
+function attachLogCopy(view, what = "log") {
+  const wrap = document.createElement("div");
+  wrap.className = "log-wrap";
+  view.parentNode.insertBefore(wrap, view);
+  wrap.appendChild(view);
+  const btn = el(`<button class="btn log-copy" type="button"
+    data-tip="Copy the whole ${what} to the clipboard"
+    aria-label="Copy ${what}">${ICONS.copy}<span>Copy</span></button>`);
+  wrap.appendChild(btn);
+  btn.addEventListener("click", async () => {
+    const lines = Array.from(view.children, n => n.textContent);
+    if (!lines.length) return popAlert(btn, "Nothing to copy yet.", "warning");
+    try {
+      await copyText(lines.join("\n"));
+      popAlert(btn, `Copied ${lines.length} line${lines.length === 1 ? "" : "s"}.`, "success");
+    } catch (err) {
+      popAlert(btn, "The browser wouldn't allow copying.", "danger");
+    }
+  });
+  return btn;
+}
+
+function copyText(text) {
+  // navigator.clipboard only exists in a secure context - true over
+  // Tailscale Serve's HTTPS, false on a plain-http LAN address, where
+  // the old hidden-textarea trick is still the only way.
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.readOnly = true;
+    ta.className = "copy-helper";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    ta.remove();
+    ok ? resolve() : reject(new Error("copy blocked"));
+  });
+}
+
 /* A specific, actionable explanation for Docker's "address already in
    use" error when the real cause is Tailscale Serve still holding a
    port from a deleted-and-recreated stack - rendered as a distinct
@@ -356,6 +402,7 @@ const ICONS = {
   down: '<svg viewBox="0 0 24 24"><path d="M4 9l8 7 8-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   tick: '<svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M15 5.5A1.5 1.5 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5A1.5 1.5 0 0 0 5.5 15" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>',
   checkUpdate: '<svg viewBox="0 0 24 24"><path d="M7 18h9.5a3.5 3.5 0 0 0 .5-6.96 5 5 0 0 0-9.71-1.79A4 4 0 0 0 7 18Z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M9 12.5l1.8 1.8L15 10" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
@@ -940,6 +987,7 @@ async function viewStack(name) {
     <div class="log-view action-output" id="actionOut" aria-live="polite"></div>
   </div>`);
   content.appendChild(head);
+  attachLogCopy(head.querySelector("#actionOut"), "output");
   resolveWebUiLink(name, head.querySelector("#openWebBtn"));
 
   const statusDot = head.querySelector("#stackStatusDot");
@@ -1093,6 +1141,7 @@ async function viewStack(name) {
       tabBody.innerHTML = `<div class="log-view" id="liveLogs" aria-live="off"></div>
         <p class="hint hint-mt">Streaming live. Error lines show in red, warnings in amber.</p>`;
       const view = tabBody.querySelector("#liveLogs");
+      attachLogCopy(view, "log");
       const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/logs/${encodeURIComponent(name)}`);
       ws.onmessage = (ev) => appendLog(view, ev.data);
       ws.onclose = () => appendLog(view, "-- log stream closed --");

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.19 - 2026-09-05
+
+- A Copy button on the Logs tab, in the panel's top-right corner, puts
+  the whole log on the clipboard in one click instead of dragging a
+  selection over hundreds of scrolling lines. The same button is on a
+  stack's action output, where deploy and update errors appear
+
 ## 1.7.18 - 2026-09-05
 
 - Fixed the Stacks page, which was showing one wide card per row instead
