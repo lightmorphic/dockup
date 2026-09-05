@@ -54,7 +54,31 @@ def init():
     con = connect()
     with con:
         con.executescript(SCHEMA)
+        _rename_old_activity(con)
     con.close()
+
+
+def _rename_old_activity(con):
+    """One-off tidy-up after the rename to DockUp: activity rows written
+    under the old name still say it, so a log going back before the
+    rename reads as though it belongs to a different program. The
+    category those rows are filed under says it too, and the Activity
+    page shows that. Only the app's own name is touched - a stack called after the old name, or a
+    quoted error from Docker, is left exactly as it was, since those are
+    a record of what really happened. Costs one UPDATE on a table with a
+    5000-row cap, and finds nothing on every start after the first."""
+    con.execute(
+        "UPDATE activity SET category = replace(category, 'dockle', 'dockup') "
+        "WHERE category LIKE 'dockle%'")
+    for column in ("message", "detail"):
+        con.execute(
+            f"UPDATE activity SET {column} = replace(replace(replace({column},"
+            f" 'Dockle', 'DockUp'),"
+            f" 'dockle-companion', 'dockup-companion'),"
+            f" 'lightmorphic/dockle', 'lightmorphic/dockup') "
+            f"WHERE {column} LIKE '%Dockle%'"
+            f"   OR {column} LIKE '%dockle-companion%'"
+            f"   OR {column} LIKE '%lightmorphic/dockle%'")
 
 
 def get():

@@ -1,10 +1,10 @@
-# Dockle
+# Lightmorphic DockUp
 
 A self-hosted Docker Compose stack manager for **home labs**, with a proper
 login. Inspired by [Dockge](https://github.com/louislam/dockge) - same idea,
 fresh code, different look, security first.
 
-> **Home labs only (for now).** Dockle is built for a machine on your own
+> **Home labs only (for now).** DockUp is built for a machine on your own
 > network. It is not hardened for internet-facing VPS use - don't put it on
 > a public server.
 
@@ -23,7 +23,7 @@ fresh code, different look, security first.
 - Checks every 30 minutes for a newer image per stack and flags it on
   the card - update one or "Update all", nothing pulls on its own
 - **Adopt** what's already running, one at a time or all in one go:
-  Dockle scans the system for compose projects and standalone containers
+  DockUp scans the system for compose projects and standalone containers
   it doesn't manage and pulls their setup into the stacks folder
 - Live log streaming with errors highlighted in red
 - Web terminal into any running container
@@ -38,16 +38,16 @@ fresh code, different look, security first.
 - Works with **Docker or Podman** - same UI, just point it at the other socket
 - One click to open a stack's real web UI in a new tab - its Tailscale
   Serve address if set up, otherwise the host address you're already
-  using to reach Dockle
+  using to reach DockUp
 - **Its own update-status dot in the top bar** - green up to date,
   amber a new version's published (click to download it in the
-  background while Dockle keeps running as it is), then blue: click
+  background while DockUp keeps running as it is), then blue: click
   again to restart onto it. No separate check button; it keeps itself
   current on its own. Deliberately not a stack you can act on
   otherwise - stopping or deleting the tool managing everything else
   isn't a risk worth a click away
-- Optional dockle-companion for host OS update checks and per-stack
-  Tailscale Serve toggles - the one part of Dockle that needs root on
+- Optional dockup-companion for host OS update checks and per-stack
+  Tailscale Serve toggles - the one part of DockUp that needs root on
   the actual server rather than just Docker access, so it's a separate
   install step, fully automated with one click in Settings (or manually)
 
@@ -57,29 +57,29 @@ fresh code, different look, security first.
 - One secret in the environment (`SECRET_KEY`); everything else lives in
   the Settings screen, encrypted at rest
 - Session cookies are HttpOnly + SameSite; CSRF-checked API; strict CSP;
-  no CDNs, no external calls, no tracking - everything served from Dockle
+  no CDNs, no external calls, no tracking - everything served from DockUp
 
 ## Install
 
-Dockle ships as a normal pre-built image
-(`ghcr.io/lightmorphic/dockle`) - no cloning, no building. All you need
+DockUp ships as a normal pre-built image
+(`ghcr.io/lightmorphic/dockup`) - no cloning, no building. All you need
 is the compose file:
 
 ```bash
-mkdir -p /opt/dockle /opt/stacks && cd /opt/dockle
-curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockle/main/compose.yaml
+mkdir -p /opt/dockup /opt/stacks && cd /opt/dockup
+curl -fsSLO https://raw.githubusercontent.com/lightmorphic/dockup/main/compose.yaml
 echo "SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')" > .env
 docker compose up -d
 ```
 
 Open `http://<server-ip>:4000`, create the admin account, done. Updating
-later is the update dot in Dockle's own top bar, or the usual:
+later is the update dot in DockUp's own top bar, or the usual:
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-(Prefer building from source? Clone the repo into `/opt/dockle` instead
+(Prefer building from source? Clone the repo into `/opt/dockup` instead
 and put `build: .` in a `compose.override.yaml` - everything else is
 identical.)
 
@@ -87,20 +87,20 @@ identical.)
 folder with a compose file, so there's no lock-in: the folder works with
 plain `docker compose` (or any other manager) at any time.
 
-### Optional: dockle-companion (Tailscale Serve + OS updates)
+### Optional: dockup-companion (Tailscale Serve + OS updates)
 
 A second, separate step - only needed for host OS update checks and
 per-stack Tailscale Serve toggles. Everything else works without it.
 Easiest way: Settings → Host OS & Tailscale → "Install companion" (one click, once
-Dockle itself is running). Or manually:
+DockUp itself is running). Or manually:
 
 ```bash
-git clone https://github.com/lightmorphic/dockle /tmp/dockle-src
-cd /tmp/dockle-src/companion && sudo sh install.sh
+git clone https://github.com/lightmorphic/dockup /tmp/dockup-src
+cd /tmp/dockup-src/companion && sudo sh install.sh
 ```
 
 Then add the companion socket mount in a `compose.override.yaml` and
-restart Dockle. Full steps in [runbook.md](runbook.md).
+restart DockUp. Full steps in [runbook.md](runbook.md).
 
 ### Podman instead of Docker
 

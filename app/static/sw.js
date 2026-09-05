@@ -1,7 +1,7 @@
-/* Dockle service worker: keep a copy of the static shell so the app still
+/* DockUp service worker: keep a copy of the static shell so the app still
    opens if the network blips. Network first, so updates always win;
    API calls never touch the cache - stale container states would mislead. */
-const CACHE = "dockle-static-v4";
+const CACHE = "dockup-static-v4";
 const ASSETS = [
   "/static/css/app.css",
   "/static/css/editor.css",
@@ -10,7 +10,7 @@ const ASSETS = [
   "/static/vendor/xterm.css",
   "/static/vendor/codemirror6/codemirror6.bundle.js",
   "/static/fonts/Manrope-VariableFont_wght.ttf",
-  "/static/icons/dockle.svg",
+  "/static/icons/dockup.svg",
 ];
 
 self.addEventListener("install", (e) => {

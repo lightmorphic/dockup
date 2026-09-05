@@ -1,6 +1,6 @@
 """Rebuild a compose file from a running container's actual configuration
 (`docker inspect`). Used when adopting containers whose original compose
-file Dockle can't read, and for adopting plain `docker run` containers.
+file DockUp can't read, and for adopting plain `docker run` containers.
 """
 
 import yaml

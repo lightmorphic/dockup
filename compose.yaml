@@ -1,12 +1,12 @@
 services:
-  dockle:
+  dockup:
     # Pre-built image, published by CI on every release - updating is
     # `docker compose pull && docker compose up -d` (or the update dot in
     # the top bar), never a local build. Building from source is still
     # possible if you want it: replace this line with `build: .` in
     # compose.override.yaml.
-    image: ghcr.io/lightmorphic/dockle:latest
-    container_name: dockle
+    image: ghcr.io/lightmorphic/dockup:latest
+    container_name: dockup
     restart: unless-stopped
     cap_drop: [ALL]
     cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
@@ -28,25 +28,25 @@ services:
     environment:
       # The one and only secret. Set it once in .env or the shell:
       #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
-      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting Dockle}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting DockUp}
       TZ: ${TZ:-Europe/London}
-      # Dockle asks the Docker socket to spin up short-lived helper
+      # DockUp asks the Docker socket to spin up short-lived helper
       # containers for backups (tar a volume, tar a bind-mount path).
       # The daemon resolves bind-mount sources against the HOST
-      # filesystem, not Dockle's own container - so Dockle needs to
+      # filesystem, not DockUp's own container - so DockUp needs to
       # know its own data folder's real host path, not just where it
       # sees it internally (/app/data). Set this if you move compose.yaml
-      # somewhere other than /opt/dockle.
-      DOCKLE_DATA_HOST_PATH: ${DOCKLE_DATA_HOST_PATH:-/opt/dockle/data}
+      # somewhere other than /opt/dockup.
+      DOCKUP_DATA_HOST_PATH: ${DOCKUP_DATA_HOST_PATH:-/opt/dockup/data}
     volumes:
       - ./data:/app/data
       # Docker host: keep this line. Podman host: swap it for
       #   - /run/podman/podman.sock:/var/run/docker.sock
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/stacks:/opt/stacks
-      # Optional: only if you've installed the dockle-companion (host OS
+      # Optional: only if you've installed the dockup-companion (host OS
       # update checks + Tailscale Serve management, see companion/ and
       # the runbook - Settings has a one-click installer for the host
-      # side of this; uncomment this line and restart Dockle afterward
+      # side of this; uncomment this line and restart DockUp afterward
       # to finish connecting it).
-      # - /run/dockle-companion.sock:/run/dockle-companion.sock
+      # - /run/dockup-companion.sock:/run/dockup-companion.sock

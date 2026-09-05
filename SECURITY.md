@@ -1,14 +1,14 @@
 # Security
 
-Dockle is built for home labs on a private network, not for public
+DockUp is built for home labs on a private network, not for public
 internet exposure. It holds the Docker (or Podman) socket, which is
-effectively root on the host - treat access to Dockle itself as
+effectively root on the host - treat access to DockUp itself as
 equivalent to root access to the machine it runs on.
 
 ## Reporting a vulnerability
 
 Open a private security advisory on the
-[GitHub repository](https://github.com/lightmorphic/dockle/security/advisories/new).
+[GitHub repository](https://github.com/lightmorphic/dockup/security/advisories/new).
 Please don't open a public issue for anything that could be actively
 exploited.
 

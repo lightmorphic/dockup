@@ -1,4 +1,4 @@
-/* Dockle front end - one window, hash routing, no frameworks. */
+/* DockUp front end - one window, hash routing, no frameworks. */
 "use strict";
 
 const CSRF = document.querySelector('meta[name="csrf"]').content;
@@ -116,12 +116,12 @@ function renderPortConflictHint(view, port, companionAvailable) {
     <p><strong>Port ${port} is stuck.</strong> Tailscale Serve is still holding it open from a
     previous version of this stack, so Docker can't bind it.</p>
     ${companionAvailable
-      ? `<p>The dockle-companion should clear this automatically - if you're seeing this anyway,
+      ? `<p>The dockup-companion should clear this automatically - if you're seeing this anyway,
          check <a href="#/settings">Settings → Host OS & Tailscale</a> that it's still running.</p>`
       : `<p>Fix it now: <code>sudo tailscale serve --https=${port} off</code> on the host, then try
          again. Restore it afterward with
          <code>sudo tailscale serve --bg --https=${port} http://127.0.0.1:${port}</code>.</p>
-         <p>Or install the <a href="#/settings">dockle-companion</a> once and Dockle handles this
+         <p>Or install the <a href="#/settings">dockup-companion</a> once and DockUp handles this
          automatically from now on.</p>`}
   </div>`);
   view.appendChild(box);
@@ -339,7 +339,7 @@ function attachCodeEditor(textareaEl, { mode = null, validate = false, getName =
   // itself for getValue()) can close over it in the same shape the
   // CM5 "change" event handler used to.
   let onChangeCb = null;
-  const view = DockleEditor.makeEditor(textareaEl, { mode, onChange: () => onChangeCb && onChangeCb() });
+  const view = DockUpEditor.makeEditor(textareaEl, { mode, onChange: () => onChangeCb && onChangeCb() });
   const cm = {
     getValue: () => view.state.doc.toString(),
     setValue: (text) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } }),
@@ -419,10 +419,10 @@ async function refreshStacks() {
   }
 }
 
-/* The footer: a Lightmorphic badge (Dockle's own version already
+/* The footer: a Lightmorphic badge (DockUp's own version already
    shows in the top bar, no need to repeat it here) and Docker's
    version, with a tick when there's something real to tick - it means
-   Dockle is talking to it (the newest Docker release isn't knowable
+   DockUp is talking to it (the newest Docker release isn't knowable
    from inside a container, so a tick claiming otherwise would be a
    lie). No answer yet - the check runs in the background - shows the
    number alone. */
@@ -437,14 +437,14 @@ async function renderVersions() {
   const tick = '<span class="version-tick" aria-hidden="true">✓</span>';
   const rows = [];
 
-  // Dockle's own version already shows in the top bar next to the
+  // DockUp's own version already shows in the top bar next to the
   // update dot - no need to repeat it down here too. Still run the
   // version check itself: updateDotFromVersions is what drives that
   // top-bar dot's state.
-  const d = v.dockle || {};
+  const d = v.dockup || {};
   updateDotFromVersions(d);
   rows.push(`<a class="lm-badge" href="https://lightmorphic.com" target="_blank" rel="noopener"
-    data-tip="Lightmorphic - the studio behind Dockle">
+    data-tip="Lightmorphic - the studio behind DockUp">
     <span class="lm-badge-label">Created by</span>
     <svg class="lm-badge-mark" viewBox="0 0 1000 1000" aria-hidden="true">
       <g transform="scale(1.3986014)">
@@ -646,11 +646,11 @@ async function updateAll() {
 }
 
 function renderAdoptPanel({ firstRun, count }) {
-  const heading = firstRun ? "Welcome to Dockle" : `${count} thing${count === 1 ? "" : "s"} not adopted yet`;
+  const heading = firstRun ? "Welcome to DockUp" : `${count} thing${count === 1 ? "" : "s"} not adopted yet`;
   const blurb = firstRun
     ? `Found ${count} thing${count === 1 ? "" : "s"} already running on this system. Adopting copies each one's
-       setup into the stacks folder so Dockle can manage it - nothing running is restarted or changed.`
-    : `Copies each one's setup into the stacks folder so Dockle can manage it - nothing running is restarted.`;
+       setup into the stacks folder so DockUp can manage it - nothing running is restarted or changed.`
+    : `Copies each one's setup into the stacks folder so DockUp can manage it - nothing running is restarted.`;
   const panel = el(`<div class="panel">
     <div class="panel-head"><h3>${esc(heading)}</h3><span class="spacer"></span>
       <button class="btn btn-primary" id="adoptAllBtn">Adopt all</button>
@@ -932,7 +932,7 @@ function viewNewStack() {
 
 /* Prefers the real Tailscale Serve URL (a stack's port served there
    over HTTPS, using the tailnet's actual name) and falls back to
-   whatever host the browser is already using to reach Dockle itself -
+   whatever host the browser is already using to reach DockUp itself -
    its LAN IP or hostname, whichever got the user here - over plain
    HTTP on the stack's own published port. No port at all means
    nothing to open, so the button stays hidden. */
@@ -1253,7 +1253,7 @@ async function viewStack(name) {
       catch (e) { status = { available: false }; }
       if (!status.available) {
         tabBody.innerHTML = `<p>Not set up. Exposing this stack's ports over Tailscale Serve needs the
-          optional dockle-companion - see Settings → Host OS & Tailscale to install it with one click.</p>`;
+          optional dockup-companion - see Settings → Host OS & Tailscale to install it with one click.</p>`;
         return;
       }
       if (!status.ports.length) {
@@ -1303,12 +1303,12 @@ async function viewStack(name) {
   }
 }
 
-/* Every one of Dockle's streaming actions speaks the same wire format:
+/* Every one of DockUp's streaming actions speaks the same wire format:
    newline-delimited output plus a few control tokens. This reads one
    such response, calling onLine for each content line and onRestarting
    when the container serving the request is about to be replaced (after
    which the stream simply stops). Returns {ok, restarting}. */
-async function readDockleStream(res, { onLine, onRestarting } = {}) {
+async function readDockUpStream(res, { onLine, onRestarting } = {}) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || `Request failed (${res.status})`);
@@ -1323,9 +1323,9 @@ async function readDockleStream(res, { onLine, onRestarting } = {}) {
     const lines = buf.split("\n");
     buf = lines.pop();
     for (const line of lines) {
-      if (line === "[dockle-done:ok]") { ok = true; continue; }
-      if (line === "[dockle-done:error]") { ok = false; continue; }
-      if (line === "[dockle-restarting]") { restarting = true; if (onRestarting) onRestarting(); continue; }
+      if (line === "[dockup-done:ok]") { ok = true; continue; }
+      if (line === "[dockup-done:error]") { ok = false; continue; }
+      if (line === "[dockup-restarting]") { restarting = true; if (onRestarting) onRestarting(); continue; }
       if (line) { if (onLine) onLine(line); }
     }
   }
@@ -1341,8 +1341,8 @@ async function streamAction(name, action, out, isDelete = false, deleteData = fa
     const res = await fetch(`/api/stacks/${encodeURIComponent(name)}/action/${action}${qs}`, {
       method: "POST", headers: { "X-CSRF": CSRF },
     });
-    const { ok } = await readDockleStream(res, { onLine: line => {
-      const hint = line.match(/^\[dockle-hint:tailscale-port-conflict:(\d+):([01])\]$/);
+    const { ok } = await readDockUpStream(res, { onLine: line => {
+      const hint = line.match(/^\[dockup-hint:tailscale-port-conflict:(\d+):([01])\]$/);
       if (hint) { renderPortConflictHint(out, hint[1], hint[2] === "1"); return; }
       appendLog(out, line);
     }});
@@ -1384,7 +1384,7 @@ const PRUNE_INFO = [
   ["volumes", "Unused volumes", "The only one that can lose data. \u201cUnused\u201d means no container is using it " +
     "<em>right now</em> \u2014 which also describes every volume belonging to a stack you have merely stopped. " +
     "Everything else on this page only removes things Docker can rebuild; this removes real data, permanently. " +
-    "Dockle lists each volume and whose it is before anything is deleted."],
+    "DockUp lists each volume and whose it is before anything is deleted."],
 ];
 
 function helpTile(iconSvg, title, desc) {
@@ -1405,7 +1405,7 @@ async function viewHelp() {
   };
 
   content.innerHTML = `
-    <h1>How Dockle works</h1>
+    <h1>How DockUp works</h1>
 
     <div class="panel">
       <h2>Getting around</h2>
@@ -1415,8 +1415,8 @@ async function viewHelp() {
         ${helpTile(NAV_ICO.allStacks, "All stacks", "Just above the dashboard's stack cards - back to the dashboard, every stack, one glance.")}
         ${helpTile(NAV_ICO.newStack, "New stack", "Write or paste a compose file, or convert a docker run command.")}
         ${helpTile(NAV_ICO.maintenance, "Maintenance", "Disk usage, and pruning unused images/containers/networks/cache/volumes.")}
-        ${helpTile(NAV_ICO.activity, "Activity", "A running log of everything Dockle has done and any errors along the way.")}
-        ${helpTile(NAV_ICO.backups, "Backups", "Daily automatic backups of Dockle's own data, with one-click restore.")}
+        ${helpTile(NAV_ICO.activity, "Activity", "A running log of everything DockUp has done and any errors along the way.")}
+        ${helpTile(NAV_ICO.backups, "Backups", "Daily automatic backups of DockUp's own data, with one-click restore.")}
         ${helpTile(NAV_ICO.settings, "Settings", "Account, email alerts, and the optional host companion.")}
         ${helpTile(NAV_ICO.power, "Restart Docker / Reboot server", "Only shown once the host companion is installed - real host-level actions, not container ones.")}
         ${helpTile(NAV_ICO.signOut, "Sign out", "Ends your session immediately.")}
@@ -1457,7 +1457,7 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>Keeping stacks up to date</h2>
-      <p>Dockle checks every managed, running stack for a newer image every 30 minutes, on its own - it only ever
+      <p>DockUp checks every managed, running stack for a newer image every 30 minutes, on its own - it only ever
         <strong>flags</strong> an update, never pulls one without you asking. <strong>Check for updates</strong> on
         the dashboard runs that same check right now instead of waiting. From there you can update one stack at a
         time (its cloud icon, or its own Update button) or everything that's flagged at once
@@ -1466,20 +1466,20 @@ async function viewHelp() {
     </div>
 
     <div class="panel">
-      <h2>Dockle itself</h2>
-      <p>Dockle doesn't appear as a stack you can act on - stopping or deleting the very thing you're using to
+      <h2>DockUp itself</h2>
+      <p>DockUp doesn't appear as a stack you can act on - stopping or deleting the very thing you're using to
         manage everything else is a mistake worth designing out, not just warning about. Its own update is the
         one control it offers: the update dot in the top bar, next to Maintenance. Green means up to date -
         click it any time to check again right now, rather than waiting for the next background check. Amber
-        means a new version is published - click it to download the new image in the background while Dockle
+        means a new version is published - click it to download the new image in the background while DockUp
         keeps running as it is. Once that finishes the same dot turns blue; click it again and the page goes away for
-        a few seconds while Dockle replaces itself, then comes back on its own.</p>
+        a few seconds while DockUp replaces itself, then comes back on its own.</p>
     </div>
 
     <div class="panel">
       <h2>Backups</h2>
       <div class="help-cols">
-        <div class="help-col"><h4>Backups page</h4><p>Automatic, daily, and covers Dockle's own data - the
+        <div class="help-col"><h4>Backups page</h4><p>Automatic, daily, and covers DockUp's own data - the
           database, settings, activity log. One-click restore, plus a download-everything zip for keeping a copy
           yourself.</p></div>
         <div class="help-col"><h4>A stack's own Backup tab</h4><p>Archives that one stack's compose file, its
@@ -1491,18 +1491,18 @@ async function viewHelp() {
 
     <div class="panel">
       <h2>The host companion (optional)</h2>
-      <p>Dockle's container access lets it manage every stack, but the server underneath - the operating system
+      <p>DockUp's container access lets it manage every stack, but the server underneath - the operating system
         itself - is outside that box on purpose. The companion is a small helper that runs directly on the host so
-        Dockle can reach the handful of things that need real root: host OS updates, and Tailscale Serve.</p>
+        DockUp can reach the handful of things that need real root: host OS updates, and Tailscale Serve.</p>
       <ol class="help-steps">
         <li>Open <strong>Settings → Host OS & Tailscale</strong>.</li>
         <li>Click <strong>Install companion</strong>. It installs a systemd service on the host.</li>
-        <li>Dockle reconnects to it automatically, restarting itself briefly as the last step.</li>
+        <li>DockUp reconnects to it automatically, restarting itself briefly as the last step.</li>
       </ol>
       <p class="hint">What it can do: exactly four things - check and apply host OS updates, install Tailscale, and
         turn Tailscale Serve on or off for a port. Every request is one of that fixed list; there is no "run this
         command" option, so nothing reaching that socket can ever ask it for anything else. Entirely optional -
-        Dockle works without it, you just won't see the Host OS panel or per-stack Tailscale toggle.</p>
+        DockUp works without it, you just won't see the Host OS panel or per-stack Tailscale toggle.</p>
     </div>
 
     <div class="panel">
@@ -1510,7 +1510,7 @@ async function viewHelp() {
       <p>Real server-side login with rate limiting and optional two-factor (TOTP) - no default password, no
         skipping the login screen. Every state-changing request is CSRF-checked, session cookies are HttpOnly and
         SameSite, and secrets like an SMTP password are encrypted at rest and never sent back to the browser.
-        Nothing calls home: no CDNs, no analytics, no tracking - everything Dockle needs is served by Dockle.</p>
+        Nothing calls home: no CDNs, no analytics, no tracking - everything DockUp needs is served by DockUp.</p>
     </div>`;
 }
 
@@ -1560,7 +1560,7 @@ async function viewMaintenance() {
               <p>${risky
                 ? `<strong>${risky} of them belong to a stack that is only stopped.</strong> Start that stack again
                    and its data will be gone. Delete those only if you are finished with the stack.`
-                : "None of them belong to a stack Dockle can see, so this should only reclaim genuine leftovers."}
+                : "None of them belong to a stack DockUp can see, so this should only reclaim genuine leftovers."}
               Click again to confirm.</p>`;
             setTimeout(() => {
               if (!card.dataset.armed) return;  // already confirmed - leave the outcome on screen
@@ -1606,7 +1606,7 @@ async function viewMaintenance() {
 async function viewActivity() {
   content.innerHTML = `<h1>Activity</h1>
     <div class="panel"><div class="panel-head">
-      <h2>What Dockle has done</h2><span class="spacer"></span>
+      <h2>What DockUp has done</h2><span class="spacer"></span>
       <label class="check-row tight">
         <input type="checkbox" id="errOnly"> Errors only</label></div>
       <div id="activityRows"><p class="hint">Loading…</p></div></div>`;
@@ -1695,7 +1695,7 @@ async function viewSettings() {
           <span class="hint">Both are managed the same way - this just labels things correctly and points at the right socket.</span></div>
         <div class="field"><label for="setSocket">Engine socket path</label>
           <input id="setSocket" spellcheck="false">
-          <span class="hint">Docker default: /var/run/docker.sock &middot; Podman: /run/podman/podman.sock (mounted into the Dockle container).</span></div>
+          <span class="hint">Docker default: /var/run/docker.sock &middot; Podman: /run/podman/podman.sock (mounted into the DockUp container).</span></div>
         <div class="btn-row">
           <button class="btn" id="testRuntime">Test connection</button></div>
       </div></div>
@@ -1717,7 +1717,7 @@ async function viewSettings() {
             <span class="hint">Stored encrypted. Leave blank to keep the saved one.${s["smtp.password"] ? ' <span class="version-tick" aria-hidden="true">✓</span> Password is set.' : " Not set."}</span></div>
         </div>
         <div class="two-col">
-          <div class="field"><label for="smtpFrom">Send from</label><input id="smtpFrom" spellcheck="false" placeholder="dockle@yourdomain"></div>
+          <div class="field"><label for="smtpFrom">Send from</label><input id="smtpFrom" spellcheck="false" placeholder="dockup@yourdomain"></div>
           <div class="field"><label for="alertTo">Send alerts to</label><input id="alertTo" spellcheck="false"></div>
         </div>
         <div class="field"><label class="check-row">
@@ -1765,7 +1765,7 @@ async function viewSettings() {
   f("bkHour").value = s["backup.hour"];
   f("bkKeep").value = s["backup.retention_days"];
   f("setAccent").value = s["ui.accent"];
-  f("setTheme").value = localStorage.getItem("dockle-theme") || "";
+  f("setTheme").value = localStorage.getItem("dockup-theme") || "";
 
   f("saveSettings").addEventListener("click", async () => {
     try {
@@ -1786,7 +1786,7 @@ async function viewSettings() {
       } });
       applyAccent(f("setAccent").value);
       const theme = f("setTheme").value;
-      theme ? localStorage.setItem("dockle-theme", theme) : localStorage.removeItem("dockle-theme");
+      theme ? localStorage.setItem("dockup-theme", theme) : localStorage.removeItem("dockup-theme");
       applyTheme();
       popAlert(f("saveSettings"), "Settings saved.", "success");
     } catch (e) { popAlert(f("saveSettings"), e.message, "danger"); }
@@ -1837,20 +1837,20 @@ async function viewSettings() {
 }
 
 /* Streams the install: stage + host install + (on success) edit
-   compose.yaml and restart Dockle itself to reconnect. That last step
+   compose.yaml and restart DockUp itself to reconnect. That last step
    tears down the very container serving this request, so the fetch
-   stream ends abruptly right after "[dockle-restarting]" - expected,
-   not a failure. Poll /health (no auth needed) until Dockle answers
+   stream ends abruptly right after "[dockup-restarting]" - expected,
+   not a failure. Poll /health (no auth needed) until DockUp answers
    again, then refresh the panel in place. */
 async function installCompanion(btn) {
   btn.disabled = true; btn.textContent = "Installing…";
-  const panel = openProgressPanel("Installing dockle-companion");
+  const panel = openProgressPanel("Installing dockup-companion");
   let restarting = false;
   try {
     const res = await fetch("/api/hostcompanion/install", { method: "POST", headers: { "X-CSRF": CSRF } });
-    ({ restarting } = await readDockleStream(res, {
+    ({ restarting } = await readDockUpStream(res, {
       onLine: line => panel.line(line),
-      onRestarting: () => panel.line("Reconnecting Dockle…"),
+      onRestarting: () => panel.line("Reconnecting DockUp…"),
     }));
   } catch (e) {
     if (!restarting) {
@@ -1859,17 +1859,17 @@ async function installCompanion(btn) {
       btn.disabled = false; btn.textContent = "Install companion";
       return;
     }
-    // else: expected - the connection dropped because Dockle restarted itself
+    // else: expected - the connection dropped because DockUp restarted itself
   }
   if (restarting) {
-    await waitForDockleBack(panel);
+    await waitForDockUpBack(panel);
   } else {
     panel.done(true);
   }
   if (location.hash === "#/settings") await renderHostCompanionPanel();
 }
 
-/* Dockle's own update status, top bar, next to the name and version -
+/* DockUp's own update status, top bar, next to the name and version -
    see the update-widget skill (Charlie's standing pattern across his
    self-hosted tools). One dot, no separate button, no banner: colour
    alone is the interface, no overlay icon - Charlie's own call, the
@@ -1897,18 +1897,18 @@ function paintUpdateDot(state, tip) {
   dot.setAttribute("aria-label", tip);
 }
 
-/* Called from renderVersions() with the same "dockle" object the
+/* Called from renderVersions() with the same "dockup" object the
    sidebar's version row already parsed - one fetch, two displays. */
-function updateDotFromVersions(dockle) {
+function updateDotFromVersions(dockup) {
   if (updateDotState === "downloading" || updateDotState === "checking") return;  // own their own rendering mid-flight
   const v = document.getElementById("topbarVersion");
-  if (v && dockle.version) v.textContent = "v" + dockle.version;
-  if (dockle.downloadReady) {
+  if (v && dockup.version) v.textContent = "v" + dockup.version;
+  if (dockup.downloadReady) {
     paintUpdateDot("ready", "Click to restart");
-  } else if (dockle.upToDate === null) {
-    if (dockle.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
+  } else if (dockup.upToDate === null) {
+    if (dockup.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
     else paintUpdateDot("unknown", "Checking for updates…");
-  } else if (dockle.upToDate === false) {
+  } else if (dockup.upToDate === false) {
     paintUpdateDot("available", "Update available");
   } else {
     paintUpdateDot("uptodate", "Up to date");
@@ -1919,7 +1919,7 @@ function updateDotFromVersions(dockle) {
    pulses while the check runs (a real git fetch through a helper
    container, so genuinely takes a moment), then settles on whatever
    the check actually found via the normal renderVersions() path. */
-async function checkDockleUpdateNow() {
+async function checkDockUpUpdateNow() {
   updateDotBusy = true;
   updateDotState = "checking";
   const dot = document.getElementById("updateDot");
@@ -1961,7 +1961,7 @@ function setUpdateRingProgress(frac) {
   if (bar) bar.style.strokeDashoffset = String(RING_C * (1 - Math.max(0, Math.min(1, frac))));
 }
 
-async function downloadDockleUpdate() {
+async function downloadDockUpUpdate() {
   updateDotBusy = true;
   startUpdateRing();
   try {
@@ -1980,9 +1980,9 @@ async function downloadDockleUpdate() {
       const lines = buf.split("\n");
       buf = lines.pop();
       for (const line of lines) {
-        if (line === "[dockle-done:ok]") { ok = true; continue; }
-        if (line === "[dockle-done:error]") { ok = false; continue; }
-        const m = line.match(/^\[dockle-progress:([\d.]+)\]$/);
+        if (line === "[dockup-done:ok]") { ok = true; continue; }
+        if (line === "[dockup-done:error]") { ok = false; continue; }
+        const m = line.match(/^\[dockup-progress:([\d.]+)\]$/);
         if (m) setUpdateRingProgress(parseFloat(m[1]));
       }
     }
@@ -1995,7 +1995,7 @@ async function downloadDockleUpdate() {
   }
 }
 
-async function restartDockleForUpdate() {
+async function restartDockUpForUpdate() {
   updateDotBusy = true;
   const dot = document.getElementById("updateDot");
   dot.removeAttribute("role"); dot.removeAttribute("tabindex");
@@ -2004,7 +2004,7 @@ async function restartDockleForUpdate() {
   let restarting = false;
   try {
     const res = await fetch("/api/system/self-update/restart", { method: "POST", headers: { "X-CSRF": CSRF } });
-    await readDockleStream(res, { onRestarting: () => { restarting = true; } });
+    await readDockUpStream(res, { onRestarting: () => { restarting = true; } });
   } catch (e) {
     // A dropped connection here is expected - the container this
     // request was served from just got replaced. Anything else, the
@@ -2020,7 +2020,7 @@ async function restartDockleForUpdate() {
   // No progress panel here - the busy pulse (started above) is the
   // only feedback while waiting to reconnect, matching the skill's
   // "no extra UI" rule; a real dot state, not a fake timer.
-  await waitForDockleBack({ line() {}, closed: () => false, done() {} });
+  await waitForDockUpBack({ line() {}, closed: () => false, done() {} });
   // A full reload, not just re-fetching data in place: the whole point
   // of the restart was to run newer code, and refreshStacks()/
   // renderVersions() alone only ever repainted the dot - everything
@@ -2031,9 +2031,9 @@ async function restartDockleForUpdate() {
 
 function onUpdateDotActivate() {
   if (updateDotBusy) return;
-  if (updateDotState === "uptodate") checkDockleUpdateNow();
-  else if (updateDotState === "available") downloadDockleUpdate();
-  else if (updateDotState === "ready") restartDockleForUpdate();
+  if (updateDotState === "uptodate") checkDockUpUpdateNow();
+  else if (updateDotState === "available") downloadDockUpUpdate();
+  else if (updateDotState === "ready") restartDockUpForUpdate();
 }
 document.getElementById("updateDot")?.addEventListener("click", onUpdateDotActivate);
 document.getElementById("updateDot")?.addEventListener("keydown", (e) => {
@@ -2042,8 +2042,8 @@ document.getElementById("updateDot")?.addEventListener("keydown", (e) => {
   onUpdateDotActivate();
 });
 
-async function waitForDockleBack(panel) {
-  panel.line("Waiting for Dockle to come back…");
+async function waitForDockUpBack(panel) {
+  panel.line("Waiting for DockUp to come back…");
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
     if (panel.closed()) return; // dismissed - stop narrating, the restart itself still completes
@@ -2052,7 +2052,7 @@ async function waitForDockleBack(panel) {
       if (res.ok) { panel.line("Reconnected."); panel.done(true); return; }
     } catch (e) { /* still down - keep waiting */ }
   }
-  panel.line("Still not back after a minute - check the container directly (docker ps / docker logs dockle).");
+  panel.line("Still not back after a minute - check the container directly (docker ps / docker logs dockup).");
   panel.done(false);
 }
 
@@ -2066,13 +2066,13 @@ async function renderHostCompanionPanel() {
   try { status = await api("/api/hostcompanion/status"); } catch (e) { status = { available: false }; }
 
   if (!status.available) {
-    body.innerHTML = `<p>Not set up. This is entirely optional and separate from everything else Dockle
+    body.innerHTML = `<p>Not set up. This is entirely optional and separate from everything else DockUp
       does - it's a small helper that runs directly on your server (not in a container, called the
-      dockle-companion) so Dockle can check host OS updates and manage Tailscale Serve, neither of
+      dockup-companion) so DockUp can check host OS updates and manage Tailscale Serve, neither of
       which the Docker connection alone can reach.</p>
       <div class="btn-row align-center">
         <button class="btn btn-primary" id="companionInstallBtn">Install companion</button>
-        <span class="hint">Installs a systemd service on this host, then reconnects Dockle to it automatically - Dockle briefly restarts itself as the last step.</span>
+        <span class="hint">Installs a systemd service on this host, then reconnects DockUp to it automatically - DockUp briefly restarts itself as the last step.</span>
       </div>`;
     body.querySelector("#companionInstallBtn").addEventListener("click", (e) => installCompanion(e.target));
     return;
@@ -2209,7 +2209,7 @@ async function renderTfa(host) {
 /* ---------- theme & accent ---------- */
 
 function applyTheme() {
-  const choice = localStorage.getItem("dockle-theme");
+  const choice = localStorage.getItem("dockup-theme");
   if (choice) document.documentElement.dataset.theme = choice;
   else delete document.documentElement.dataset.theme;
 }
@@ -2217,14 +2217,14 @@ function applyTheme() {
 function applyAccent(name) {
   if (name) document.documentElement.dataset.accent = name;
   else delete document.documentElement.dataset.accent;
-  localStorage.setItem("dockle-accent", name || "");
+  localStorage.setItem("dockup-accent", name || "");
 }
 
 /* ---------- boot ---------- */
 
 window.addEventListener("hashchange", route);
 applyTheme();
-applyAccent(localStorage.getItem("dockle-accent") || "");
+applyAccent(localStorage.getItem("dockup-accent") || "");
 refreshStacks().then(route);
 renderVersions();
 setInterval(() => { if ((location.hash || "#/") === "#/") refreshStacks(); }, 15000);

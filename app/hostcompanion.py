@@ -1,4 +1,4 @@
-"""Client for the optional dockle-companion host service (see companion/
+"""Client for the optional dockup-companion host service (see companion/
 in the repo) - the narrow, fixed-command-set helper that runs directly
 on the host for the two things the Docker socket alone can't reach:
 host OS updates and Tailscale Serve. Entirely optional; every call here
@@ -13,7 +13,7 @@ import yaml
 
 from . import config, envsub
 
-SOCKET_PATH = "/run/dockle-companion.sock"
+SOCKET_PATH = "/run/dockup-companion.sock"
 
 
 class CompanionUnavailable(Exception):
@@ -29,8 +29,8 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
         s.connect(SOCKET_PATH)
     except OSError as exc:
         raise CompanionUnavailable(
-            "dockle-companion isn't reachable - not installed, or its "
-            "socket isn't mounted into Dockle's container yet. See the runbook."
+            "dockup-companion isn't reachable - not installed, or its "
+            "socket isn't mounted into DockUp's container yet. See the runbook."
         ) from exc
     try:
         payload = {"cmd": cmd, **kwargs}
@@ -42,10 +42,10 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
                 break
             data += chunk
         if not data:
-            raise CompanionUnavailable("dockle-companion closed the connection without responding")
+            raise CompanionUnavailable("dockup-companion closed the connection without responding")
         return json.loads(data.decode())
     except (OSError, json.JSONDecodeError) as exc:
-        raise CompanionUnavailable(f"dockle-companion didn't respond properly: {exc}") from exc
+        raise CompanionUnavailable(f"dockup-companion didn't respond properly: {exc}") from exc
     finally:
         s.close()
 

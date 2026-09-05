@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/</loc>
+    <loc>https://dockup.lightmorphic.com/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/privacy.html</loc>
+    <loc>https://dockup.lightmorphic.com/privacy.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/cookies.html</loc>
+    <loc>https://dockup.lightmorphic.com/cookies.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/terms.html</loc>
+    <loc>https://dockup.lightmorphic.com/terms.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/accessibility.html</loc>
+    <loc>https://dockup.lightmorphic.com/accessibility.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://dockle.lightmorphic.co.uk/complaints.html</loc>
+    <loc>https://dockup.lightmorphic.com/complaints.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

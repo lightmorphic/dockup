@@ -8,8 +8,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM python:3.13-alpine
 
 # docker-cli + compose plugin talk to whichever socket is mounted
-# (Docker's or Podman's) - Dockle itself never needs a daemon of its own.
-# su-exec drops from root to the dockle user after the entrypoint's
+# (Docker's or Podman's) - DockUp itself never needs a daemon of its own.
+# su-exec drops from root to the dockup user after the entrypoint's
 # one-time setup. apk upgrade patches OS packages at build time rather
 # than trusting whatever was baked into the base image when published.
 RUN apk update && apk upgrade --no-cache \
@@ -29,11 +29,11 @@ RUN rm -rf /usr/local/lib/python3.13/site-packages/pip* \
 # PUID=1000 convention already used by containers like linuxserver.io's).
 # If your host user isn't UID 1000, chown the bind-mounted data/stacks
 # folders to match - see the runbook.
-RUN addgroup -g 1000 dockle && adduser -u 1000 -G dockle -D dockle
+RUN addgroup -g 1000 dockup && adduser -u 1000 -G dockup -D dockup
 
 # Links the GHCR package to this repo (shows the README on the package
 # page and ties visibility/permissions to it).
-LABEL org.opencontainers.image.source="https://github.com/lightmorphic/dockle"
+LABEL org.opencontainers.image.source="https://github.com/lightmorphic/dockup"
 
 WORKDIR /app
 COPY app ./app
@@ -45,8 +45,8 @@ COPY companion ./companion
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENV DOCKLE_DATA=/app/data \
-    DOCKLE_STACKS=/opt/stacks \
+ENV DOCKUP_DATA=/app/data \
+    DOCKUP_STACKS=/opt/stacks \
     PYTHONUNBUFFERED=1
 
 EXPOSE 5001

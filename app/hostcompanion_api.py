@@ -1,4 +1,4 @@
-"""API for the optional dockle-companion host service: host OS update
+"""API for the optional dockup-companion host service: host OS update
 checks/apply, Tailscale Serve status/install/toggle, and installing the
 companion itself. Everything here degrades to a plain "not available"
 if the companion isn't installed - see companion/install.sh and the
@@ -65,7 +65,7 @@ def api_tailscale_install():
 
 @bp.post("/reboot")
 def api_reboot():
-    activity.log("warning", "host", "Host reboot requested from Dockle")
+    activity.log("warning", "host", "Host reboot requested from DockUp")
     try:
         result = hostcompanion.reboot()
     except hostcompanion.CompanionUnavailable as exc:
@@ -78,7 +78,7 @@ def api_reboot():
 
 @bp.post("/docker-restart")
 def api_docker_restart():
-    activity.log("warning", "host", "Docker restart requested from Dockle")
+    activity.log("warning", "host", "Docker restart requested from DockUp")
     try:
         result = hostcompanion.docker_restart()
     except hostcompanion.CompanionUnavailable as exc:
@@ -128,24 +128,24 @@ def api_stack_serve_toggle(name):
 
 @bp.post("/install")
 def api_install_companion():
-    """One-click host install + reconnect: stage Dockle's own bundled
+    """One-click host install + reconnect: stage DockUp's own bundled
     copy of the companion source into its data dir (reachable from the
-    host via DOCKLE_DATA_HOST_PATH, the same trick backups use), run
+    host via DOCKUP_DATA_HOST_PATH, the same trick backups use), run
     the real install.sh on the host through a short-lived privileged
-    container, then uncomment the socket line in Dockle's own
-    compose.yaml and restart Dockle to reconnect - see
+    container, then uncomment the socket line in DockUp's own
+    compose.yaml and restart DockUp to reconnect - see
     Runtime.install_companion_stream / reconnect_companion_stream. No
-    standing extra permissions for Dockle's own container once this
+    standing extra permissions for DockUp's own container once this
     returns; the restart is why the stream ends abruptly instead of
     with a clean final line - expected, not a failure."""
     if not config.MOCK_MODE and not config.DATA_HOST_PATH:
-        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so DockUp doesn't know its own "
                                   "real path on the host - see the runbook to set it in compose.yaml."}), 400
     bundled = Path(__file__).resolve().parent.parent / "companion"
     staging = config.DATA_DIR / ".companion-install"
     try:
         staging.mkdir(parents=True, exist_ok=True)
-        for fname in ("dockle-companion.py", "dockle-companion.service", "install.sh"):
+        for fname in ("dockup-companion.py", "dockup-companion.service", "install.sh"):
             shutil.copy(bundled / fname, staging / fname)
     except OSError as exc:
         return jsonify({"error": f"Couldn't stage companion files: {exc}"}), 500
@@ -155,7 +155,7 @@ def api_install_companion():
     staging_host_dir = f"{data_host_path.rstrip('/')}/.companion-install"
     # compose.yaml lives one level up from the data dir it mounts as
     # ./data - true by construction for every install this project
-    # documents (DOCKLE_DATA_HOST_PATH is defined as "wherever
+    # documents (DOCKUP_DATA_HOST_PATH is defined as "wherever
     # compose.yaml's own ./data resolves to on the host").
     compose_dir = str(Path(data_host_path).parent)
     compose_path = f"{compose_dir}/compose.yaml"
@@ -164,8 +164,8 @@ def api_install_companion():
         ok = True
         try:
             for line in rt.install_companion_stream(staging_host_dir):
-                if line.startswith("[dockle-exit:"):
-                    ok = line == "[dockle-exit:0]"
+                if line.startswith("[dockup-exit:"):
+                    ok = line == "[dockup-exit:0]"
                 else:
                     yield line + "\n"
         except runtime.RuntimeError_ as exc:
@@ -176,19 +176,19 @@ def api_install_companion():
 
         if not ok:
             activity.log("error", "companion", "Companion install failed - see output panel")
-            yield "[dockle-done:error]\n"
+            yield "[dockup-done:error]\n"
             return
 
         activity.log("info", "companion", "Companion installed on the host")
-        yield "Companion installed. Reconnecting Dockle to it...\n"
-        yield "[dockle-restarting]\n"
+        yield "Companion installed. Reconnecting DockUp to it...\n"
+        yield "[dockup-restarting]\n"
         try:
             for line in rt.reconnect_companion_stream(compose_path, compose_dir):
-                if not line.startswith("[dockle-exit:"):
+                if not line.startswith("[dockup-exit:"):
                     yield line + "\n"
         except runtime.RuntimeError_:
-            pass  # expected - Dockle's own container recreation races this request
-        yield "[dockle-done:ok]\n"
+            pass  # expected - DockUp's own container recreation races this request
+        yield "[dockup-done:ok]\n"
 
     # stream_with_context: without it, Flask doesn't keep the request/app
     # context alive for the generator's whole lifetime, and anything in

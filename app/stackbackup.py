@@ -2,7 +2,7 @@
 data - bind-mount directories and named volumes - and can restore both
 back to exactly where they came from. Nothing is ever relocated into a
 different layout; a helper container does the real file access so this
-reaches paths Dockle's own container can't see directly (see runtime.py).
+reaches paths DockUp's own container can't see directly (see runtime.py).
 """
 
 import json
@@ -130,7 +130,7 @@ def restore_stack(name: str, backup_filename: str) -> str:
             tar.extractall(work_dir, filter="data")
         manifest_path = work_dir / "manifest.json"
         if not manifest_path.exists():
-            raise ValueError("That archive doesn't look like a Dockle stack backup")
+            raise ValueError("That archive doesn't look like a DockUp stack backup")
         manifest = json.loads(manifest_path.read_text())
 
         d = stacks.stack_dir(name)

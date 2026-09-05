@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0 - 2026-09-05
+
+- Renamed to **Lightmorphic DockUp**. The app, the documentation and the
+  website all carry the new name, and the website has moved to
+  dockup.lightmorphic.com
+- This is a clean rename with nothing left behind, so an existing
+  install needs updating by hand before it will start again - see
+  "Renaming from the old name" in the runbook. In short: the image is
+  now `ghcr.io/lightmorphic/dockup`, the settings are `DOCKUP_*` rather
+  than `DOCKLE_*`, the folder is `/opt/dockup`, the database file is
+  `dockup.db`, and the host companion is `dockup-companion`
+- Nothing about how it works has changed - same logo, same features,
+  same data
+
 ## 1.7.19 - 2026-09-05
 
 - A Copy button on the Logs tab, in the panel's top-right corner, puts
@@ -76,7 +90,7 @@
 ## 1.7.11 - 2026-08-22
 
 - Emails (the test email and error alerts) are now HTML with a
-  branded header - the Dockle logo and wordmark on a navy bar - instead
+  branded header - the DockUp logo and wordmark on a navy bar - instead
   of plain text. Plain-text clients still get a sensible fallback.
 
 ## 1.7.10 - 2026-08-22
@@ -99,7 +113,7 @@
 
 ## 1.7.7 - 2026-08-22
 
-- The footer no longer repeats Dockle's own version - it already shows
+- The footer no longer repeats DockUp's own version - it already shows
   in the top bar next to the update dot. In its place: a Lightmorphic
   badge linking to lightmorphic.com in a new tab
 
@@ -152,7 +166,7 @@
 ## 1.7.0 - 2026-08-22
 
 - Removed the left sidebar. All stacks/New stack now sit just above the
-  dashboard's card grid, and the Dockle/Docker version numbers moved
+  dashboard's card grid, and the DockUp/Docker version numbers moved
   into a small footer at the bottom of the page
 - Stack cards are a little smaller, and each card's "Open web UI" link
   is now pinned to the card's own right edge instead of sitting in a
@@ -171,7 +185,7 @@
 
 ## 1.6.3 - 2026-08-22
 
-- The page now actually reloads once Dockle reconnects after a restart-
+- The page now actually reloads once DockUp reconnects after a restart-
   to-update - it used to just repaint the dot, so the rest of the page
   (and the JS/CSS serving it) looked untouched even though the update
   had genuinely applied
@@ -200,8 +214,8 @@
 
 ## 1.6.0 - 2026-08-21
 
-- **Dockle now ships as a normal pre-built Docker image**
-  (`ghcr.io/lightmorphic/dockle`, amd64 + arm64), published by CI on
+- **DockUp now ships as a normal pre-built Docker image**
+  (`ghcr.io/lightmorphic/dockup`, amd64 + arm64), published by CI on
   every release. Installing is fetching one compose file and
   `docker compose up -d`; updating is `docker compose pull` - or the
   update dot, same as before - and works in Dockge or any other
@@ -215,13 +229,13 @@
 - "Ready to restart" is no longer remembered in a flag - it's computed
   from whether the pulled image is newer than the running one, so it's
   correct even after a `docker compose pull` done entirely outside
-  Dockle
+  DockUp
 - Rollback is now pinning a version tag (every release is one) instead
   of a git checkout
 
 ## 1.5.11 - 2026-08-21
 
-- The update-status dot moved from beside the "Dockle" wordmark to
+- The update-status dot moved from beside the "DockUp" wordmark to
   sitting with Maintenance/Activity/Backups/Settings - leftmost of that
   group, in the top bar
 - The dot is now clickable when green too, not just amber/ready: click
@@ -234,12 +248,12 @@
 
 ## 1.5.10 - 2026-08-21
 
-- **Removed the Dockle dashboard card and its dedicated page.** Showing
-  Dockle as an ordinary stack meant Stop, Down and Delete were one
+- **Removed the DockUp dashboard card and its dedicated page.** Showing
+  DockUp as an ordinary stack meant Stop, Down and Delete were one
   misclick away from taking down the tool managing everything else -
   not a risk worth keeping just for consistency with the other cards.
-  Dockle's own update is still fully available, entirely through the
-  top-bar dot next to its name; nothing else about acting on Dockle
+  DockUp's own update is still fully available, entirely through the
+  top-bar dot next to its name; nothing else about acting on DockUp
   itself is offered through the UI. The removed backend routes/helper-
   container methods that only existed to serve that card are gone too
 - The sidebar's New stack / All stacks buttons are noticeably smaller
@@ -258,16 +272,16 @@
 
 ## 1.5.8 - 2026-08-21
 
-- **Dockle's own update status is now a dot in the top bar, next to its
+- **DockUp's own update status is now a dot in the top bar, next to its
   name** - Charlie's standard update-widget pattern from his other
   self-hosted tools. Green means up to date, amber means a new version
-  is ready: click it to download and rebuild in the background (Dockle
+  is ready: click it to download and rebuild in the background (DockUp
   keeps running as it is throughout), and the same dot turns into a
   restart button once that's done - click it again to apply, streamed
   with a real progress ring parsed from the build's own output. No
   separate check button, no settings-page panel to find it in first -
   it keeps itself current on its own and survives a page reload if you
-  download and don't restart right away. Replaces the old "Dockle
+  download and don't restart right away. Replaces the old "DockUp
   itself" panel in Settings; the dashboard card's own plain Update
   button (pull+rebuild+restart in one streamed step, like any other
   stack's) is unchanged for anyone who'd rather use that
@@ -298,10 +312,10 @@
 
 ## 1.5.4 - 2026-08-21
 
-- **Added a Help page** ("How Dockle works", the `?` icon next to Sign
+- **Added a Help page** ("How DockUp works", the `?` icon next to Sign
   out) walking through the sidebar and top bar, every button on a
   stack's own page, what the status dot colours mean, how updates work
-  (Dockle's own and every other stack's), backups, the optional host
+  (DockUp's own and every other stack's), backups, the optional host
   companion, and a short security summary
 - **Fixed tooltips clipping off the top and sides of the screen.** Any
   tooltip inside the top bar now opens downward instead of the sitewide
@@ -348,7 +362,7 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
 
 ## 1.5.2 - 2026-08-21
 
-- **Dockle now appears on the dashboard as a card like any other
+- **DockUp now appears on the dashboard as a card like any other
   stack** - same status dot, containers, logs and terminal, and the full
   set of buttons: Start, Stop, Restart, Redeploy, Update, Down and
   Delete, Delete included with the same opt-in "and its data" checkbox
@@ -356,20 +370,20 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   entirely, which was a blunt way of avoiding buttons that would shoot
   it in the foot; the buttons now work instead, because every action
   runs from a helper container rather than from the container being
-  acted on. Actions that deliberately leave Dockle down say so plainly
+  acted on. Actions that deliberately leave DockUp down say so plainly
   rather than waiting for a page that isn't coming back
-- **Update Dockle itself from Settings too**, no terminal needed. Settings
-  now has a "Dockle itself" panel: check how many new commits are
+- **Update DockUp itself from Settings too**, no terminal needed. Settings
+  now has a "DockUp itself" panel: check how many new commits are
   available, then one button pulls the newest source, pulls/rebuilds the
   image and recreates the container, streaming the output as it goes.
-  Dockle can't apply this through its own Redeploy button - `compose up`
+  DockUp can't apply this through its own Redeploy button - `compose up`
   stops the container running the command before it can start anything
   again - so the job is handed to a short-lived helper container that
   isn't the one being replaced, the same approach the companion
-  installer already uses. When Dockle's own container goes down the
-  output stops mid-flight; the page then waits for Dockle to answer
+  installer already uses. When DockUp's own container goes down the
+  output stops mid-flight; the page then waits for DockUp to answer
   again and refreshes itself. Managed stacks keep running throughout
-- Dockle's own default port is now 4000 (`127.0.0.1:4000:5001` in
+- DockUp's own default port is now 4000 (`127.0.0.1:4000:5001` in
   compose.yaml), and the install steps everywhere say so. Only the host
   side moved - inside the container gunicorn still listens on 5001, so
   the right-hand number stays put. An existing install keeps whatever
@@ -379,17 +393,17 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   slide the button next to it out from under the cursor. Both check
   buttons now reserve room for their longest label. The host OS result
   ("Everything is up to date") also sits to the right of Apply updates
-  now, matching Dockle's own row instead of dropping onto a line below
-- The sidebar now ends with two version numbers - Dockle's own and the
+  now, matching DockUp's own row instead of dropping onto a line below
+- The sidebar now ends with two version numbers - DockUp's own and the
   container engine's - each with a green tick when there's something
-  real to tick: for Dockle, up to date with the repo; for Docker, that
-  Dockle is talking to it. (A tick claiming Docker itself is the newest
+  real to tick: for DockUp, up to date with the repo; for Docker, that
+  DockUp is talking to it. (A tick claiming Docker itself is the newest
   release would be a guess: that isn't knowable from inside a
-  container.) An amber arrow appears when Dockle is behind, with the
+  container.) An amber arrow appears when DockUp is behind, with the
   commit count in the tooltip. This replaces the engine badge that used
   to sit in the top bar, and the check behind it is cached and refreshed
   in the background, so no page ever waits on it
-- Fixed the Dockle update check failing with "couldn't reach the
+- Fixed the DockUp update check failing with "couldn't reach the
   remote" on a normal install: git commands run as root over a folder
   owned by the admin who cloned it, and git refuses that with "detected
   dubious ownership in repository". Every git call the update path makes
@@ -451,7 +465,7 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   state (e.g. its bind-mount source deleted while still running) - a
   45s cap now falls back to forcefully removing it
 - Fixed a real update-check bug: some images report a frozen digest
-  instead of their tag, which made Dockle permanently report "up to
+  instead of their tag, which made DockUp permanently report "up to
   date" even when a real update was sitting on the registry
 - Every contextual message in the app (save confirmations, errors,
   update results) is now a small bubble anchored to the actual button
@@ -477,7 +491,7 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   the dashboard's full sweep
 - Reboot server and Restart Docker actions, moved to the top bar next
   to Sign out
-- Redeploy failures caused by a network that predates Dockle managing
+- Redeploy failures caused by a network that predates DockUp managing
   a stack now self-heal automatically instead of failing every time
 - Dashboard cards show the stack's port and an open-web-UI link, and
   the status dot itself doubles as a one-click update button when
@@ -490,7 +504,7 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
 ## 1.3.0 - 2026-08-12
 
 - Companion install is now fully automated end to end: after installing
-  the host service, Dockle edits its own compose.yaml and restarts
+  the host service, DockUp edits its own compose.yaml and restarts
   itself to reconnect, with a live, dismissible progress panel showing
   each step instead of a bare "Installing…" label
 - Redeploy action: recreates a stack's containers from the compose file
@@ -528,23 +542,23 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
 
 ## 1.2.0 - 2026-08-12
 
-- Renamed the optional host helper from `dockle-agent` to
-  `dockle-companion` (it isn't an AI agent - a small, fixed-command-set
+- Renamed the optional host helper from `dockup-agent` to
+  `dockup-companion` (it isn't an AI agent - a small, fixed-command-set
   systemd service)
 - One-click "Install companion" button in Settings → Host: runs the
   host-side install for you via a short-lived privileged action, no
-  standing extra permissions for Dockle's own container afterward
-- Dockle now automatically pauses and restores any Tailscale Serve rule
+  standing extra permissions for DockUp's own container afterward
+- DockUp now automatically pauses and restores any Tailscale Serve rule
   that's holding a port a stack is about to bind to (when the companion
   is installed), fixing the "address already in use" failure that hits
   a deleted-and-recreated stack whose old Serve mapping is still live
 - When that specific conflict happens without the companion installed,
-  Dockle explains exactly what's wrong and how to fix it instead of
+  DockUp explains exactly what's wrong and how to fix it instead of
   just showing Docker's raw error text
 - Stack name input now filters to lowercase/digits/-/_ as you type
   instead of failing validation after the fact
 - Fixed a real bug in the same area: `docker compose` was reading
-  Dockle's own container `PATH` instead of a stack's `.env` definition
+  DockUp's own container `PATH` instead of a stack's `.env` definition
   of the same name (a real pattern in imported Arcane stacks, e.g.
   stirling-pdf), corrupting `${PATH}`-based volume paths on every
   update check
@@ -559,7 +573,7 @@ Security and cleanup pass (home-server threat model - no VPS hardening).
   status dots now reflect container health (red/yellow/green), not just
   running/stopped
 - Bulk "Adopt all" plus a one-time first-run prompt
-- Optional `dockle-companion` host helper: host OS update checks/apply
+- Optional `dockup-companion` host helper: host OS update checks/apply
   on Debian/Ubuntu, and per-stack Tailscale Serve toggles - a separate,
   narrowly-scoped install since it needs root on the host itself
 - Security hardening: container runs as non-root, port bound to

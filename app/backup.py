@@ -1,4 +1,4 @@
-"""Backups: a daily tarball of the stacks folder plus the Dockle database,
+"""Backups: a daily tarball of the stacks folder plus the DockUp database,
 kept for a configurable number of days, restorable from the UI, plus a
 download-everything zip for portability.
 """
@@ -26,7 +26,7 @@ _last_backup_day = None
 
 def make_backup(reason="scheduled") -> Path:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    path = config.BACKUP_DIR / f"dockle-backup-{stamp}.tar.gz"
+    path = config.BACKUP_DIR / f"dockup-backup-{stamp}.tar.gz"
     tmp_db = config.DATA_DIR / f".backup-db-{stamp}.sqlite"
     src = db.connect()
     try:
@@ -40,7 +40,7 @@ def make_backup(reason="scheduled") -> Path:
         with tarfile.open(path, "w:gz") as tar:
             if config.STACKS_DIR.exists():
                 tar.add(config.STACKS_DIR, arcname="stacks")
-            tar.add(tmp_db, arcname="dockle.db")
+            tar.add(tmp_db, arcname="dockup.db")
     finally:
         tmp_db.unlink(missing_ok=True)
     activity.log("info", "backup", f"Backup made ({reason}): {path.name}")
@@ -49,7 +49,7 @@ def make_backup(reason="scheduled") -> Path:
 
 def apply_retention(days: int):
     cutoff = time.time() - days * 86400
-    for f in config.BACKUP_DIR.glob("dockle-backup-*.tar.gz"):
+    for f in config.BACKUP_DIR.glob("dockup-backup-*.tar.gz"):
         if f.stat().st_mtime < cutoff:
             f.unlink()
 
@@ -68,7 +68,7 @@ def restore_backup(filename: str) -> str:
     restored = staging / "stacks"
     if not restored.exists():
         shutil.rmtree(staging)
-        raise ValueError("That archive doesn't look like a Dockle backup")
+        raise ValueError("That archive doesn't look like a DockUp backup")
     # keep the current state to one side so a restore is itself reversible
     undo = config.DATA_DIR / "pre-restore-stacks"
     if undo.exists():
@@ -82,7 +82,7 @@ def restore_backup(filename: str) -> str:
         shutil.copytree(item, dest) if item.is_dir() else shutil.copy2(item, dest)
     # database from the backup is placed alongside, never swapped live
     db_copy = config.DATA_DIR / f"restored-{filename.replace('.tar.gz', '')}.sqlite"
-    shutil.copy2(staging / "dockle.db", db_copy)
+    shutil.copy2(staging / "dockup.db", db_copy)
     shutil.rmtree(staging)
     activity.log("info", "backup",
                  f"Restored stack files from {filename}",
@@ -122,7 +122,7 @@ def start_scheduler():
 
 @bp.get("/list")
 def api_list():
-    files = sorted(config.BACKUP_DIR.glob("dockle-backup-*.tar.gz"), reverse=True)
+    files = sorted(config.BACKUP_DIR.glob("dockup-backup-*.tar.gz"), reverse=True)
     return jsonify({"backups": [
         {"name": f.name, "size": f.stat().st_size,
          "made": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")}
@@ -181,9 +181,9 @@ def api_export():
             dst.close()
         finally:
             src.close()
-        z.write(tmp_db, "dockle.db")
+        z.write(tmp_db, "dockup.db")
         tmp_db.unlink(missing_ok=True)
     buf.seek(0)
     activity.log("info", "backup", "Full export downloaded")
-    return send_file(buf, as_attachment=True, download_name="dockle-export.zip",
+    return send_file(buf, as_attachment=True, download_name="dockup-export.zip",
                      mimetype="application/zip")

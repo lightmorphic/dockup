@@ -1,8 +1,8 @@
 name: Publish Docker image
 
-# Every push to main builds ghcr.io/lightmorphic/dockle and tags it both
+# Every push to main builds ghcr.io/lightmorphic/dockup and tags it both
 # :latest and :<version> (read from app/config.py, the single source of
-# truth for Dockle's version). Installs then just `docker compose pull` -
+# truth for DockUp's version). Installs then just `docker compose pull` -
 # nobody builds from source unless they choose to.
 on:
   push:
@@ -54,8 +54,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/lightmorphic/dockle:latest
-            ghcr.io/lightmorphic/dockle:${{ steps.version.outputs.version }}
+            ghcr.io/lightmorphic/dockup:latest
+            ghcr.io/lightmorphic/dockup:${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=Self-hosted Docker Compose stack manager for home labs

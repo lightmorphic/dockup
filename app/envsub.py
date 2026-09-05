@@ -30,10 +30,10 @@ def substitute(text: str, env: dict) -> str:
     """Resolve ${VAR} the way compose will, given a stack's .env values.
 
     The fallback is limited to config.COMPOSE_PASSTHROUGH because that is
-    now all compose itself receives from Dockle's environment (see
+    now all compose itself receives from DockUp's environment (see
     Runtime._compose_env). Falling back to the whole of os.environ made
     this disagree with reality: a stack referencing ${SECRET_KEY} resolved
-    here to Dockle's key, so backup source paths and Serve ports could be
+    here to DockUp's key, so backup source paths and Serve ports could be
     computed from values the container never saw."""
     def repl(m):
         name = m.group(1) or m.group(2)

@@ -6,9 +6,9 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 os.environ.setdefault("SECRET_KEY", "dev-secret-key-for-testing-0123456789abcdef")
-os.environ.setdefault("DOCKLE_MOCK", "1")
-os.environ.setdefault("DOCKLE_DATA", str(HERE / "data"))
-os.environ.setdefault("DOCKLE_STACKS", str(HERE / "dev-stacks"))
+os.environ.setdefault("DOCKUP_MOCK", "1")
+os.environ.setdefault("DOCKUP_DATA", str(HERE / "data"))
+os.environ.setdefault("DOCKUP_STACKS", str(HERE / "dev-stacks"))
 
 from app import create_app  # noqa: E402  (env must be set before app import)
 

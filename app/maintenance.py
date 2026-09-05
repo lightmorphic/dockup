@@ -1,6 +1,6 @@
 """Maintenance: disk usage and pruning - each type separately or all at
 once. Volume pruning always shows exactly what will be deleted first.
-Also updating Dockle itself via the top-bar widget's download/restart
+Also updating DockUp itself via the top-bar widget's download/restart
 endpoints: download is a plain pull of the published image, restart
 recreates the container from it - see runtime.self_pull_stream /
 self_update_apply_stream.
@@ -74,7 +74,7 @@ def _declared_volumes() -> dict[str, str]:
 
 
 def _known_projects() -> dict[str, str]:
-    """Compose project name -> stack name, for every stack Dockle can see."""
+    """Compose project name -> stack name, for every stack DockUp can see."""
     from . import stacks
 
     out = {}
@@ -143,16 +143,16 @@ def prune():
     return jsonify({"ok": ok, "results": results})
 
 
-# -- updating Dockle itself -----------------------------------------------
+# -- updating DockUp itself -----------------------------------------------
 
 
-def _dockle_compose_dir():
-    """Dockle's own folder as the HOST sees it. compose.yaml lives one
+def _dockup_compose_dir():
+    """DockUp's own folder as the HOST sees it. compose.yaml lives one
     level up from the data dir it mounts as ./data - true by construction
     for every install this project documents, and the same derivation the
     companion installer already relies on."""
     if config.MOCK_MODE:
-        return "/opt/dockle"
+        return "/opt/dockup"
     if not config.DATA_HOST_PATH:
         return None
     return str(Path(config.DATA_HOST_PATH).parent)
@@ -169,7 +169,7 @@ def _fetch_remote_version() -> str:
     if config.MOCK_MODE:
         return runtime.current().remote_version()
     req = urllib.request.Request(config.UPDATE_VERSION_URL,
-                                 headers={"User-Agent": f"dockle/{config.VERSION}"})
+                                 headers={"User-Agent": f"dockup/{config.VERSION}"})
     with urllib.request.urlopen(req, timeout=10) as resp:
         text = resp.read(65536).decode("utf-8", "replace")
     m = _VERSION_LINE_RE.search(text)
@@ -180,7 +180,7 @@ def _fetch_remote_version() -> str:
 
 @bp.get("/self-update/check")
 def api_self_update_check():
-    """Is there a newer Dockle published? One HTTPS request, no git, no
+    """Is there a newer DockUp published? One HTTPS request, no git, no
     helper container - works identically for every install style."""
     try:
         latest = _fetch_remote_version()
@@ -193,12 +193,12 @@ def api_self_update_check():
 
 # The top-bar update widget's two-step flow (see the update-widget
 # skill): download pulls the published image without touching the
-# running container - Dockle stays up throughout, and a browser can walk
+# running container - DockUp stays up throughout, and a browser can walk
 # away mid-pull; restart is the short, separate step that actually
 # replaces it. "Ready to restart" isn't remembered in a flag anywhere:
 # it's computed from the daemon's own state (is the pulled image newer
-# than the one running?), so it survives page reloads, Dockle restarts,
-# and even a `docker compose pull` done entirely outside Dockle.
+# than the one running?), so it survives page reloads, DockUp restarts,
+# and even a `docker compose pull` done entirely outside DockUp.
 
 
 def _progress_fraction(lines_seen: int) -> float:
@@ -218,19 +218,19 @@ def api_self_update_download():
     text log by design (see the update-widget skill), the real pull
     output still goes to Activity on failure for anyone who wants it."""
     rt = runtime.current()
-    activity.log("info", "dockle-update", f"Pulling {config.UPDATE_IMAGE}")
+    activity.log("info", "dockup-update", f"Pulling {config.UPDATE_IMAGE}")
 
     def generate():
         ok = True
         lines, seen = [], 0
         try:
             for line in rt.self_pull_stream(config.UPDATE_IMAGE):
-                if line.startswith("[dockle-exit:"):
-                    ok = line == "[dockle-exit:0]"
+                if line.startswith("[dockup-exit:"):
+                    ok = line == "[dockup-exit:0]"
                     continue
                 lines.append(line)
                 seen += 1
-                yield f"[dockle-progress:{_progress_fraction(seen):.3f}]\n"
+                yield f"[dockup-progress:{_progress_fraction(seen):.3f}]\n"
         except runtime.RuntimeError_ as exc:
             ok = False
             lines.append(f"ERROR: {exc}")
@@ -238,11 +238,11 @@ def api_self_update_download():
             ok = False
             lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
         if ok:
-            activity.log("info", "dockle-update", "Dockle update downloaded - ready to restart")
-            yield "[dockle-progress:1.000]\n[dockle-done:ok]\n"
+            activity.log("info", "dockup-update", "DockUp update downloaded - ready to restart")
+            yield "[dockup-progress:1.000]\n[dockup-done:ok]\n"
         else:
-            activity.log("error", "dockle-update", "Dockle update download FAILED", "\n".join(lines[-40:]))
-            yield "[dockle-done:error]\n"
+            activity.log("error", "dockup-update", "DockUp update download FAILED", "\n".join(lines[-40:]))
+            yield "[dockup-done:error]\n"
 
     return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
@@ -250,17 +250,17 @@ def api_self_update_download():
 
 @bp.post("/self-update/restart")
 def api_self_update_restart():
-    """Recreate Dockle's container from the image /self-update/download
+    """Recreate DockUp's container from the image /self-update/download
     already built. Replaces the container serving this very request, so
-    the stream ends abruptly right after "[dockle-restarting]" - the
+    the stream ends abruptly right after "[dockup-restarting]" - the
     browser waits for /health to answer again rather than treating the
     dropped connection as a failure."""
-    compose_dir = _dockle_compose_dir()
+    compose_dir = _dockup_compose_dir()
     if not compose_dir:
-        return jsonify({"error": "DOCKLE_DATA_HOST_PATH isn't set, so Dockle doesn't know its own "
+        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so DockUp doesn't know its own "
                                  "real path on the host - see the runbook to set it in compose.yaml."}), 400
     rt = runtime.current()
-    activity.log("info", "dockle-update", "Dockle restart-to-update started")
+    activity.log("info", "dockup-update", "DockUp restart-to-update started")
 
     def generate():
         ok = True
@@ -268,13 +268,13 @@ def api_self_update_restart():
         lines = []
         try:
             for line in rt.self_update_apply_stream(compose_dir):
-                if line.startswith("[dockle-exit:"):
-                    ok = line == "[dockle-exit:0]"
+                if line.startswith("[dockup-exit:"):
+                    ok = line == "[dockup-exit:0]"
                     continue
                 lines.append(line)
                 if not restarting and "recreat" in line.lower():
                     restarting = True
-                    yield "[dockle-restarting]\n"
+                    yield "[dockup-restarting]\n"
         except runtime.RuntimeError_ as exc:
             ok = False
             lines.append(f"ERROR: {exc}")
@@ -288,11 +288,11 @@ def api_self_update_restart():
             # recreating), refresh the cached remote version so the dot
             # doesn't keep advertising the update just applied.
             _refresh_self_check()
-            activity.log("info", "dockle-update", "Dockle restarted on the new version")
-            yield "[dockle-done:ok]\n"
+            activity.log("info", "dockup-update", "DockUp restarted on the new version")
+            yield "[dockup-done:ok]\n"
         else:
-            activity.log("error", "dockle-update", "Dockle restart FAILED", "\n".join(lines[-40:]))
-            yield "[dockle-done:error]\n"
+            activity.log("error", "dockup-update", "DockUp restart FAILED", "\n".join(lines[-40:]))
+            yield "[dockup-done:error]\n"
 
     return Response(stream_with_context(generate()), mimetype="text/plain",
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
@@ -353,7 +353,7 @@ def api_versions():
     except Exception:
         download_ready = False
     return jsonify({
-        "dockle": {
+        "dockup": {
             "version": config.VERSION,
             # None means "not known yet" - a tick is only ever shown for
             # a real, current answer.
@@ -362,8 +362,8 @@ def api_versions():
             "checkedAt": checked_at or None,
             # A newer image already pulled, waiting only on the restart
             # click. Computed from the daemon's state, not remembered -
-            # right after page reloads, Dockle restarts, or a pull done
-            # entirely outside Dockle.
+            # right after page reloads, DockUp restarts, or a pull done
+            # entirely outside DockUp.
             "downloadReady": download_ready,
         },
         "docker": {

@@ -35,9 +35,9 @@ def test_smtp():
     override = {k: (data.get(k) or settingsvc.get(k)) for k in keys}
     try:
         activity.send_email(
-            "Dockle test email",
-            "This is the test email from Dockle's settings screen. "
-            "If you're reading it, email alerts are working.\n\n- Dockle",
+            "DockUp test email",
+            "This is the test email from DockUp's settings screen. "
+            "If you're reading it, email alerts are working.\n\n- DockUp",
             override=override,
         )
     except Exception as exc:

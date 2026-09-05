@@ -50,14 +50,14 @@ def compose_path(name):
 
 
 def own_compose_project(containers):
-    """Which compose project Dockle itself belongs to, given a ps() list.
+    """Which compose project DockUp itself belongs to, given a ps() list.
     Its own container id is its hostname, the way Docker sets it. Used
-    both to keep Dockle out of the adopt list and to build its own card -
+    both to keep DockUp out of the adopt list and to build its own card -
     one definition, so the two can't drift apart."""
     own_id = socket.gethostname()[:12]
     own = next((c for c in containers if c["id"] == own_id), None)
     if own is None and config.MOCK_MODE:
-        own = next((c for c in containers if c["project"] == "dockle"), None)
+        own = next((c for c in containers if c["project"] == "dockup"), None)
     return (own["project"] or own["name"]) if own else None
 
 
@@ -146,7 +146,7 @@ def _declared_ports_by_stack(exclude=""):
 
 def _live_bound_ports(exclude_names=frozenset()):
     """port -> container name, from every running container's actual
-    port binding right now - catches anything Dockle doesn't manage
+    port binding right now - catches anything DockUp doesn't manage
     (adopted elsewhere, started with a bare `docker run`) that a
     compose-file-only comparison would miss."""
     result = {}
@@ -402,7 +402,7 @@ def _port_conflict_hint(line, available):
     m = _PORT_CONFLICT_RE.search(line)
     if not m:
         return None
-    return f"[dockle-hint:tailscale-port-conflict:{m.group(1)}:{1 if available else 0}]"
+    return f"[dockup-hint:tailscale-port-conflict:{m.group(1)}:{1 if available else 0}]"
 
 
 _NETWORK_LABEL_RE = re.compile(r"network (\S+) was found but has incorrect label com\.docker\.compose\.network")
@@ -410,7 +410,7 @@ _NETWORK_LABEL_RE = re.compile(r"network (\S+) was found but has incorrect label
 
 def _compose_with_network_fix(rt, name, d, action):
     """Run one compose action, and if it failed only because compose
-    tried to take ownership of a network that predates Dockle managing
+    tried to take ownership of a network that predates DockUp managing
     this stack, declare that network external and retry once.
 
     Yields ('line', text) for every output line of both attempts,
@@ -422,27 +422,27 @@ def _compose_with_network_fix(rt, name, d, action):
     local_ok = True
     fix_network = None
     for line in rt.compose_stream(str(d), name, action):
-        if line.startswith("[dockle-exit:"):
-            local_ok = line == "[dockle-exit:0]"
+        if line.startswith("[dockup-exit:"):
+            local_ok = line == "[dockup-exit:0]"
         else:
             yield ("line", line)
             m = _NETWORK_LABEL_RE.search(line)
             if m:
                 fix_network = m.group(1)
     if not local_ok and fix_network and _fix_unlabeled_network(name, fix_network):
-        yield ("notice", f"Network '{fix_network}' predates Dockle managing this stack - declaring it "
+        yield ("notice", f"Network '{fix_network}' predates DockUp managing this stack - declaring it "
                          f"external so compose reuses it instead of trying to own it, and retrying...")
         local_ok = True
         for line in rt.compose_stream(str(d), name, action):
-            if line.startswith("[dockle-exit:"):
-                local_ok = line == "[dockle-exit:0]"
+            if line.startswith("[dockup-exit:"):
+                local_ok = line == "[dockup-exit:0]"
             else:
                 yield ("line", line)
     yield ("done", local_ok)
 
 
 def _fix_unlabeled_network(project: str, network_name: str) -> bool:
-    """One-time repair for a network that predates Dockle managing this
+    """One-time repair for a network that predates DockUp managing this
     stack (or any docker-compose lifecycle ownership) - a real, common
     state for anything adopted from a previous manager. Labels can't be
     edited on an existing network, so the only fix is telling compose
@@ -553,13 +553,13 @@ def api_action(name, action):
                     # `down` forever otherwise - a delete must always
                     # be able to finish, so a hang here falls back to
                     # forcefully removing the containers instead of
-                    # leaving the stack stuck in Dockle for good.
+                    # leaving the stack stuck in DockUp for good.
                     hung = False
                     for line in rt.compose_stream(str(d), name, "down", timeout=45):
-                        if line == "[dockle-timeout]":
+                        if line == "[dockup-timeout]":
                             hung = True
-                        elif line.startswith("[dockle-exit:"):
-                            ok = hung or line == "[dockle-exit:0]"
+                        elif line.startswith("[dockup-exit:"):
+                            ok = hung or line == "[dockup-exit:0]"
                         else:
                             yield line + "\n"
                     if hung:
@@ -618,9 +618,9 @@ def api_action(name, action):
                         shutil.rmtree(d)
                     except OSError:
                         # A stack folder left root-owned by whatever
-                        # managed it before Dockle (a real, hit case for
+                        # managed it before DockUp (a real, hit case for
                         # anything adopted from a previous tool) can't be
-                        # removed by Dockle's own non-root process -
+                        # removed by DockUp's own non-root process -
                         # fall back to a throwaway root container, the
                         # same trick used for backup/restore.
                         rt.force_remove_dir(str(d.parent), d.name)
@@ -651,11 +651,11 @@ def api_action(name, action):
                 from . import updatecheck
                 updatecheck.clear_flag(name)
             activity.log("info", "stack", f"{action.capitalize()} completed on '{name}'")
-            yield "[dockle-done:ok]\n"
+            yield "[dockup-done:ok]\n"
         else:
             activity.log("error", "stack", f"{action.capitalize()} FAILED on '{name}'",
                          "Open the stack's output panel for the full error text.")
-            yield "[dockle-done:error]\n"
+            yield "[dockup-done:error]\n"
 
     # stream_with_context: without it, Flask doesn't keep the request/app
     # context alive for the generator's whole lifetime - anything deep in
@@ -830,7 +830,7 @@ def _update_one(name, d, rt):
         if conflict_port:
             detail = (f"Port {conflict_port} was still held by a Tailscale Serve rule from a previous "
                       f"version of this stack." + ("" if companion_available else
-                      " Installing the dockle-companion (Settings → Host OS & Tailscale) lets Dockle clear this "
+                      " Installing the dockup-companion (Settings → Host OS & Tailscale) lets DockUp clear this "
                       "automatically next time."))
             activity.log("error", "stack", f"Update FAILED on '{name}'", detail)
             return False, f"Port {conflict_port} conflict - see Activity for details"
@@ -904,7 +904,7 @@ def api_check_update_one(name):
 
 @bp.get("/discover")
 def api_discover():
-    """What's running on this system that Dockle doesn't manage yet?"""
+    """What's running on this system that DockUp doesn't manage yet?"""
     projects, standalone, error = discover()
     if error:
         return jsonify({"error": error}), 502
@@ -912,7 +912,7 @@ def api_discover():
 
 
 def discover():
-    """Everything running that Dockle doesn't manage yet, minus anything
+    """Everything running that DockUp doesn't manage yet, minus anything
     under an excluded path (another tool's territory - see settingsvc
     adopt.exclude_paths). Returns (projects, standalone, error)."""
     from . import settingsvc
@@ -925,7 +925,7 @@ def discover():
                if d.is_dir() and any((d / f).exists() for f in config.COMPOSE_FILENAMES)} \
         if config.STACKS_DIR.exists() else set()
 
-    # Dockle has its own card on the dashboard, so it must never also
+    # DockUp has its own card on the dashboard, so it must never also
     # turn up here as something to adopt.
     own_project = own_compose_project(containers)
 
@@ -1007,7 +1007,7 @@ def _adopt_one(kind, name, workingDir="", configFiles=""):
 @bp.post("/adopt")
 def api_adopt():
     """Bring an existing compose project or standalone container under
-    Dockle's wing: its compose file lands in the stacks folder."""
+    DockUp's wing: its compose file lands in the stacks folder."""
     data = request.get_json(force=True)
     result, error = _adopt_one(
         data.get("kind"), (data.get("name") or "").strip(),
@@ -1112,7 +1112,7 @@ def api_stack_backup_download(name, backup_name):
 def api_stack_backup_upload(name):
     """Bring in a backup file from elsewhere - downloaded earlier, or
     moved from another machine - so it can be restored the same way as
-    one Dockle made itself."""
+    one DockUp made itself."""
     try:
         stack_dir(name)
     except ValueError as exc:
@@ -1121,7 +1121,7 @@ def api_stack_backup_upload(name):
     if not f or not f.filename:
         return jsonify({"error": "No file received"}), 400
     if not f.filename.endswith(".tar.gz"):
-        return jsonify({"error": "That doesn't look like a Dockle stack backup (.tar.gz)"}), 400
+        return jsonify({"error": "That doesn't look like a DockUp stack backup (.tar.gz)"}), 400
     stamp = time.strftime("%Y%m%d-%H%M%S")
     dest = config.STACK_BACKUP_DIR / f"{name}-uploaded-{stamp}.tar.gz"
     f.save(dest)
@@ -1131,6 +1131,6 @@ def api_stack_backup_upload(name):
                 raise ValueError("missing manifest.json")
     except (tarfile.TarError, ValueError):
         dest.unlink(missing_ok=True)
-        return jsonify({"error": "That file doesn't look like a Dockle stack backup"}), 400
+        return jsonify({"error": "That file doesn't look like a DockUp stack backup"}), 400
     activity.log("info", "backup", f"Backup file uploaded for '{name}'", dest.name)
     return jsonify({"ok": True, "name": dest.name})

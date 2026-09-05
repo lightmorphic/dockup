@@ -1,6 +1,6 @@
 """Pretend engine for development machines with no container runtime.
 
-Activated by DOCKLE_MOCK=1. Stacks still live as real compose files on
+Activated by DOCKUP_MOCK=1. Stacks still live as real compose files on
 disk, so the editor, converter, backups and file handling are exercised
 for real - only the engine responses are simulated.
 """
@@ -86,14 +86,14 @@ class MockRuntime:
                     "service": svc,
                     "workingDir": "", "configFiles": "", "ports": "",
                 })
-        # Dockle's own container, so the dashboard's Dockle card has
+        # DockUp's own container, so the dashboard's DockUp card has
         # something real to show in dev mode too.
         rows.append({
-            "id": "0d0ckle00001", "name": "dockle",
-            "image": "dockle:latest",
-            "state": self.states.get("dockle", "running"),
-            "status": "Up 2 hours", "project": "dockle", "service": "dockle",
-            "workingDir": "/opt/dockle", "configFiles": "/opt/dockle/compose.yaml",
+            "id": "0d0ckle00001", "name": "dockup",
+            "image": "dockup:latest",
+            "state": self.states.get("dockup", "running"),
+            "status": "Up 2 hours", "project": "dockup", "service": "dockup",
+            "workingDir": "/opt/dockup", "configFiles": "/opt/dockup/compose.yaml",
             "ports": "127.0.0.1:4000->5001/tcp",
         })
         if not self.adopted("homeassistant"):
@@ -169,7 +169,7 @@ class MockRuntime:
             self.states.pop(project, None)
         elif action == "stop":
             self.states[project] = "exited"
-        yield "[dockle-exit:0]"
+        yield "[dockup-exit:0]"
 
     def force_remove_containers(self, project):
         self.states.pop(project, None)
@@ -235,15 +235,15 @@ class MockRuntime:
         pass
 
     def install_companion_stream(self, staging_host_dir):
-        yield "Installing dockle-companion (mock)..."
-        yield "dockle-companion installed and running (mock)."
-        yield "[dockle-exit:0]"
+        yield "Installing dockup-companion (mock)..."
+        yield "dockup-companion installed and running (mock)."
+        yield "[dockup-exit:0]"
 
     def reconnect_companion_stream(self, compose_host_path, compose_host_dir):
         yield "Editing compose.yaml (mock)..."
         yield "Validating config (mock)..."
-        yield "dockle-companion reconnected (mock) - no real restart in dev mode."
-        yield "[dockle-exit:0]"
+        yield "dockup-companion reconnected (mock) - no real restart in dev mode."
+        yield "[dockup-exit:0]"
 
     # Mock self-update: pretends a newer published version exists until a
     # pull-then-restart cycle has run, so the whole widget flow can be
@@ -266,7 +266,7 @@ class MockRuntime:
             yield f"{layer}: Pull complete"
         yield "Status: Downloaded newer image (mock)"
         self._pulled_newer = True
-        yield "[dockle-exit:0]"
+        yield "[dockup-exit:0]"
 
     def self_update_ready(self, container_id, image_ref):
         return self._pulled_newer
@@ -274,7 +274,7 @@ class MockRuntime:
     def self_update_apply_stream(self, compose_host_dir):
         yield "(mock) docker compose up -d"
         time.sleep(0.3)
-        yield " dockle: Container dockle  Recreated"
+        yield " dockup: Container dockup  Recreated"
         self._pulled_newer = False
         self._mock_updated = True
-        yield "[dockle-exit:0]"
+        yield "[dockup-exit:0]"

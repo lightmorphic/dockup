@@ -2,9 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dockle-dev",
+      "name": "dockup-dev",
       "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["dev_run.py"],
+      "runtimeArgs": [
+        "dev_run.py"
+      ],
       "port": 5001
     }
   ]

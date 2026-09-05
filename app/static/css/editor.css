@@ -1,10 +1,10 @@
 /* CodeMirror wrapped in the house look - solid panel, no CM default
    theme. Colours and chrome (background, gutters, cursor, selection,
    active line, matching bracket, YAML token colours) are set once in
-   JS as a CM6 theme/highlight extension - see the DockleEditor bundle
+   JS as a CM6 theme/highlight extension - see the DockUpEditor bundle
    entry point - rather than as CSS overrides here, since CM6 doesn't
    emit the same simple class names CM5 did. This file only holds the
-   sizing CM6 doesn't know to set itself, plus Dockle's own frame/
+   sizing CM6 doesn't know to set itself, plus DockUp's own frame/
    status-bar chrome around the editor. */
 
 .cm-editor { min-height: 22rem; }

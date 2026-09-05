@@ -17,7 +17,7 @@ def health():
 
 @bp.get("/favicon.ico")
 def favicon():
-    return redirect("/static/icons/dockle.svg", code=301)
+    return redirect("/static/icons/dockup.svg", code=301)
 
 
 @bp.get("/api/activity")
