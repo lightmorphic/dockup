@@ -422,16 +422,34 @@ input[type="checkbox"], input[type="radio"] { width: auto; display: inline-block
    at every level here lets it wrap/truncate within its own card instead */
 .stack-card {
   cursor: pointer; transition: border-color 120ms; min-width: 0;
-  position: relative; padding: 1rem; padding-right: 3.25rem;
+  position: relative; padding: 1rem;
 }
 .stack-card:hover { border-color: var(--accent); }
 .stack-card h3 { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
-.stack-card h3 > *:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.stack-card .hint { display: block; margin-top: 0.375rem; }
-/* Open web UI: pinned to the card's own right edge, vertically centred,
-   independent of how tall the card ends up (name length, container
-   count) - not floating loose in the grid gutter. */
-.stack-card .web-link { position: absolute; top: 50%; right: 0.9rem; transform: translateY(-50%); }
+/* The name is the one part that gives way: it takes whatever room is
+   left after the dot and the web-UI link, and ends in an ellipsis
+   rather than pushing anything out of the card. min-width:0 is what
+   lets a flex item shrink below its own text width at all. */
+.stack-card h3 .card-name {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* An image reference has no spaces to break at, so at a narrow column
+   width it used to run straight out of the card (measured: 96px past
+   the edge on a 212px card). Let it break mid-word instead - the card
+   grows a line, which the grid row absorbs. */
+.stack-card .hint { display: block; margin-top: 0.375rem; overflow-wrap: anywhere; }
+/* Same reasoning wherever else the app prints something with no spaces
+   in it - a mount path in the delete confirmation, a Tailscale
+   hostname, the two-factor key. Left as one rule rather than chased
+   case by case. */
+code { overflow-wrap: anywhere; }
+/* Open web UI sits on the title row, at the card's right edge. It used
+   to be absolutely positioned and vertically centred, which needed a
+   permanent 3.25rem gutter on EVERY card - including the ones with no
+   link, whose text lost that width for nothing - and left the icon
+   stranded mid-card whenever a taller neighbour stretched the row. */
+.stack-card .web-link { flex: none; }
 
 /* ---- tables ---- */
 

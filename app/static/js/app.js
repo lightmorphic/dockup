@@ -727,9 +727,9 @@ function managedCard(s) {
   const label = `Open stack ${s.name} - ${dotTip}`;
   const card = el(`<div class="panel stack-card" role="link" tabindex="0" aria-label="${esc(label)}">
     <h3><span class="status-dot ${STATUS_DOT_CLASS[effectiveStatus] || ""}" data-tip="${esc(dotTip)}"
-      ${updateReady ? 'role="button"' : ""} tabindex="0" aria-label="${esc(dotTip)}"></span><span>${esc(s.name)}</span></h3>
+      ${updateReady ? 'role="button"' : ""} tabindex="0" aria-label="${esc(dotTip)}"></span><span class="card-name">${esc(s.name)}</span>${
+      webUrl ? `<a class="icon-btn web-link" href="${esc(webUrl)}" target="_blank" rel="noopener" data-tip="Open web UI" aria-label="Open web UI">${ICONS.external}</a>` : ""}</h3>
     <span class="hint">${s.containers.length} container${s.containers.length === 1 ? "" : "s"}${port ? ` · port ${port}` : ""}</span>
-    ${webUrl ? `<a class="icon-btn web-link" href="${esc(webUrl)}" target="_blank" rel="noopener" data-tip="Open web UI" aria-label="Open web UI">${ICONS.external}</a>` : ""}
     ${inactive ? `<div class="btn-row card-actions">
       <button class="btn" id="archiveBtn">Archive</button>
       <button class="btn btn-danger" id="purgeBtn">Delete</button>
@@ -816,7 +816,7 @@ function managedCard(s) {
 function unmanagedCard(p, status) {
   const n = p.containers.length;
   const card = el(`<div class="panel stack-card">
-    <h3>${cardDot(status)}<span>${esc(p.name)}</span></h3>
+    <h3>${cardDot(status)}<span class="card-name">${esc(p.name)}</span></h3>
     <span class="hint">${n} container${n === 1 ? "" : "s"}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);
@@ -826,7 +826,7 @@ function unmanagedCard(p, status) {
 
 function standaloneCard(c) {
   const card = el(`<div class="panel stack-card">
-    <h3>${cardDot(c.state)}<span>${esc(c.name)}</span></h3>
+    <h3>${cardDot(c.state)}<span class="card-name">${esc(c.name)}</span></h3>
     <span class="hint">${esc(c.image)}, not adopted</span>
     <button class="btn btn-block adopt-btn">Adopt</button>
   </div>`);

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.2 - 2026-09-05
+
+- Fixed text running out of the stack cards on the Stacks page. A long
+  image name (an unadopted container's `ghcr.io/...` line) had no spaces
+  to break at and ran up to 96px past the edge of its card; it now wraps
+- Every card was reserving room on its right for the "Open web UI"
+  button, including the cards that don't have one, which cost those
+  cards a fifth of their width for nothing
+- The "Open web UI" button now sits on the title row rather than
+  floating in the middle of the card, so it lines up across all the
+  cards in a row instead of drifting down whenever a taller neighbour
+  stretched the row
+
 ## 2.0.1 - 2026-09-05
 
 - The name is written "Dockup", not "DockUp"
