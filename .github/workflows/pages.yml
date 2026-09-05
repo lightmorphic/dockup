@@ -3,7 +3,7 @@ name: Deploy site to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["sites/**"]
+    paths: ["sites/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +23,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # enablement turns Pages on if it isn't already, rather than
+      # failing the run - which is exactly what happened when the
+      # project moved to a new repository and nobody had switched
+      # Pages on there yet.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: sites
