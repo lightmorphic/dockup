@@ -593,6 +593,8 @@ tr:last-child td { border-bottom: none; }
   }
   .topbar-actions::-webkit-scrollbar { display: none; }
   .topbar-actions > * { flex: none; }
+  .dash-actions { margin-bottom: 1rem; }
+  .stack-grid { grid-template-columns: 1fr; }
 }
 /* On the narrowest phones the brand, version, dot and the 40vw icon
    strip no longer fit on one line and the whole page went 3-15px wider
@@ -616,9 +618,6 @@ tr:last-child td { border-bottom: none; }
     content: ""; position: absolute; left: 50%; top: 50%;
     width: 44px; height: 44px; transform: translate(-50%, -50%);
   }
-}
-  .dash-actions { margin-bottom: 1rem; }
-  .stack-grid { grid-template-columns: 1fr; }
 }
 
 .visually-hidden {

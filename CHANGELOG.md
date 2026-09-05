@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.18 - 2026-09-05
+
+- Fixed the Stacks page, which was showing one wide card per row instead
+  of the small cards side by side. A stray brace in yesterday's mobile
+  work let the phone-only one-column rule apply at every screen size
+
 ## 1.7.17 - 2026-09-05
 
 - Lines you can actually see: panel outlines, dividers, table rules and
