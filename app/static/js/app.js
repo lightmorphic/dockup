@@ -1848,10 +1848,16 @@ async function installCompanion(btn) {
   let restarting = false;
   try {
     const res = await fetch("/api/hostcompanion/install", { method: "POST", headers: { "X-CSRF": CSRF } });
-    ({ restarting } = await readDockupStream(res, {
+    // restarting is set the moment the marker arrives, not when the
+    // stream finishes - the restart it announces is what cuts the
+    // stream off, so waiting for a clean end means this flag is still
+    // false in the catch below and a successful install gets reported
+    // as "ERROR: network error".
+    const result = await readDockupStream(res, {
       onLine: line => panel.line(line),
-      onRestarting: () => panel.line("Reconnecting Dockup…"),
-    }));
+      onRestarting: () => { restarting = true; panel.line("Reconnecting Dockup…"); },
+    });
+    restarting = restarting || result.restarting;
   } catch (e) {
     if (!restarting) {
       panel.line("ERROR: " + e.message);

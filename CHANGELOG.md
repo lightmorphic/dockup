@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.3 - 2026-09-05
+
+- Installing the host companion reported "ERROR: network error" and left
+  the button offering to try again, even though the install had worked.
+  The install ends by restarting Dockup, and that restart cuts off the
+  stream carrying the progress messages - so the "I am restarting" flag,
+  which was only read once the stream finished cleanly, never got set.
+  It now reports reconnecting, and waits, as it was meant to
+
 ## 2.0.2 - 2026-09-05
 
 - Fixed text running out of the stack cards on the Stacks page. A long
