@@ -72,8 +72,8 @@ def _maybe_email_error(category, message, detail):
                     return
                 _last_email_at = time.time()
             send_email(
-                subject=f"DockUp error: {category}",
-                body=f"{message}\n\n{detail or ''}\n\n- DockUp",
+                subject=f"Dockup error: {category}",
+                body=f"{message}\n\n{detail or ''}\n\n- Dockup",
                 override={
                     "smtp.host": host, "smtp.port": s("smtp.port"),
                     "smtp.security": s("smtp.security"), "smtp.username": s("smtp.username"),
@@ -97,12 +97,12 @@ def _maybe_email_error(category, message, detail):
 
 
 def _html_body(subject: str, body: str) -> str:
-    # The plain-text body always ends "- DockUp" as its sign-off for
+    # The plain-text body always ends "- Dockup" as its sign-off for
     # clients that only show the text part - redundant once the HTML
     # version has a branded header doing the same job, so drop it here.
     text = body.rstrip()
-    if text.endswith("- DockUp"):
-        text = text[: -len("- DockUp")].rstrip()
+    if text.endswith("- Dockup"):
+        text = text[: -len("- Dockup")].rstrip()
     paragraphs = "".join(
         f'<p style="margin:0 0 12px;white-space:pre-wrap;">{html.escape(p).replace(chr(10), "<br>")}</p>'
         for p in text.split("\n\n") if p.strip()
@@ -138,8 +138,8 @@ def _html_body(subject: str, body: str) -> str:
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:480px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:14px;overflow:hidden;">
 <tr><td style="background:#111827;padding:20px 24px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="padding-right:10px;"><img src="cid:{_LOGO_CID}" width="32" height="32" alt="DockUp" style="display:block;border-radius:7px;"></td>
-<td style="color:#ffffff;font-size:18px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">DockUp</td>
+<td style="padding-right:10px;"><img src="cid:{_LOGO_CID}" width="32" height="32" alt="Dockup" style="display:block;border-radius:7px;"></td>
+<td style="color:#ffffff;font-size:18px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Dockup</td>
 </tr></table>
 </td></tr>
 <tr><td class="body-text" style="padding:24px;color:#09090b;font-size:15px;line-height:1.6;">
@@ -147,7 +147,7 @@ def _html_body(subject: str, body: str) -> str:
 {paragraphs}
 </td></tr>
 <tr><td class="footer" style="padding:16px 24px;border-top:1px solid #e4e4e7;color:#71717a;font-size:12px;">
-Sent automatically by your DockUp instance.
+Sent automatically by your Dockup instance.
 </td></tr>
 </table>
 </body>

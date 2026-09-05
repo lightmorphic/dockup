@@ -59,7 +59,7 @@ def init():
 
 
 def _rename_old_activity(con):
-    """One-off tidy-up after the rename to DockUp: activity rows written
+    """One-off tidy-up after the rename to Dockup: activity rows written
     under the old name still say it, so a log going back before the
     rename reads as though it belongs to a different program. The
     category those rows are filed under says it too, and the Activity
@@ -73,7 +73,7 @@ def _rename_old_activity(con):
     for column in ("message", "detail"):
         con.execute(
             f"UPDATE activity SET {column} = replace(replace(replace({column},"
-            f" 'Dockle', 'DockUp'),"
+            f" 'Dockle', 'Dockup'),"
             f" 'dockle-companion', 'dockup-companion'),"
             f" 'lightmorphic/dockle', 'lightmorphic/dockup') "
             f"WHERE {column} LIKE '%Dockle%'"

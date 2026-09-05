@@ -1,4 +1,4 @@
-/* DockUp service worker: keep a copy of the static shell so the app still
+/* Dockup service worker: keep a copy of the static shell so the app still
    opens if the network blips. Network first, so updates always win;
    API calls never touch the cache - stale container states would mislead. */
 const CACHE = "dockup-static-v4";

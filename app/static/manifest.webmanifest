@@ -1,6 +1,6 @@
 {
-  "name": "Lightmorphic DockUp",
-  "short_name": "DockUp",
+  "name": "Lightmorphic Dockup",
+  "short_name": "Dockup",
   "description": "Home-lab compose stack manager",
   "start_url": "/",
   "display": "standalone",

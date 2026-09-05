@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM python:3.13-alpine
 
 # docker-cli + compose plugin talk to whichever socket is mounted
-# (Docker's or Podman's) - DockUp itself never needs a daemon of its own.
+# (Docker's or Podman's) - Dockup itself never needs a daemon of its own.
 # su-exec drops from root to the dockup user after the entrypoint's
 # one-time setup. apk upgrade patches OS packages at build time rather
 # than trusting whatever was baked into the base image when published.

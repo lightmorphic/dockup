@@ -2,7 +2,7 @@ name: Publish Docker image
 
 # Every push to main builds ghcr.io/lightmorphic/dockup and tags it both
 # :latest and :<version> (read from app/config.py, the single source of
-# truth for DockUp's version). Installs then just `docker compose pull` -
+# truth for Dockup's version). Installs then just `docker compose pull` -
 # nobody builds from source unless they choose to.
 on:
   push:

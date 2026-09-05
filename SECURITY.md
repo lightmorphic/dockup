@@ -1,8 +1,8 @@
 # Security
 
-DockUp is built for home labs on a private network, not for public
+Dockup is built for home labs on a private network, not for public
 internet exposure. It holds the Docker (or Podman) socket, which is
-effectively root on the host - treat access to DockUp itself as
+effectively root on the host - treat access to Dockup itself as
 equivalent to root access to the machine it runs on.
 
 ## Reporting a vulnerability

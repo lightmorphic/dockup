@@ -30,7 +30,7 @@ def _call(cmd: str, timeout=20, **kwargs) -> dict:
     except OSError as exc:
         raise CompanionUnavailable(
             "dockup-companion isn't reachable - not installed, or its "
-            "socket isn't mounted into DockUp's container yet. See the runbook."
+            "socket isn't mounted into Dockup's container yet. See the runbook."
         ) from exc
     try:
         payload = {"cmd": cmd, **kwargs}

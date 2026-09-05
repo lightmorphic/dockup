@@ -1,4 +1,4 @@
-"""The engine layer. Everything DockUp does to containers goes through here.
+"""The engine layer. Everything Dockup does to containers goes through here.
 
 Both Docker and Podman expose the same command interface, so one code path
 serves both: the docker CLI (and its compose plugin) is pointed at whichever
@@ -86,11 +86,11 @@ class Runtime:
 
         Compose substitutes a stack's compose.yaml variables from its .env
         file, but the environment it runs in always wins over that file. So
-        every variable DockUp passes down silently overrides the stack's own
-        value of the same name - DockUp's SECRET_KEY became the secret key
+        every variable Dockup passes down silently overrides the stack's own
+        value of the same name - Dockup's SECRET_KEY became the secret key
         of any stack referencing ${SECRET_KEY}, PATH broke stacks defining
         their own, and TZ would quietly reset a stack's timezone. An
-        allowlist is the only version of this that stays fixed as DockUp
+        allowlist is the only version of this that stays fixed as Dockup
         gains environment variables of its own."""
         env = {k: v for k, v in os.environ.items() if k in config.COMPOSE_PASSTHROUGH}
         env["DOCKER_HOST"] = f"unix://{self.socket_path}"
@@ -103,7 +103,7 @@ class Runtime:
                 timeout=timeout, env=self._compose_env() if compose else self._env(), cwd=cwd,
             )
         except FileNotFoundError:
-            raise RuntimeError_("The docker CLI is not installed in the DockUp container")
+            raise RuntimeError_("The docker CLI is not installed in the Dockup container")
         except subprocess.TimeoutExpired:
             raise RuntimeError_(f"Command timed out: docker {' '.join(args[:3])}...")
         if proc.returncode != 0:
@@ -320,10 +320,10 @@ class Runtime:
 
     def force_remove_dir(self, parent_host_path: str, dirname: str):
         """Remove a stack's folder via a throwaway root container when
-        DockUp's own non-root process can't - a real, hit-in-production
+        Dockup's own non-root process can't - a real, hit-in-production
         case for stacks adopted from a previous manager (Arcane) that
         left the folder root-owned. /opt/stacks is mounted at the same
-        path in both DockUp's container and the host, so no host-path
+        path in both Dockup's container and the host, so no host-path
         translation is needed here unlike the backup helpers below."""
         self._run(["run", "--rm", "-v", f"{parent_host_path}:/target",
                    HELPER_IMAGE, "rm", "-rf", f"/target/{dirname}"], timeout=60)
@@ -343,16 +343,16 @@ class Runtime:
 
     # -- per-stack data backup/restore ------------------------------------
     # A short-lived helper container does the actual file access, mounting
-    # the source and DockUp's own backup folder side by side - the daemon
+    # the source and Dockup's own backup folder side by side - the daemon
     # resolves both against the real host filesystem, so this reaches
-    # bind-mount paths DockUp's own container can't see directly, and
+    # bind-mount paths Dockup's own container can't see directly, and
     # named volumes wherever Docker actually stores them. Nothing is ever
     # relocated - everything restores to exactly the path it came from.
 
     def _require_host_path(self):
         if not config.DATA_HOST_PATH:
             raise RuntimeError_(
-                "DOCKUP_DATA_HOST_PATH isn't set, so DockUp doesn't know its own "
+                "DOCKUP_DATA_HOST_PATH isn't set, so Dockup doesn't know its own "
                 "real path on the host - see the runbook to set it in compose.yaml."
             )
         return f"{config.DATA_HOST_PATH.rstrip('/')}/stack-backups"
@@ -393,7 +393,7 @@ class Runtime:
     # --pid=host + --privileged for CAP_SYS_PTRACE/CAP_SYS_ADMIN) is
     # what real host-systemd-management tools use for exactly this
     # reason. Still a single short-lived container - nothing standing
-    # on DockUp's own container afterward.
+    # on Dockup's own container afterward.
 
     def install_companion_stream(self, staging_host_dir: str):
         args = [
@@ -417,12 +417,12 @@ class Runtime:
         yield f"[dockup-exit:{proc.returncode}]"
 
     def reconnect_companion_stream(self, compose_host_path: str, compose_host_dir: str):
-        """Uncomment the companion socket line in DockUp's own compose.yaml
+        """Uncomment the companion socket line in Dockup's own compose.yaml
         and run `docker compose up -d` for real, via the host's own
-        namespaces - not a bind-mounted view from inside DockUp's own
+        namespaces - not a bind-mounted view from inside Dockup's own
         container, where compose's relative-path resolution (./data
         etc) would produce the wrong absolute host paths. This
-        recreates DockUp's own container, so the stream (and the HTTP
+        recreates Dockup's own container, so the stream (and the HTTP
         request carrying it) ends abruptly partway through - expected,
         not a failure. The daemon completes the restart independently
         of whether anything is still reading this output."""
@@ -444,10 +444,10 @@ class Runtime:
         proc.wait()
         yield f"[dockup-exit:{proc.returncode}]"
 
-    # -- updating DockUp itself -------------------------------------------
-    # DockUp cannot recreate its own container from inside it: `compose up`
+    # -- updating Dockup itself -------------------------------------------
+    # Dockup cannot recreate its own container from inside it: `compose up`
     # stops that container, which kills the very process running the
-    # command, so the "start it again" half never happens and DockUp stays
+    # command, so the "start it again" half never happens and Dockup stays
     # down until someone opens a shell. Both methods below therefore do
     # the work from a short-lived container that ISN'T the one being
     # replaced, entering the host's own namespaces the same way the
@@ -459,9 +459,9 @@ class Runtime:
                 f"sh -c {shlex.quote(inner_script)}")
 
     def self_pull_stream(self, image_ref: str):
-        """`docker pull` of DockUp's own published image - the "download"
+        """`docker pull` of Dockup's own published image - the "download"
         half of the top-bar update widget's two-step flow. Runs straight
-        through the socket from inside DockUp's own container (no compose
+        through the socket from inside Dockup's own container (no compose
         file or helper container needed for a plain pull); nothing about
         the running container changes until the separate restart click.
         Pull output arrives line by line, which is what the widget's
@@ -479,8 +479,8 @@ class Runtime:
         True when the image the tag currently points at locally is not
         the image this very container is running from. Computed from the
         daemon's own state rather than remembered in a flag, so it's
-        right after a page reload, a DockUp restart, or a pull done
-        outside DockUp entirely (a manual `docker compose pull`)."""
+        right after a page reload, a Dockup restart, or a pull done
+        outside Dockup entirely (a manual `docker compose pull`)."""
         try:
             running = self._run(["inspect", container_id, "--format", "{{.Image}}"], timeout=15).strip()
             pulled = self._run(["image", "inspect", image_ref, "--format", "{{.Id}}"], timeout=15).strip()
@@ -489,10 +489,10 @@ class Runtime:
         return bool(running and pulled and running != pulled)
 
     def self_update_apply_stream(self, compose_host_dir: str):
-        """Recreate DockUp's container from the already-pulled image -
+        """Recreate Dockup's container from the already-pulled image -
         the "restart" half of the widget's flow. Needs the compose file,
         which lives on the host, so this one still goes through a helper
-        container in the host's namespaces. Recreating DockUp's own
+        container in the host's namespaces. Recreating Dockup's own
         container ends this stream abruptly partway through - expected,
         not a failure."""
         d = shlex.quote(compose_host_dir)

@@ -1,4 +1,4 @@
-"""Backups: a daily tarball of the stacks folder plus the DockUp database,
+"""Backups: a daily tarball of the stacks folder plus the Dockup database,
 kept for a configurable number of days, restorable from the UI, plus a
 download-everything zip for portability.
 """
@@ -68,7 +68,7 @@ def restore_backup(filename: str) -> str:
     restored = staging / "stacks"
     if not restored.exists():
         shutil.rmtree(staging)
-        raise ValueError("That archive doesn't look like a DockUp backup")
+        raise ValueError("That archive doesn't look like a Dockup backup")
     # keep the current state to one side so a restore is itself reversible
     undo = config.DATA_DIR / "pre-restore-stacks"
     if undo.exists():

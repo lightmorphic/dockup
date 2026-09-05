@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """dockup-companion: a small, narrowly-scoped root-level helper that runs
-directly on the host (never in a container), so DockUp can do the two
+directly on the host (never in a container), so Dockup can do the two
 things Docker access alone can't reach: check/apply host OS updates,
 and manage Tailscale Serve.
 
@@ -145,7 +145,7 @@ def cmd_tailscale_serve(req):
 def cmd_reboot(_req):
     # systemctl reboot returns as soon as it's handed the request to
     # PID 1 - the actual shutdown happens a moment later, so there's
-    # time for this response to reach DockUp before the host goes down.
+    # time for this response to reach Dockup before the host goes down.
     proc = subprocess.run(["systemctl", "reboot"], capture_output=True, text=True, timeout=10)
     if proc.returncode != 0:
         return {"ok": False, "error": proc.stderr.strip()[:400] or "systemctl reboot failed"}
@@ -153,7 +153,7 @@ def cmd_reboot(_req):
 
 
 def cmd_docker_restart(_req):
-    # Containers with restart:unless-stopped (including DockUp itself)
+    # Containers with restart:unless-stopped (including Dockup itself)
     # stay up through this - modern Docker keeps containerd running
     # independently of the dockerd/API layer being restarted.
     proc = subprocess.run(["systemctl", "restart", "docker"], capture_output=True, text=True, timeout=60)
@@ -202,7 +202,7 @@ class UnixSocketServer(socketserver.UnixStreamServer):
 def main():
     if os.path.exists(SOCKET_PATH):
         os.unlink(SOCKET_PATH)
-    # group-readable/writable only - the group is what DockUp's
+    # group-readable/writable only - the group is what Dockup's
     # container joins at startup (matches the docker.sock pattern).
     # The umask is set before the socket is created so it is never
     # world-accessible, not even for the instant before the chmod.

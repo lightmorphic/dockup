@@ -1,5 +1,5 @@
 [Unit]
-Description=DockUp companion (narrow, root-only: OS updates + Tailscale Serve)
+Description=Dockup companion (narrow, root-only: OS updates + Tailscale Serve)
 After=network.target
 
 [Service]

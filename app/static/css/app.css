@@ -1,4 +1,4 @@
-/* DockUp - house style. Solid panels, one accent, no framework. */
+/* Dockup - house style. Solid panels, one accent, no framework. */
 
 @font-face {
   font-family: "Manrope";
@@ -148,12 +148,12 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .topbar-version { font-size: 0.75rem; font-weight: 600; color: var(--muted-fg); }
 .topbar-actions { display: flex; align-items: center; gap: 0.75rem; }
 
-/* DockUp's own update-status widget - one dot, no separate button, no
+/* Dockup's own update-status widget - one dot, no separate button, no
    banner, no settings toggle. Colour and overlay icon are the entire
    interface; see the update-widget skill for the full state spec.
    Palette is fixed (not theme tokens) - these three colours are meant
    to look identical to every other Lightmorphic tool's update dot,
-   regardless of DockUp's own light/dark theme. */
+   regardless of Dockup's own light/dark theme. */
 .update-dot {
   position: relative; flex: none; width: 20px; height: 20px; margin: 0 0.25rem 0 -0.125rem;
   border: none; padding: 0; border-radius: 50%; background: var(--muted-fg);
@@ -172,7 +172,7 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 .update-dot.ud-busy { animation: dot-pulse 1s ease-in-out infinite; }
 /* Green, clicked: exactly two slow pulses, not an indefinite spinner -
    a deliberate "checking" gesture rather than a duration-tied loading
-   state (see checkDockUpUpdateNow, which waits out the full animation
+   state (see checkDockupUpdateNow, which waits out the full animation
    even if the real check finishes faster). */
 .update-dot.ud-checking { animation: dot-pulse 0.8s ease-in-out 2; }
 .update-dot.ud-ring { background: transparent; }
@@ -203,7 +203,7 @@ p { margin: 0 0 0.75rem; max-width: 65ch; }
 }
 .version-row { display: flex; align-items: center; gap: 0.375rem; }
 /* A fixed brand mark, not a themed app element - always the dark pill
-   regardless of DockUp's own light/dark theme, the same way a "built
+   regardless of Dockup's own light/dark theme, the same way a "built
    with X" badge from any other host stays constant everywhere it's
    embedded. */
 .lm-badge {

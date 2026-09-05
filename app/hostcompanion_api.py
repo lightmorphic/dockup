@@ -65,7 +65,7 @@ def api_tailscale_install():
 
 @bp.post("/reboot")
 def api_reboot():
-    activity.log("warning", "host", "Host reboot requested from DockUp")
+    activity.log("warning", "host", "Host reboot requested from Dockup")
     try:
         result = hostcompanion.reboot()
     except hostcompanion.CompanionUnavailable as exc:
@@ -78,7 +78,7 @@ def api_reboot():
 
 @bp.post("/docker-restart")
 def api_docker_restart():
-    activity.log("warning", "host", "Docker restart requested from DockUp")
+    activity.log("warning", "host", "Docker restart requested from Dockup")
     try:
         result = hostcompanion.docker_restart()
     except hostcompanion.CompanionUnavailable as exc:
@@ -128,18 +128,18 @@ def api_stack_serve_toggle(name):
 
 @bp.post("/install")
 def api_install_companion():
-    """One-click host install + reconnect: stage DockUp's own bundled
+    """One-click host install + reconnect: stage Dockup's own bundled
     copy of the companion source into its data dir (reachable from the
     host via DOCKUP_DATA_HOST_PATH, the same trick backups use), run
     the real install.sh on the host through a short-lived privileged
-    container, then uncomment the socket line in DockUp's own
-    compose.yaml and restart DockUp to reconnect - see
+    container, then uncomment the socket line in Dockup's own
+    compose.yaml and restart Dockup to reconnect - see
     Runtime.install_companion_stream / reconnect_companion_stream. No
-    standing extra permissions for DockUp's own container once this
+    standing extra permissions for Dockup's own container once this
     returns; the restart is why the stream ends abruptly instead of
     with a clean final line - expected, not a failure."""
     if not config.MOCK_MODE and not config.DATA_HOST_PATH:
-        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so DockUp doesn't know its own "
+        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so Dockup doesn't know its own "
                                   "real path on the host - see the runbook to set it in compose.yaml."}), 400
     bundled = Path(__file__).resolve().parent.parent / "companion"
     staging = config.DATA_DIR / ".companion-install"
@@ -180,14 +180,14 @@ def api_install_companion():
             return
 
         activity.log("info", "companion", "Companion installed on the host")
-        yield "Companion installed. Reconnecting DockUp to it...\n"
+        yield "Companion installed. Reconnecting Dockup to it...\n"
         yield "[dockup-restarting]\n"
         try:
             for line in rt.reconnect_companion_stream(compose_path, compose_dir):
                 if not line.startswith("[dockup-exit:"):
                     yield line + "\n"
         except runtime.RuntimeError_:
-            pass  # expected - DockUp's own container recreation races this request
+            pass  # expected - Dockup's own container recreation races this request
         yield "[dockup-done:ok]\n"
 
     # stream_with_context: without it, Flask doesn't keep the request/app

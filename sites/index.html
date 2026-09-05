@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Lightmorphic DockUp - home-lab Docker Compose manager</title>
+<title>Lightmorphic Dockup - home-lab Docker Compose manager</title>
 <meta name="description" content="Self-hosted Docker Compose stack manager for home labs, with a real login and 2FA. Works with Docker or Podman.">
 <link rel="canonical" href="https://dockup.lightmorphic.com/">
 <link rel="icon" href="dockup.svg" type="image/svg+xml">
 <meta name="robots" content="index, follow">
-<meta property="og:title" content="Lightmorphic DockUp">
+<meta property="og:title" content="Lightmorphic Dockup">
 <meta property="og:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dockup.lightmorphic.com/">
@@ -17,7 +17,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Lightmorphic DockUp">
+<meta name="twitter:title" content="Lightmorphic Dockup">
 <meta name="twitter:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta name="twitter:image" content="https://dockup.lightmorphic.com/social-card.png">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
@@ -25,7 +25,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Lightmorphic DockUp",
+  "name": "Lightmorphic Dockup",
   "operatingSystem": "Linux",
   "applicationCategory": "DeveloperApplication",
   "description": "Self-hosted Docker Compose stack manager for home labs with secure login, live logs, web terminal, pruning tools, container adoption and daily backups. Works with Docker or Podman.",
@@ -48,23 +48,23 @@
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "Does DockUp need root on my server?",
+      "name": "Does Dockup need root on my server?",
       "acceptedAnswer": { "@type": "Answer", "text": "Only for two things Docker access alone can't reach - host OS update checks and Tailscale Serve - and only if you opt into the small companion service. Everything else runs through the same Docker socket any container manager needs." }
     },
     {
       "@type": "Question",
-      "name": "Does updating DockUp mean rebuilding it?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. DockUp ships as a pre-built image - updating is docker compose pull && docker compose up -d, or the dot in its own top bar. No git, no local build, ever." }
+      "name": "Does updating Dockup mean rebuilding it?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Dockup ships as a pre-built image - updating is docker compose pull && docker compose up -d, or the dot in its own top bar. No git, no local build, ever." }
     },
     {
       "@type": "Question",
-      "name": "Can I run DockUp on a public VPS?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Not yet recommended. DockUp is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure." }
+      "name": "Can I run Dockup on a public VPS?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not yet recommended. Dockup is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure." }
     },
     {
       "@type": "Question",
-      "name": "What happens to my stacks if I stop using DockUp?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Nothing. Every stack stays a plain folder with a real compose file, unchanged by DockUp managing it - docker compose or any other tool works on it at any time." }
+      "name": "What happens to my stacks if I stop using Dockup?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nothing. Every stack stays a plain folder with a real compose file, unchanged by Dockup managing it - docker compose or any other tool works on it at any time." }
     }
   ]
 }
@@ -228,10 +228,10 @@ footer .legal p { margin: 0 0 1rem; }
     <div class="hero-copy">
     <div class="hero-brand">
       <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>
-      <span>Lightmorphic DockUp</span>
+      <span>Lightmorphic Dockup</span>
     </div>
     <h1>Your home-lab stacks, one window, a proper login.</h1>
-    <p class="lede">DockUp is a self-hosted Docker&nbsp;Compose stack manager for home labs -
+    <p class="lede">Dockup is a self-hosted Docker&nbsp;Compose stack manager for home labs -
     every stack, its logs and its terminal in one window, with security taken seriously
     from the first line. Works with <strong>Docker or Podman</strong>.</p>
     <div class="cta-row">
@@ -246,13 +246,13 @@ footer .legal p { margin: 0 0 1rem; }
     <p class="note">! Built for home labs on your own network - not hardened for public VPS hosting (yet).</p>
     </div>
 
-    <figure class="shot" aria-label="Stylised view of the DockUp dashboard">
+    <figure class="shot" aria-label="Stylised view of the Dockup dashboard">
     <svg viewBox="0 0 960 470" aria-hidden="true">
       <rect width="960" height="470" rx="22" fill="#1b1d29"/>
       <rect x="0" y="0" width="960" height="54" rx="22" fill="#111827"/>
       <rect x="0" y="30" width="960" height="24" fill="#111827"/>
       <rect x="24" y="16" width="22" height="22" rx="5" fill="#FBC711"/>
-      <text x="58" y="33" fill="#fafafa" font-family="system-ui" font-size="16" font-weight="700">DockUp</text>
+      <text x="58" y="33" fill="#fafafa" font-family="system-ui" font-size="16" font-weight="700">Dockup</text>
       <circle cx="140" cy="27" r="8" fill="#4bae4f"/>
       <text x="156" y="32" fill="#a1a1aa" font-family="system-ui" font-size="13">v1.7 &#183; up to date</text>
       <rect x="0" y="54" width="220" height="416" fill="#171925"/>
@@ -316,7 +316,7 @@ footer .legal p { margin: 0 0 1rem; }
     <div class="panel">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
       <h3>Adopts what you run today</h3>
-      <p>DockUp scans your system and pulls existing compose projects and plain containers under management - nothing gets restarted.</p>
+      <p>Dockup scans your system and pulls existing compose projects and plain containers under management - nothing gets restarted.</p>
     </div>
     <div class="panel">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6M14 4l-2.5 2.5a4 4 0 0 0 5.5 5.5L19.5 9.5A4 4 0 0 1 14 4zM4 17l3 3"/></svg>
@@ -346,7 +346,7 @@ footer .legal p { margin: 0 0 1rem; }
     <div class="panel">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"/></svg>
       <h3>One click to the real thing</h3>
-      <p>Open a stack's actual web UI in a new tab - its Tailscale Serve address if set up, otherwise whatever address got you to DockUp.</p>
+      <p>Open a stack's actual web UI in a new tab - its Tailscale Serve address if set up, otherwise whatever address got you to Dockup.</p>
     </div>
   </div>
 
@@ -378,7 +378,7 @@ services:
       <h3>Then</h3>
       <p style="color:var(--muted-fg);margin:0">Open <strong style="color:var(--fg)">http://your-server:4000</strong>,
       create the admin account, and adopt what's already running. Updating later is a plain
-      <code>docker compose pull &amp;&amp; docker compose up -d</code> - or the dot in DockUp's
+      <code>docker compose pull &amp;&amp; docker compose up -d</code> - or the dot in Dockup's
       own top bar. Prefer a terminal, the full file with comments, or Podman? The
       <a href="https://github.com/lightmorphic/dockup/blob/main/compose.yaml">real compose.yaml</a>
       and the runbook cover all three.</p>
@@ -387,8 +387,8 @@ services:
 
   <h3>Optional: the dockup-companion</h3>
   <p>Adds host OS update checks and per-stack
-  <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things DockUp can't
-  do through the Docker socket alone. It's the sole part of DockUp that needs root on the actual
+  <strong style="color:var(--fg)">Tailscale Serve</strong> toggles - the only two things Dockup can't
+  do through the Docker socket alone. It's the sole part of Dockup that needs root on the actual
   server rather than just Docker access, which is why it's a separate step you opt into, not
   something bundled in by default. Skip it entirely and everything else works exactly the same.</p>
   <pre><code><span class="c"># one click in Settings does the whole thing - installs and reconnects</span>
@@ -399,20 +399,20 @@ cd /tmp/dockup-src/companion &amp;&amp; sudo sh install.sh</code></pre>
   <h2>Common questions</h2>
   <div class="grid" style="margin-top:0">
     <div class="panel">
-      <h3>Does DockUp need root on my server?</h3>
+      <h3>Does Dockup need root on my server?</h3>
       <p>Only for two things Docker access alone can't reach - host OS update checks and Tailscale Serve - and only if you opt into the small companion service. Everything else runs through the same Docker socket any container manager needs.</p>
     </div>
     <div class="panel">
-      <h3>Does updating DockUp mean rebuilding it?</h3>
-      <p>No. DockUp ships as a pre-built image - updating is <code>docker compose pull &amp;&amp; docker compose up -d</code>, or the dot in its own top bar. No git, no local build, ever.</p>
+      <h3>Does updating Dockup mean rebuilding it?</h3>
+      <p>No. Dockup ships as a pre-built image - updating is <code>docker compose pull &amp;&amp; docker compose up -d</code>, or the dot in its own top bar. No git, no local build, ever.</p>
     </div>
     <div class="panel">
-      <h3>Can I run DockUp on a public VPS?</h3>
-      <p>Not yet recommended. DockUp is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure.</p>
+      <h3>Can I run Dockup on a public VPS?</h3>
+      <p>Not yet recommended. Dockup is built and hardened for a machine on your own network, reached over Tailscale or your LAN - it hasn't been hardened for direct internet exposure.</p>
     </div>
     <div class="panel">
-      <h3>What happens to my stacks if I stop using DockUp?</h3>
-      <p>Nothing. Every stack stays a plain folder with a real compose file, unchanged by DockUp managing it - <code>docker compose</code> or any other tool works on it at any time.</p>
+      <h3>What happens to my stacks if I stop using Dockup?</h3>
+      <p>Nothing. Every stack stays a plain folder with a real compose file, unchanged by Dockup managing it - <code>docker compose</code> or any other tool works on it at any time.</p>
     </div>
   </div>
 
@@ -420,7 +420,7 @@ cd /tmp/dockup-src/companion &amp;&amp; sudo sh install.sh</code></pre>
   <div class="panel cta-dark">
     <h3>Need something built?</h3>
     <p>Lightmorphic is the small studio behind
-    DockUp and a handful of other self-hosted, no-lock-in tools. If you've got a web app, an
+    Dockup and a handful of other self-hosted, no-lock-in tools. If you've got a web app, an
     internal tool, or a self-hosted service that needs building, get in touch and we'll take a look.</p>
     <a class="btn" href="https://lightmorphic.com">Get in touch at lightmorphic.com</a>
   </div>
@@ -429,7 +429,7 @@ cd /tmp/dockup-src/companion &amp;&amp; sudo sh install.sh</code></pre>
 
 <footer>
   <div class="wrap">
-    <p>DockUp · free and open source · built for home labs, not VPS hosting ·
+    <p>Dockup · free and open source · built for home labs, not VPS hosting ·
     <a href="https://github.com/lightmorphic/dockup">source on GitHub</a></p>
     <p>No cookies, no tracking, no external calls - this page is just a page.</p>
     <div class="legal">

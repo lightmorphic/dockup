@@ -28,12 +28,12 @@ services:
     environment:
       # The one and only secret. Set it once in .env or the shell:
       #   SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
-      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting DockUp}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting Dockup}
       TZ: ${TZ:-Europe/London}
-      # DockUp asks the Docker socket to spin up short-lived helper
+      # Dockup asks the Docker socket to spin up short-lived helper
       # containers for backups (tar a volume, tar a bind-mount path).
       # The daemon resolves bind-mount sources against the HOST
-      # filesystem, not DockUp's own container - so DockUp needs to
+      # filesystem, not Dockup's own container - so Dockup needs to
       # know its own data folder's real host path, not just where it
       # sees it internally (/app/data). Set this if you move compose.yaml
       # somewhere other than /opt/dockup.
@@ -47,6 +47,6 @@ services:
       # Optional: only if you've installed the dockup-companion (host OS
       # update checks + Tailscale Serve management, see companion/ and
       # the runbook - Settings has a one-click installer for the host
-      # side of this; uncomment this line and restart DockUp afterward
+      # side of this; uncomment this line and restart Dockup afterward
       # to finish connecting it).
       # - /run/dockup-companion.sock:/run/dockup-companion.sock

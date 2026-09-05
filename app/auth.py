@@ -29,7 +29,7 @@ def client_ip():
     # Never trust X-Forwarded-For here: it's client-supplied and this is
     # the one thing login lockout is keyed on (ip, username) - honoring
     # it let anyone bypass the 5-attempts lockout by sending a fresh
-    # fake IP on every request. DockUp sits directly behind Tailscale
+    # fake IP on every request. Dockup sits directly behind Tailscale
     # Serve on loopback with no configurable trusted-proxy chain, so
     # the real connecting address is always what matters.
     return request.remote_addr or "?"
@@ -186,7 +186,7 @@ def totp_begin():
     user = current_user()
     secret = pyotp.random_base32()
     session["totp_setup_secret"] = secret
-    uri = pyotp.TOTP(secret).provisioning_uri(name=user["username"], issuer_name="DockUp")
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user["username"], issuer_name="Dockup")
     buf = io.BytesIO()
     segno.make(uri).save(buf, kind="svg", scale=4, dark="#111827", light=None)
     return jsonify({"secret": secret, "qr_svg": buf.getvalue().decode()})

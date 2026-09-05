@@ -28,4 +28,4 @@ sleep 1
 
 echo "dockup-companion installed and running."
 echo "Group GID for compose.yaml/entrypoint reference: $(getent group dockup-companion | cut -d: -f3)"
-echo "Add DockUp's container to this group (compose.override.yaml or matching entrypoint logic) so it can reach /run/dockup-companion.sock."
+echo "Add Dockup's container to this group (compose.override.yaml or matching entrypoint logic) so it can reach /run/dockup-companion.sock."

@@ -18,12 +18,12 @@ def create_app():
         # only, ignoring the port - so on a homelab where many apps share
         # one hostname on different ports (e.g. via Tailscale Serve), any
         # other Flask app using the default name overwrites ours every
-        # time it's open in another tab, silently logging DockUp out.
+        # time it's open in another tab, silently logging Dockup out.
         SESSION_COOKIE_NAME="dockup_session",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         # Off only in mock/dev mode (plain http://localhost). In real use
-        # DockUp is only reachable through Tailscale Serve's HTTPS, so the
+        # Dockup is only reachable through Tailscale Serve's HTTPS, so the
         # cookie should never go out over plain HTTP.
         SESSION_COOKIE_SECURE=not config.MOCK_MODE,
         PERMANENT_SESSION_LIFETIME=timedelta(days=config.SESSION_DAYS),

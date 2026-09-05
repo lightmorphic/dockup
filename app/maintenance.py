@@ -1,6 +1,6 @@
 """Maintenance: disk usage and pruning - each type separately or all at
 once. Volume pruning always shows exactly what will be deleted first.
-Also updating DockUp itself via the top-bar widget's download/restart
+Also updating Dockup itself via the top-bar widget's download/restart
 endpoints: download is a plain pull of the published image, restart
 recreates the container from it - see runtime.self_pull_stream /
 self_update_apply_stream.
@@ -74,7 +74,7 @@ def _declared_volumes() -> dict[str, str]:
 
 
 def _known_projects() -> dict[str, str]:
-    """Compose project name -> stack name, for every stack DockUp can see."""
+    """Compose project name -> stack name, for every stack Dockup can see."""
     from . import stacks
 
     out = {}
@@ -143,11 +143,11 @@ def prune():
     return jsonify({"ok": ok, "results": results})
 
 
-# -- updating DockUp itself -----------------------------------------------
+# -- updating Dockup itself -----------------------------------------------
 
 
 def _dockup_compose_dir():
-    """DockUp's own folder as the HOST sees it. compose.yaml lives one
+    """Dockup's own folder as the HOST sees it. compose.yaml lives one
     level up from the data dir it mounts as ./data - true by construction
     for every install this project documents, and the same derivation the
     companion installer already relies on."""
@@ -180,7 +180,7 @@ def _fetch_remote_version() -> str:
 
 @bp.get("/self-update/check")
 def api_self_update_check():
-    """Is there a newer DockUp published? One HTTPS request, no git, no
+    """Is there a newer Dockup published? One HTTPS request, no git, no
     helper container - works identically for every install style."""
     try:
         latest = _fetch_remote_version()
@@ -193,12 +193,12 @@ def api_self_update_check():
 
 # The top-bar update widget's two-step flow (see the update-widget
 # skill): download pulls the published image without touching the
-# running container - DockUp stays up throughout, and a browser can walk
+# running container - Dockup stays up throughout, and a browser can walk
 # away mid-pull; restart is the short, separate step that actually
 # replaces it. "Ready to restart" isn't remembered in a flag anywhere:
 # it's computed from the daemon's own state (is the pulled image newer
-# than the one running?), so it survives page reloads, DockUp restarts,
-# and even a `docker compose pull` done entirely outside DockUp.
+# than the one running?), so it survives page reloads, Dockup restarts,
+# and even a `docker compose pull` done entirely outside Dockup.
 
 
 def _progress_fraction(lines_seen: int) -> float:
@@ -238,10 +238,10 @@ def api_self_update_download():
             ok = False
             lines.append(f"ERROR: unexpected {type(exc).__name__}: {exc}")
         if ok:
-            activity.log("info", "dockup-update", "DockUp update downloaded - ready to restart")
+            activity.log("info", "dockup-update", "Dockup update downloaded - ready to restart")
             yield "[dockup-progress:1.000]\n[dockup-done:ok]\n"
         else:
-            activity.log("error", "dockup-update", "DockUp update download FAILED", "\n".join(lines[-40:]))
+            activity.log("error", "dockup-update", "Dockup update download FAILED", "\n".join(lines[-40:]))
             yield "[dockup-done:error]\n"
 
     return Response(stream_with_context(generate()), mimetype="text/plain",
@@ -250,17 +250,17 @@ def api_self_update_download():
 
 @bp.post("/self-update/restart")
 def api_self_update_restart():
-    """Recreate DockUp's container from the image /self-update/download
+    """Recreate Dockup's container from the image /self-update/download
     already built. Replaces the container serving this very request, so
     the stream ends abruptly right after "[dockup-restarting]" - the
     browser waits for /health to answer again rather than treating the
     dropped connection as a failure."""
     compose_dir = _dockup_compose_dir()
     if not compose_dir:
-        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so DockUp doesn't know its own "
+        return jsonify({"error": "DOCKUP_DATA_HOST_PATH isn't set, so Dockup doesn't know its own "
                                  "real path on the host - see the runbook to set it in compose.yaml."}), 400
     rt = runtime.current()
-    activity.log("info", "dockup-update", "DockUp restart-to-update started")
+    activity.log("info", "dockup-update", "Dockup restart-to-update started")
 
     def generate():
         ok = True
@@ -288,10 +288,10 @@ def api_self_update_restart():
             # recreating), refresh the cached remote version so the dot
             # doesn't keep advertising the update just applied.
             _refresh_self_check()
-            activity.log("info", "dockup-update", "DockUp restarted on the new version")
+            activity.log("info", "dockup-update", "Dockup restarted on the new version")
             yield "[dockup-done:ok]\n"
         else:
-            activity.log("error", "dockup-update", "DockUp restart FAILED", "\n".join(lines[-40:]))
+            activity.log("error", "dockup-update", "Dockup restart FAILED", "\n".join(lines[-40:]))
             yield "[dockup-done:error]\n"
 
     return Response(stream_with_context(generate()), mimetype="text/plain",
@@ -362,8 +362,8 @@ def api_versions():
             "checkedAt": checked_at or None,
             # A newer image already pulled, waiting only on the restart
             # click. Computed from the daemon's state, not remembered -
-            # right after page reloads, DockUp restarts, or a pull done
-            # entirely outside DockUp.
+            # right after page reloads, Dockup restarts, or a pull done
+            # entirely outside Dockup.
             "downloadReady": download_ready,
         },
         "docker": {

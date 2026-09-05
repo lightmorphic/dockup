@@ -1,10 +1,10 @@
-# Lightmorphic DockUp
+# Lightmorphic Dockup
 
 A self-hosted Docker Compose stack manager for **home labs**, with a proper
 login. Inspired by [Dockge](https://github.com/louislam/dockge) - same idea,
 fresh code, different look, security first.
 
-> **Home labs only (for now).** DockUp is built for a machine on your own
+> **Home labs only (for now).** Dockup is built for a machine on your own
 > network. It is not hardened for internet-facing VPS use - don't put it on
 > a public server.
 
@@ -23,7 +23,7 @@ fresh code, different look, security first.
 - Checks every 30 minutes for a newer image per stack and flags it on
   the card - update one or "Update all", nothing pulls on its own
 - **Adopt** what's already running, one at a time or all in one go:
-  DockUp scans the system for compose projects and standalone containers
+  Dockup scans the system for compose projects and standalone containers
   it doesn't manage and pulls their setup into the stacks folder
 - Live log streaming with errors highlighted in red
 - Web terminal into any running container
@@ -38,16 +38,16 @@ fresh code, different look, security first.
 - Works with **Docker or Podman** - same UI, just point it at the other socket
 - One click to open a stack's real web UI in a new tab - its Tailscale
   Serve address if set up, otherwise the host address you're already
-  using to reach DockUp
+  using to reach Dockup
 - **Its own update-status dot in the top bar** - green up to date,
   amber a new version's published (click to download it in the
-  background while DockUp keeps running as it is), then blue: click
+  background while Dockup keeps running as it is), then blue: click
   again to restart onto it. No separate check button; it keeps itself
   current on its own. Deliberately not a stack you can act on
   otherwise - stopping or deleting the tool managing everything else
   isn't a risk worth a click away
 - Optional dockup-companion for host OS update checks and per-stack
-  Tailscale Serve toggles - the one part of DockUp that needs root on
+  Tailscale Serve toggles - the one part of Dockup that needs root on
   the actual server rather than just Docker access, so it's a separate
   install step, fully automated with one click in Settings (or manually)
 
@@ -57,11 +57,11 @@ fresh code, different look, security first.
 - One secret in the environment (`SECRET_KEY`); everything else lives in
   the Settings screen, encrypted at rest
 - Session cookies are HttpOnly + SameSite; CSRF-checked API; strict CSP;
-  no CDNs, no external calls, no tracking - everything served from DockUp
+  no CDNs, no external calls, no tracking - everything served from Dockup
 
 ## Install
 
-DockUp ships as a normal pre-built image
+Dockup ships as a normal pre-built image
 (`ghcr.io/lightmorphic/dockup`) - no cloning, no building. All you need
 is the compose file:
 
@@ -73,7 +73,7 @@ docker compose up -d
 ```
 
 Open `http://<server-ip>:4000`, create the admin account, done. Updating
-later is the update dot in DockUp's own top bar, or the usual:
+later is the update dot in Dockup's own top bar, or the usual:
 
 ```bash
 docker compose pull && docker compose up -d
@@ -92,7 +92,7 @@ plain `docker compose` (or any other manager) at any time.
 A second, separate step - only needed for host OS update checks and
 per-stack Tailscale Serve toggles. Everything else works without it.
 Easiest way: Settings → Host OS & Tailscale → "Install companion" (one click, once
-DockUp itself is running). Or manually:
+Dockup itself is running). Or manually:
 
 ```bash
 git clone https://github.com/lightmorphic/dockup /tmp/dockup-src
@@ -100,7 +100,7 @@ cd /tmp/dockup-src/companion && sudo sh install.sh
 ```
 
 Then add the companion socket mount in a `compose.override.yaml` and
-restart DockUp. Full steps in [runbook.md](runbook.md).
+restart Dockup. Full steps in [runbook.md](runbook.md).
 
 ### Podman instead of Docker
 

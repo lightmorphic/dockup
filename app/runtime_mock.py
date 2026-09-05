@@ -86,7 +86,7 @@ class MockRuntime:
                     "service": svc,
                     "workingDir": "", "configFiles": "", "ports": "",
                 })
-        # DockUp's own container, so the dashboard's DockUp card has
+        # Dockup's own container, so the dashboard's Dockup card has
         # something real to show in dev mode too.
         rows.append({
             "id": "0d0ckle00001", "name": "dockup",

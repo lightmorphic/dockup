@@ -10,10 +10,10 @@ DB_PATH = DATA_DIR / "dockup.db"
 BACKUP_DIR = DATA_DIR / "backups"
 STACK_BACKUP_DIR = DATA_DIR / "stack-backups"
 
-# The real host-filesystem path of DATA_DIR, needed when DockUp asks the
+# The real host-filesystem path of DATA_DIR, needed when Dockup asks the
 # Docker socket to start a helper container with a bind mount destined
 # for this folder - the daemon resolves that against the host, not
-# DockUp's own container, so a container-internal path won't do.
+# Dockup's own container, so a container-internal path won't do.
 DATA_HOST_PATH = os.environ.get("DOCKUP_DATA_HOST_PATH", "")
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
@@ -21,16 +21,16 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "")
 STACK_NAME_RE = r"^[a-z0-9][a-z0-9_-]{0,62}$"
 COMPOSE_FILENAMES = ("compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml")
 
-# The only variables of DockUp's own environment that reach `docker compose`.
+# The only variables of Dockup's own environment that reach `docker compose`.
 # Everything else is dropped on purpose: compose lets the environment it runs
 # in win over a stack's .env, so anything passed here silently becomes that
-# stack's value. DockUp's SECRET_KEY was ending up as the secret key of every
+# stack's value. Dockup's SECRET_KEY was ending up as the secret key of every
 # stack whose compose file referenced ${SECRET_KEY}, and a TZ of ours would
 # override theirs the same way. These few are what the docker CLI itself may
 # need to reach the daemon, find its config, or get out through a proxy.
 # PATH is deliberately absent: the docker binary is resolved to an absolute
 # path up front, and a stack defining its own PATH (a real pattern in
-# imported Arcane stacks) must not have DockUp's shadow it.
+# imported Arcane stacks) must not have Dockup's shadow it.
 COMPOSE_PASSTHROUGH = (
     "HOME",
     "DOCKER_CONFIG", "DOCKER_CERT_PATH", "DOCKER_TLS_VERIFY",
@@ -39,11 +39,11 @@ COMPOSE_PASSTHROUGH = (
     "SSL_CERT_FILE", "SSL_CERT_DIR",
 )
 
-# DockUp's own version, shown in the top bar next to the update dot.
+# Dockup's own version, shown in the top bar next to the update dot.
 # Kept in step with the top entry in CHANGELOG.md by hand - one number,
 # one place. CI reads this same line to tag the published image
 # (.github/workflows/publish-image.yml).
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 
 # Where updates come from: the image CI publishes, and the raw config.py
 # on main whose VERSION line is the "is there a newer version?" source of
