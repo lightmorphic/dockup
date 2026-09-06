@@ -57,7 +57,8 @@ fresh code, different look, security first.
 - One secret in the environment (`SECRET_KEY`); everything else lives in
   the Settings screen, encrypted at rest
 - Session cookies are HttpOnly + SameSite; CSRF-checked API; strict CSP;
-  no CDNs, no external calls, no tracking - everything served from Dockup
+  no CDNs, no tracking. The only thing not served by Dockup is the
+  Lightmorphic app launcher in the top bar - see SECURITY.md to remove it
 
 ## Install
 

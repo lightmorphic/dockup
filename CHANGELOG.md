@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0 - 2026-09-06
+
+- The Lightmorphic app launcher now sits at the end of the top bar - the
+  grid of dots - for jumping between the other Lightmorphic apps
+- This is the one thing on the page Dockup doesn't serve itself. The
+  Content-Security-Policy now names `apps.lightmorphic.com` for a script
+  and its icons, and nothing else was loosened - the style nonce is
+  untouched. SECURITY.md says how to remove it if you'd rather not have
+  it, and the claims in the Help screen and README have been corrected
+  to match
+
 ## 2.0.3 - 2026-09-05
 
 - Installing the host companion reported "ERROR: network error" and left

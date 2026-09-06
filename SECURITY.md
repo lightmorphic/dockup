@@ -22,8 +22,15 @@ exploited.
 - Parameterised SQL throughout - no string-built queries
 - Strict Content-Security-Policy, `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, restrictive `Permissions-Policy`
-- No external calls, no CDNs, no analytics, no cookies beyond the
-  session cookie needed to be logged in at all
+- No analytics, no CDNs, no cookies beyond the session cookie needed to
+  be logged in at all
+- One external request by design: the Lightmorphic app launcher in the
+  top bar loads a script and icons from `apps.lightmorphic.com`, which
+  the Content-Security-Policy names explicitly. That script runs with
+  the same rights as the rest of the page, so it is a real trust
+  decision - remove those two entries from the policy in
+  `app/__init__.py`, and the `all-apps` div and script tag from
+  `app/templates/app.html`, to drop it
 
 ## Supported versions
 

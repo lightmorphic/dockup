@@ -112,8 +112,17 @@ def create_app():
         nonce = getattr(g, "csp_nonce", "")
         resp.headers.setdefault(
             "Content-Security-Policy",
-            f"default-src 'self'; img-src 'self' data:; style-src 'self' 'nonce-{nonce}'; "
-            "script-src 'self'; connect-src 'self' ws: wss:; "
+            # apps.lightmorphic.com serves the Lightmorphic app launcher
+            # in the top bar - one script plus its icons, named here
+            # rather than opened up to the web generally. It is the only
+            # thing on the page Dockup doesn't serve itself, and it runs
+            # with the same rights as the rest of the page: see
+            # SECURITY.md. Everything else stays as it was, including the
+            # style nonce, which the launcher does not need (it styles
+            # itself inside a shadow root).
+            f"default-src 'self'; img-src 'self' data: https://apps.lightmorphic.com; "
+            f"style-src 'self' 'nonce-{nonce}'; "
+            "script-src 'self' https://apps.lightmorphic.com; connect-src 'self' ws: wss:; "
             "base-uri 'self'; frame-ancestors 'none'",
         )
         return resp

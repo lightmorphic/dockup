@@ -1510,7 +1510,10 @@ async function viewHelp() {
       <p>Real server-side login with rate limiting and optional two-factor (TOTP) - no default password, no
         skipping the login screen. Every state-changing request is CSRF-checked, session cookies are HttpOnly and
         SameSite, and secrets like an SMTP password are encrypted at rest and never sent back to the browser.
-        Nothing calls home: no CDNs, no analytics, no tracking - everything Dockup needs is served by Dockup.</p>
+        No analytics and no tracking, and everything Dockup itself needs is served by Dockup. The one exception
+        is the Lightmorphic app launcher, the grid of dots at the end of the top bar: that loads a script and its
+        icons from apps.lightmorphic.com. Take the two apps.lightmorphic.com entries out of the
+        Content-Security-Policy in <code>app/__init__.py</code> and it stops loading.</p>
     </div>`;
 }
 
