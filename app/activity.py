@@ -107,46 +107,39 @@ def _html_body(subject: str, body: str) -> str:
         f'<p style="margin:0 0 12px;white-space:pre-wrap;">{html.escape(p).replace(chr(10), "<br>")}</p>'
         for p in text.split("\n\n") if p.strip()
     )
-    # Inline styles are the light-mode baseline - the safe fallback for
-    # clients that strip <style> blocks or ignore prefers-color-scheme
-    # entirely. Classed elements get a matching dark-mode override
-    # (with !important, so it beats the inline style's specificity)
-    # for clients that do honour it - Apple/iOS Mail, Outlook.com,
-    # some Gmail apps. Same dark palette the app itself uses. The
-    # navy header is brand-fixed and never changes with the theme.
+    # Dark only, to match the app - no light baseline and no
+    # prefers-color-scheme switch. Every colour is inline as well as
+    # classed, since plenty of mail clients strip <style> blocks
+    # outright; the classes exist only so a client that keeps them
+    # can't be talked into a lighter card. The navy header is the
+    # brand mark and was always fixed.
     return f"""\
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
 <style>
-  body {{ background:#f4f4f5; }}
-  .card {{ background:#ffffff; border-color:#e4e4e7; }}
-  .body-text {{ color:#09090b; }}
-  .footer {{ color:#71717a; border-color:#e4e4e7; }}
-  @media (prefers-color-scheme: dark) {{
-    body {{ background:#09090b !important; }}
-    .card {{ background:#1b1d29 !important; border-color:#27272a !important; }}
-    .body-text {{ color:#fafafa !important; }}
-    .footer {{ color:#a1a1aa !important; border-color:#27272a !important; }}
-  }}
+  body {{ background:#09090b; }}
+  .card {{ background:#1b1d29; border-color:#5a5a63; }}
+  .body-text {{ color:#fafafa; }}
+  .footer {{ color:#a1a1aa; border-color:#5a5a63; }}
 </style>
 </head>
-<body style="margin:0;padding:24px;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:480px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:14px;overflow:hidden;">
+<body style="margin:0;padding:24px;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:480px;margin:0 auto;background:#1b1d29;border:1px solid #5a5a63;border-radius:14px;overflow:hidden;">
 <tr><td style="background:#111827;padding:20px 24px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
 <td style="padding-right:10px;"><img src="cid:{_LOGO_CID}" width="32" height="32" alt="Dockup" style="display:block;border-radius:7px;"></td>
 <td style="color:#ffffff;font-size:18px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Dockup</td>
 </tr></table>
 </td></tr>
-<tr><td class="body-text" style="padding:24px;color:#09090b;font-size:15px;line-height:1.6;">
+<tr><td class="body-text" style="padding:24px;color:#fafafa;font-size:15px;line-height:1.6;">
 <p style="margin:0 0 16px;font-weight:700;font-size:16px;">{html.escape(subject)}</p>
 {paragraphs}
 </td></tr>
-<tr><td class="footer" style="padding:16px 24px;border-top:1px solid #e4e4e7;color:#71717a;font-size:12px;">
+<tr><td class="footer" style="padding:16px 24px;border-top:1px solid #5a5a63;color:#a1a1aa;font-size:12px;">
 Sent automatically by your Dockup instance.
 </td></tr>
 </table>

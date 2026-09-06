@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.0 - 2026-09-06
+
+- Dark only. The light theme and the Theme picker in Settings are gone
+  from the app and the website, and the light half of every colour -
+  including all nineteen accent colours and the alert emails - has been
+  taken out of the code rather than left switched off. Setting your
+  browser or phone to light mode no longer changes anything
+- The legal sub-footer's five page links are right-justified on their own
+  line, and the "page last updated" date is current
+- Terms now gives an email address of its own, terms@lightmorphic.com
+
 ## 2.1.0 - 2026-09-06
 
 - The Lightmorphic app launcher now sits at the end of the top bar - the

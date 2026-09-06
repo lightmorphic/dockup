@@ -1737,9 +1737,6 @@ async function viewSettings() {
       <div class="form-grid">
         <div class="field"><label for="setAccent">Accent colour</label>
           <select id="setAccent">${ACCENTS.map(a => `<option value="${a}">${a === "" ? "Brand yellow (default)" : a.replace("_", " ")}</option>`).join("")}</select></div>
-        <div class="field"><label for="setTheme">Theme</label>
-          <select id="setTheme"><option value="">Follow this device</option>
-          <option value="light">Light</option><option value="dark">Dark</option></select></div>
       </div></div>
     <div class="panel"><div class="panel-head"><h2>Account</h2></div>
       <div class="form-grid">
@@ -1768,7 +1765,6 @@ async function viewSettings() {
   f("bkHour").value = s["backup.hour"];
   f("bkKeep").value = s["backup.retention_days"];
   f("setAccent").value = s["ui.accent"];
-  f("setTheme").value = localStorage.getItem("dockup-theme") || "";
 
   f("saveSettings").addEventListener("click", async () => {
     try {
@@ -1788,9 +1784,6 @@ async function viewSettings() {
         "ui.accent": f("setAccent").value,
       } });
       applyAccent(f("setAccent").value);
-      const theme = f("setTheme").value;
-      theme ? localStorage.setItem("dockup-theme", theme) : localStorage.removeItem("dockup-theme");
-      applyTheme();
       popAlert(f("saveSettings"), "Settings saved.", "success");
     } catch (e) { popAlert(f("saveSettings"), e.message, "danger"); }
   });
@@ -2215,13 +2208,7 @@ async function renderTfa(host) {
   });
 }
 
-/* ---------- theme & accent ---------- */
-
-function applyTheme() {
-  const choice = localStorage.getItem("dockup-theme");
-  if (choice) document.documentElement.dataset.theme = choice;
-  else delete document.documentElement.dataset.theme;
-}
+/* ---------- accent ---------- */
 
 function applyAccent(name) {
   if (name) document.documentElement.dataset.accent = name;
@@ -2232,7 +2219,6 @@ function applyAccent(name) {
 /* ---------- boot ---------- */
 
 window.addEventListener("hashchange", route);
-applyTheme();
 applyAccent(localStorage.getItem("dockup-accent") || "");
 refreshStacks().then(route);
 renderVersions();
