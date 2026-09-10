@@ -28,9 +28,37 @@ body {
 a { color: var(--link); }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wrap { max-width: 42rem; margin: 0 auto; padding: 1.5rem; }
-.page-head { padding: 2.5rem 0 1rem; }
-.brand { display: flex; align-items: center; gap: .75rem; text-decoration: none; color: var(--fg); margin-bottom: 1.5rem; }
-.brand span { font-weight: 700; font-size: 1.125rem; }
+/* Sticky menu bar. The nine-dot Lightmorphic launcher is the last item
+   on the right; the section links sit just before it. No JavaScript of
+   our own - below 640px the links simply wrap onto their own row rather
+   than hiding behind a hamburger that would need scripting. */
+.topnav {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.topnav-inner {
+  max-width: 42rem; margin: 0 auto; padding: .5rem 1.5rem;
+  display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+}
+.topnav-brand {
+  display: flex; align-items: center; gap: .625rem;
+  text-decoration: none; color: var(--fg); font-weight: 700; font-size: 1rem;
+}
+.topnav-links {
+  display: flex; align-items: center; gap: 1.5rem;
+  list-style: none; margin: 0 0 0 auto; padding: 0;
+}
+.topnav-links a { color: var(--muted-fg); text-decoration: none; font-weight: 600; font-size: .9375rem; }
+.topnav-links a:hover { color: var(--fg); }
+.topnav-inner #all-apps { display: flex; align-items: center; }
+@media (max-width: 640px) {
+  .topnav-inner { gap: .5rem 1rem; padding: .5rem 1rem; }
+  .topnav-brand span { display: none; }
+  .topnav-inner #all-apps { margin-left: auto; }
+  .topnav-links { order: 3; width: 100%; margin: 0; gap: 1rem; justify-content: space-between; }
+}
+
+.page-head { padding: 2rem 0 1rem; }
 h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 800; letter-spacing: -.02em; margin: 0 0 .5rem; }
 .updated { color: var(--muted-fg); font-size: .9375rem; margin: 0 0 2rem; }
 h2 { font-size: 1.25rem; font-weight: 700; margin: 2rem 0 .75rem; }
@@ -46,25 +74,60 @@ p, li { max-width: 65ch; }
   background: var(--accent); color: var(--on-accent);
 }
 .btn:hover { background: var(--accent-hover); }
-footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0 3rem; color: var(--muted-fg); font-size: .875rem; }
-footer .wrap { padding-top: 0; padding-bottom: 0; }
-footer nav a { color: var(--muted-fg); text-decoration: none; margin-right: 1rem; }
-footer nav a:hover { color: var(--fg); text-decoration: underline; }
-footer nav a:last-child { margin-right: 0; }
-footer .legal {
-  margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
+/* ---- footer: brand + pages, then the open-source band, then legal ---- */
+
+.foot {
+  border-top: 1px solid var(--panel-border); margin-top: 4rem;
+  padding: 2.75rem 0 2.25rem; color: var(--muted-fg); font-size: .875rem;
 }
-footer .legal p { margin: 0 0 1rem; }
-/* The five links sit on their own line, hard against the right edge.
-   They fall back to the left on a phone, where right-aligned wrapped
-   rows read as ragged rather than deliberate. */
-footer .legal nav {
-  display: flex; flex-wrap: wrap; justify-content: flex-end;
-  gap: 0.25rem 1.25rem;
+.foot .wrap, .gh-foot .wrap, .legal .wrap { padding-top: 0; padding-bottom: 0; }
+.foot-inner {
+  display: flex; flex-wrap: wrap; gap: 2rem 4rem;
+  align-items: flex-start; justify-content: space-between;
 }
-footer .legal nav a { margin-right: 0; }
+.foot-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; max-width: 52ch; }
+.foot-lockup {
+  display: inline-flex; align-items: center; gap: .6rem;
+  font-size: 1.0625rem; font-weight: 700; letter-spacing: -.01em;
+  color: var(--fg); text-decoration: none; padding: .35rem 0;
+}
+.foot-lockup:hover { color: var(--accent); }
+.foot-tagline, .foot-note { margin: 0; color: var(--muted-fg); font-size: .875rem; line-height: 1.65; }
+.foot-note { font-size: .8125rem; }
+.foot-nav { display: flex; flex-direction: column; }
+.foot-nav-title {
+  margin: 0 0 .6rem; padding-bottom: .5rem;
+  font-size: .75rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted-fg);
+  border-bottom: 1px solid var(--panel-border);
+}
+/* Column-major: the list reads downwards then across, the way a menu is
+   read, rather than left-to-right along each row. */
+.foot-nav-links { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); column-gap: 3rem; }
+.foot-nav a {
+  display: inline-flex; align-items: center; padding: .7rem 0;
+  color: var(--fg); text-decoration: none; font-weight: 600; opacity: .8;
+}
+.foot-nav a:hover { opacity: 1; color: var(--accent); }
+
+.gh-foot { border-top: 1px solid var(--panel-border); padding: 1.25rem 0; }
+.gh-inner { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: center; justify-content: space-between; }
+.gh-marks { display: flex; align-items: center; gap: 1rem; }
+.gh-marks a { display: inline-flex; align-items: center; color: var(--muted-fg); padding: .4rem 0; }
+.gh-marks a:hover { color: var(--fg); }
+.gh-links { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-left: auto; justify-content: flex-end; }
+.gh-links a { color: var(--muted-fg); text-decoration: none; font-size: .875rem; padding: .55rem 0; }
+.gh-links a:hover { color: var(--fg); text-decoration: underline; }
+
+.legal { border-top: 1px solid var(--panel-border); padding: 1.25rem 0 3rem; }
+/* The legal links sit level with the last line of the address rather
+   than floating up beside the first. */
+.legal-inner { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end; justify-content: space-between; }
+.legal-text { margin: 0; color: var(--muted-fg); font-size: .8125rem; line-height: 1.6; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-left: auto; justify-content: flex-end; }
+.legal-links a { color: var(--muted-fg); text-decoration: none; font-size: .8125rem; font-weight: 600; padding: .55rem 0; }
+.legal-links a:hover { color: var(--fg); text-decoration: underline; }
 @media (max-width: 640px) {
-  footer .legal nav { justify-content: flex-start; }
-}
-  footer .legal nav { margin-left: 0; }
+  .gh-links, .legal-links { margin-left: 0; justify-content: flex-start; gap: 1rem; }
+  .foot-nav { margin-right: 0; }
 }

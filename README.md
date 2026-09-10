@@ -116,7 +116,11 @@ button in the UI. The [runbook](runbook.md) covers the rest in plain
 language: install, restore, rollback, moving to Podman, and what to do
 when something's wrong.
 
-## Licence notes
+## Licence
+
+Dockup is free software under the **GNU General Public License v3.0** -
+see [LICENSE](LICENSE). You may use, study, change and share it; if you
+distribute a changed version, it has to carry the same freedoms.
 
 Bundled third-party bits: [xterm.js](https://github.com/xtermjs/xterm.js)
 (MIT) for the terminal, [Manrope](https://fonts.google.com/specimen/Manrope)

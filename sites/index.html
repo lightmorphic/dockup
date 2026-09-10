@@ -20,7 +20,7 @@
 <meta name="twitter:title" content="Lightmorphic Dockup">
 <meta name="twitter:description" content="A home-lab compose stack manager with a proper login. Docker or Podman, one window, no lock-in.">
 <meta name="twitter:image" content="https://dockup.lightmorphic.com/social-card.png">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://apps.lightmorphic.com; script-src https://apps.lightmorphic.com; base-uri 'none'; form-action 'none'">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -108,7 +108,37 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 }
 .skip-link:focus { left: 1rem; top: 1rem; }
 .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem; }
-header.hero { padding: 4rem 0 2.5rem; }
+/* Sticky menu bar. The nine-dot Lightmorphic launcher is the last item
+   on the right; the section links sit just before it. No JavaScript of
+   our own - below 640px the links simply wrap onto their own row rather
+   than hiding behind a hamburger that would need scripting. */
+.topnav {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.topnav-inner {
+  max-width: 78rem; margin: 0 auto; padding: .5rem 1.5rem;
+  display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+}
+.topnav-brand {
+  display: flex; align-items: center; gap: .625rem;
+  text-decoration: none; color: var(--fg); font-weight: 700; font-size: 1rem;
+}
+.topnav-links {
+  display: flex; align-items: center; gap: 1.5rem;
+  list-style: none; margin: 0 0 0 auto; padding: 0;
+}
+.topnav-links a { color: var(--muted-fg); text-decoration: none; font-weight: 600; font-size: .9375rem; }
+.topnav-links a:hover { color: var(--fg); }
+.topnav-inner #all-apps { display: flex; align-items: center; }
+@media (max-width: 640px) {
+  .topnav-inner { gap: .5rem 1rem; padding: .5rem 1rem; }
+  .topnav-brand span { display: none; }
+  .topnav-inner #all-apps { margin-left: auto; }
+  .topnav-links { order: 3; width: 100%; margin: 0; gap: 1rem; justify-content: space-between; }
+}
+
+header.hero { padding: 3rem 0 2.5rem; }
 /* The hero is the single most important screen on the page - it gets
    its own wider container than the rest of the page's 64rem reading
    width, so the screenshot sitting beside the copy has real room
@@ -122,8 +152,6 @@ header.hero { padding: 4rem 0 2.5rem; }
   .hero-grid { grid-template-columns: 1fr; gap: 2rem; }
   .hero-grid .shot { order: -1; }
 }
-.hero-brand { display: flex; align-items: center; gap: .875rem; margin-bottom: 1.75rem; }
-.hero-brand span { font-weight: 700; font-size: 1.25rem; letter-spacing: -.01em; }
 h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 1rem; max-width: 21ch; }
 .lede { font-size: 1.1875rem; color: var(--muted-fg); max-width: 56ch; margin: 0 0 1.75rem; }
 .lede strong { color: var(--fg); }
@@ -191,27 +219,62 @@ pre {
 pre .c { color: #6a6f85; }
 .two { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; align-items: start; }
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
-footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0 3rem; color: var(--muted-fg); font-size: .9375rem; }
-footer .wrap { padding-top: 0; padding-bottom: 0; }
-footer nav a { color: var(--muted-fg); text-decoration: none; margin-right: 1rem; }
-footer nav a:hover { color: var(--fg); text-decoration: underline; }
-footer nav a:last-child { margin-right: 0; }
-footer .legal {
-  margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: .8125rem;
+/* ---- footer: brand + pages, then the open-source band, then legal ---- */
+
+.foot {
+  border-top: 1px solid var(--panel-border); margin-top: 4rem;
+  padding: 2.75rem 0 2.25rem; color: var(--muted-fg); font-size: .875rem;
 }
-footer .legal p { margin: 0 0 1rem; }
-/* The five links sit on their own line, hard against the right edge.
-   They fall back to the left on a phone, where right-aligned wrapped
-   rows read as ragged rather than deliberate. */
-footer .legal nav {
-  display: flex; flex-wrap: wrap; justify-content: flex-end;
-  gap: 0.25rem 1.25rem;
+.foot .wrap, .gh-foot .wrap, .legal .wrap { padding-top: 0; padding-bottom: 0; }
+.foot-inner {
+  display: flex; flex-wrap: wrap; gap: 2rem 4rem;
+  align-items: flex-start; justify-content: space-between;
 }
-footer .legal nav a { margin-right: 0; }
+.foot-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; max-width: 52ch; }
+.foot-lockup {
+  display: inline-flex; align-items: center; gap: .6rem;
+  font-size: 1.0625rem; font-weight: 700; letter-spacing: -.01em;
+  color: var(--fg); text-decoration: none; padding: .35rem 0;
+}
+.foot-lockup:hover { color: var(--accent); }
+.foot-tagline, .foot-note { margin: 0; color: var(--muted-fg); font-size: .875rem; line-height: 1.65; }
+.foot-note { font-size: .8125rem; }
+.foot-nav { display: flex; flex-direction: column; }
+.foot-nav-title {
+  margin: 0 0 .6rem; padding-bottom: .5rem;
+  font-size: .75rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted-fg);
+  border-bottom: 1px solid var(--panel-border);
+}
+/* Column-major: the list reads downwards then across, the way a menu is
+   read, rather than left-to-right along each row. */
+.foot-nav-links { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); column-gap: 3rem; }
+.foot-nav a {
+  display: inline-flex; align-items: center; padding: .7rem 0;
+  color: var(--fg); text-decoration: none; font-weight: 600; opacity: .8;
+}
+.foot-nav a:hover { opacity: 1; color: var(--accent); }
+
+.gh-foot { border-top: 1px solid var(--panel-border); padding: 1.25rem 0; }
+.gh-inner { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: center; justify-content: space-between; }
+.gh-marks { display: flex; align-items: center; gap: 1rem; }
+.gh-marks a { display: inline-flex; align-items: center; color: var(--muted-fg); padding: .4rem 0; }
+.gh-marks a:hover { color: var(--fg); }
+.gh-links { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-left: auto; justify-content: flex-end; }
+.gh-links a { color: var(--muted-fg); text-decoration: none; font-size: .875rem; padding: .55rem 0; }
+.gh-links a:hover { color: var(--fg); text-decoration: underline; }
+
+.legal { border-top: 1px solid var(--panel-border); padding: 1.25rem 0 3rem; }
+/* The legal links sit level with the last line of the address rather
+   than floating up beside the first. */
+.legal-inner { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end; justify-content: space-between; }
+.legal-text { margin: 0; color: var(--muted-fg); font-size: .8125rem; line-height: 1.6; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-left: auto; justify-content: flex-end; }
+.legal-links a { color: var(--muted-fg); text-decoration: none; font-size: .8125rem; font-weight: 600; padding: .55rem 0; }
+.legal-links a:hover { color: var(--fg); text-decoration: underline; }
 @media (max-width: 640px) {
-  footer .legal nav { justify-content: flex-start; }
-}
-  footer .legal nav { margin-left: 0; }
+  .gh-links, .legal-links { margin-left: 0; justify-content: flex-start; gap: 1rem; }
+  .foot-nav { margin-right: 0; }
 }
 .shot { margin: 0; }
 .shot svg { width: 100%; height: auto; border-radius: var(--panel-radius); box-shadow: var(--shadow-panel); display: block; }
@@ -220,14 +283,23 @@ footer .legal nav a { margin-right: 0; }
 <body>
 <a class="skip-link" href="#content">Skip to content</a>
 
+<nav class="topnav" aria-label="Main">
+  <div class="topnav-inner">
+    <a class="topnav-brand" href="index.html"><svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg><span>Lightmorphic Dockup</span></a>
+    <ul class="topnav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#faq">Questions</a></li>
+      <li><a href="https://github.com/lightmorphic/dockup">GitHub</a></li>
+    </ul>
+    <div id="all-apps"></div>
+  </div>
+</nav>
+
 <header class="hero">
   <div class="wrap hero-wrap">
     <div class="hero-grid">
     <div class="hero-copy">
-    <div class="hero-brand">
-      <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>
-      <span>Lightmorphic Dockup</span>
-    </div>
     <h1>Your home-lab stacks, one window, a proper login.</h1>
     <p class="lede">Dockup is a self-hosted Docker&nbsp;Compose stack manager for home labs -
     every stack, its logs and its terminal in one window, with security taken seriously
@@ -291,7 +363,7 @@ footer .legal nav a { margin-right: 0; }
 
 <main class="wrap" id="content">
 
-  <h2 class="visually-hidden">Features</h2>
+  <h2 class="visually-hidden" id="features">Features</h2>
   <div class="highlight-grid">
     <div class="panel highlight">
       <svg class="ico accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="7" height="7" rx="1.5"/><rect x="14" y="11" width="7" height="7" rx="1.5"/><rect x="8.5" y="3" width="7" height="7" rx="1.5"/></svg>
@@ -394,7 +466,7 @@ services:
 git clone https://github.com/lightmorphic/dockup /tmp/dockup-src
 cd /tmp/dockup-src/companion &amp;&amp; sudo sh install.sh</code></pre>
 
-  <h2>Common questions</h2>
+  <h2 id="faq">Common questions</h2>
   <div class="grid" style="margin-top:0">
     <div class="panel">
       <h3>Does Dockup need root on my server?</h3>
@@ -417,33 +489,75 @@ cd /tmp/dockup-src/companion &amp;&amp; sudo sh install.sh</code></pre>
   <h2 class="visually-hidden">Need something built?</h2>
   <div class="panel cta-dark">
     <h3>Need something built?</h3>
-    <p>Lightmorphic is the small studio behind
+    <p>Buildmorphic is the small studio behind
     Dockup and a handful of other self-hosted, no-lock-in tools. If you've got a web app, an
     internal tool, or a self-hosted service that needs building, get in touch and we'll take a look.</p>
-    <a class="btn" href="https://lightmorphic.com">Get in touch at lightmorphic.com</a>
+    <a class="btn" href="https://buildmorphic.com">Get in touch at buildmorphic.com</a>
   </div>
 
 </main>
 
-<footer>
-  <div class="wrap">
-    <p>Dockup · free and open source · built for home labs, not VPS hosting ·
-    <a href="https://github.com/lightmorphic/dockup">source on GitHub</a></p>
-    <p>No cookies, no tracking, no external calls - this page is just a page.</p>
-    <div class="legal">
-      <p>&copy; Lightmorphic Ltd. Registered in England and Wales, company number 17423646.<br>
-      Registered office: 82A James Carter Road, Mildenhall, IP28 7DE.<br>
-      Page last updated: 6 September 2026.</p>
-      <nav aria-label="Legal">
-        <a href="privacy.html">Privacy</a>
-        <a href="cookies.html">Cookies</a>
-        <a href="terms.html">Terms</a>
-        <a href="accessibility.html">Accessibility</a>
-        <a href="complaints.html">Complaints</a>
-      </nav>
+<footer class="foot">
+  <div class="wrap foot-inner">
+
+    <div class="foot-brand">
+      <a class="foot-lockup" href="index.html"><svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#111827"/><rect x="7" y="26" width="15" height="15" rx="3" fill="#FBC711"/><rect x="26" y="26" width="15" height="15" rx="3" fill="#fff"/><rect x="16.5" y="7" width="15" height="15" rx="3" fill="#fff"/></svg>Lightmorphic Dockup</a>
+      <p class="foot-tagline">A self-hosted Docker Compose stack manager for home labs - every stack,
+      its logs and its terminal in one window, with a real login and two-factor. Docker or Podman,
+      no lock-in.</p>
+      <p class="foot-note">No cookies and no tracking. The only thing loaded from anywhere else is
+      the Lightmorphic app launcher in the menu bar.</p>
     </div>
+
+    <nav class="foot-nav" aria-label="Footer">
+      <p class="foot-nav-title">Pages</p>
+      <div class="foot-nav-links">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="#faq">Questions</a>
+        <a href="https://lightmorphic.com">Lightmorphic</a>
+      </div>
+    </nav>
+
   </div>
 </footer>
 
+<div class="gh-foot">
+  <div class="wrap gh-inner">
+    <div class="gh-marks">
+      <a href="https://github.com/lightmorphic/dockup" aria-label="Lightmorphic Dockup on GitHub"><svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <a href="https://opensource.org/license/gpl-3-0" aria-label="GPL-3.0, an Open Source Initiative approved licence"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="9.2" r="6.4"/><path d="M9.6 14.4 7.9 21.5" stroke-linecap="round"/><path d="M14.4 14.4 16.1 21.5" stroke-linecap="round"/></svg></a>
+    </div>
+    <nav class="gh-links" aria-label="Source code">
+      <a href="https://github.com/lightmorphic/dockup">Repository</a>
+      <a href="https://github.com/lightmorphic/dockup#readme">Documentation</a>
+      <a href="https://github.com/lightmorphic/dockup/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/lightmorphic/dockup/blob/main/LICENSE">Licence</a>
+      <a href="https://github.com/lightmorphic/dockup/blob/main/runbook.md">Runbook</a>
+      <a href="https://github.com/lightmorphic/dockup/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/lightmorphic/dockup/issues">Issues</a>
+      <a href="https://github.com/lightmorphic/dockup/releases">Releases</a>
+    </nav>
+  </div>
+</div>
+
+<div class="legal">
+  <div class="wrap legal-inner">
+    <p class="legal-text">
+      &copy; Lightmorphic Ltd. Registered in England and Wales, company number 17423646.<br>
+      Registered office: 82A James Carter Road, Mildenhall, IP28 7DE.<br>
+      Page last updated: 10 September 2026.
+    </p>
+    <nav class="legal-links" aria-label="Legal">
+      <a href="privacy.html">Privacy</a>
+      <a href="cookies.html">Cookies</a>
+      <a href="terms.html">Terms</a>
+      <a href="accessibility.html">Accessibility</a>
+      <a href="complaints.html">Complaints</a>
+    </nav>
+  </div>
+</div>
+
+<script src="https://apps.lightmorphic.com/launcher.js" defer></script>
 </body>
 </html>
