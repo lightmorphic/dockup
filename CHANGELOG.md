@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.1 - 2026-09-11
+
+- A compose.yaml that gives a variable a fallback, such as
+  `${PANEL_PORT:-4180}`, now uses that fallback when the stack's .env
+  doesn't set it, the same as Docker Compose. Before, the Tailscale Serve
+  tab said such a stack published no ports, and backups and the port
+  clash check could read a bind-mount path like `${BASE:-/opt/x}/data`
+  wrongly
+
 ## 2.3.0 - 2026-09-11
 
 - Private registries. Settings has a new Private registries section:
