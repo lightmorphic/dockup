@@ -18,6 +18,13 @@ exploited.
 - Passwords hashed with Werkzeug's scrypt-based hasher, never stored in plain text
 - All other secrets (SMTP credentials, etc.) encrypted at rest with a key
   derived from `SECRET_KEY`, and never echoed back to the browser
+- Private-registry tokens (Settings -> Private registries) are encrypted
+  at rest in the database and never returned to the browser. Docker only
+  reads credentials from a config.json, so Dockup writes the decrypted
+  tokens to one at `/tmp/dockup-docker-config/config.json` inside its own
+  container - directory mode 700, file mode 600, rebuilt from the
+  database at every start, and outside the data volume so it is never
+  included in a backup or export. Use a read-only (pull) token
 - CSRF token required on every state-changing request
 - Parameterised SQL throughout - no string-built queries
 - Strict Content-Security-Policy, `X-Frame-Options: DENY`,

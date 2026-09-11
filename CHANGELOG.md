@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.0 - 2026-09-11
+
+- Private registries. Settings has a new Private registries section:
+  add a registry's address, a username and a token, test it, and remove
+  it. Dockup then signs in to that registry for every pull - the Update
+  button, the scheduled check for new images, and Update all - so images
+  from a registry that needs a login update the same way public ones do
+- Tokens are stored encrypted, like the email password, and never shown
+  again once saved. Docker needs them in a plain config file to use
+  them, so Dockup rebuilds that file inside the container each time it
+  starts, readable only by Dockup and kept off the data folder, so it
+  never ends up in a backup
+
 ## 2.2.0 - 2026-09-06
 
 - Dark only. The light theme and the Theme picker in Settings are gone

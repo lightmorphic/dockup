@@ -218,6 +218,22 @@ docker compose restart                     # just restart
 docker compose pull && docker compose up -d   # update to latest
 ```
 
+## Pull from a private registry
+
+For images that need a login - your own Forgejo or GitLab registry, a
+private Docker Hub repo. Nothing to edit on the server.
+
+1. Create a token on the registry that can only read packages (pull).
+2. In Dockup: Settings -> Private registries. Enter the registry
+   address with its port if it has one (for example
+   `homelab.ibis-porgy.ts.net:4130`), the username, and the token.
+3. Press Test. "Signed in" means it worked. Then Save registry.
+
+From then on the Update button, the scheduled check for new images and
+Update all sign in to that registry by themselves. To rotate a token,
+enter the same address and username with the new token and save - it
+replaces the old one.
+
 ## Per-machine settings: compose.override.yaml
 
 Anything specific to one server - the companion socket mount, a

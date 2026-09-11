@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 
-from . import activity, runtime, settingsvc
+from . import activity, registries, runtime, settingsvc
 
 bp = Blueprint("settings_api", __name__, url_prefix="/api/settings")
 
@@ -66,3 +66,52 @@ def test_runtime():
         return jsonify({"ok": True,
                         "message": f"Connected: {result['engine']} {result['version']}"})
     return jsonify({"error": f"Could not reach the engine socket: {result['error']}"}), 400
+
+
+# -- private registries -------------------------------------------------
+
+
+@bp.get("/registries")
+def list_registries():
+    return jsonify(registries.list_public())
+
+
+@bp.post("/registries")
+def save_registry():
+    data = request.get_json(force=True) or {}
+    try:
+        registries.save(data.get("host", ""), data.get("username", ""), data.get("token", ""))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    host = registries.normalise_host(data.get("host", ""))
+    activity.log("info", "settings", f"Registry credentials saved for {host}")
+    return jsonify({"ok": True})
+
+
+@bp.post("/registries/test")
+def test_registry():
+    """Test what is on screen, like the other test buttons. A blank token
+    means "the one already saved for this host", so a saved registry can
+    be re-tested without the token ever coming back to the browser."""
+    data = request.get_json(force=True) or {}
+    try:
+        host = registries.normalise_host(data.get("host", ""))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    username = (data.get("username") or "").strip()
+    token = (data.get("token") or "").strip() or registries.stored_token(host)
+    if not username or not token:
+        return jsonify({"error": "Fill in the username and token to test."}), 400
+    ok, message = runtime.current().registry_test(host, username, token)
+    if not ok:
+        return jsonify({"error": message}), 400
+    return jsonify({"ok": True, "message": message})
+
+
+@bp.post("/registries/<int:registry_id>/delete")
+def delete_registry(registry_id):
+    host = registries.delete(registry_id)
+    if host is None:
+        return jsonify({"error": "That registry isn't saved."}), 404
+    activity.log("info", "settings", f"Registry credentials removed for {host}")
+    return jsonify({"ok": True})

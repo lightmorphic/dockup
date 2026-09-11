@@ -72,6 +72,14 @@ class MockRuntime:
     def ping(self):
         return {"ok": True, "engine": "Docker (mock)", "version": "27.0-mock"}
 
+    def registry_test(self, host, username, token):
+        # "bad" as the token stands in for a rejected login, so the
+        # failure path can be seen in dev mode without a real registry.
+        time.sleep(0.4)
+        if token == "bad":
+            return False, "Error response from daemon: unauthorized (mock)"
+        return True, f"Signed in to {host} (mock)."
+
     def ps(self):
         rows = []
         for project, state in self.states.items():

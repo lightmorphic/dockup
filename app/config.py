@@ -10,6 +10,13 @@ DB_PATH = DATA_DIR / "dockup.db"
 BACKUP_DIR = DATA_DIR / "backups"
 STACK_BACKUP_DIR = DATA_DIR / "stack-backups"
 
+# Where Dockup writes the docker config.json holding private-registry
+# credentials (see registries.py). Deliberately in the container's own
+# /tmp rather than DATA_DIR: it holds decrypted tokens, so it should not
+# sit on the persistent volume or be anywhere near a backup. It is
+# rebuilt from the encrypted copies in the database at every start.
+DOCKER_CONFIG_DIR = Path(os.environ.get("DOCKUP_DOCKER_CONFIG_DIR", "/tmp/dockup-docker-config"))
+
 # The real host-filesystem path of DATA_DIR, needed when Dockup asks the
 # Docker socket to start a helper container with a bind mount destined
 # for this folder - the daemon resolves that against the host, not
@@ -43,7 +50,7 @@ COMPOSE_PASSTHROUGH = (
 # Kept in step with the top entry in CHANGELOG.md by hand - one number,
 # one place. CI reads this same line to tag the published image
 # (.github/workflows/publish-image.yml).
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 
 # Where updates come from: the image CI publishes, and the raw config.py
 # on main whose VERSION line is the "is there a newer version?" source of

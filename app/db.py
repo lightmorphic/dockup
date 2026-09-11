@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS stack_updates (
     available INTEGER NOT NULL DEFAULT 0,
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS registries (
+    id INTEGER PRIMARY KEY,
+    host TEXT UNIQUE NOT NULL,
+    username TEXT NOT NULL,
+    token_enc TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

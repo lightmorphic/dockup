@@ -37,6 +37,11 @@ def create_app():
 
     from . import db
     db.init()
+    # Docker reads registry credentials only from a config.json, which
+    # lives outside the data volume and so has to be rebuilt from the
+    # database each time the container starts - see registries.py.
+    from . import registries
+    registries.write_at_startup()
     app.teardown_appcontext(db.close)
 
     from . import auth, backup, hostcompanion_api, maintenance, settings_api, stacks, views

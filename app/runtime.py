@@ -14,6 +14,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import tempfile
 import threading
 
 from . import config, settingsvc
@@ -78,6 +79,11 @@ class Runtime:
     def _env(self):
         env = dict(os.environ)
         env["DOCKER_HOST"] = f"unix://{self.socket_path}"
+        # Private-registry credentials (registries.py). Set here and in
+        # _compose_env, which between them carry every docker and compose
+        # call Dockup makes - pulls, Update, the scheduled new-image check,
+        # the self-update - so all of them authenticate the same way.
+        env["DOCKER_CONFIG"] = str(config.DOCKER_CONFIG_DIR)
         return env
 
     def _compose_env(self):
@@ -94,7 +100,29 @@ class Runtime:
         gains environment variables of its own."""
         env = {k: v for k, v in os.environ.items() if k in config.COMPOSE_PASSTHROUGH}
         env["DOCKER_HOST"] = f"unix://{self.socket_path}"
+        env["DOCKER_CONFIG"] = str(config.DOCKER_CONFIG_DIR)
         return env
+
+    def registry_test(self, host: str, username: str, token: str) -> tuple[bool, str]:
+        """Log in to a registry with these credentials and report whether it
+        worked. Uses a throwaway config directory, so a failed test leaves
+        the real saved credentials untouched, and the token goes in on
+        stdin rather than the command line where `ps` could read it."""
+        with tempfile.TemporaryDirectory(prefix="dockup-regtest-") as tmp:
+            env = self._env()
+            env["DOCKER_CONFIG"] = tmp
+            try:
+                proc = subprocess.run(
+                    [_DOCKER_BIN, "login", host, "-u", username, "--password-stdin"],
+                    input=token, capture_output=True, text=True, timeout=30, env=env)
+            except FileNotFoundError:
+                return False, "The docker CLI is not installed in the Dockup container"
+            except subprocess.TimeoutExpired:
+                return False, f"{host} didn't answer within 30 seconds."
+        if proc.returncode == 0:
+            return True, f"Signed in to {host}."
+        detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+        return False, detail[-1] if detail else f"Couldn't sign in to {host}."
 
     def _run(self, args, timeout=60, cwd=None, compose=False):
         try:

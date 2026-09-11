@@ -158,7 +158,10 @@ function openProgressPanel(title) {
 
 /* Inline-tick destructive confirm: first click arms (red), second click within
    4s fires; the button then flashes a tick. Never a popup. */
-function armedAction(btn, run, label) {
+/* navigate: false keeps you on the page after a success - for removing
+   one row from a list, like a saved registry on Settings, rather than
+   deleting the thing the page is about. */
+function armedAction(btn, run, label, { navigate = true } = {}) {
   let armed = null;
   btn.addEventListener("click", async () => {
     if (btn.disabled) return;
@@ -175,7 +178,7 @@ function armedAction(btn, run, label) {
       await run();
       btn.classList.add("success-flash");
       btn.innerHTML = ICONS.tick;
-      setTimeout(() => location.hash = "#/", 700);
+      if (navigate) setTimeout(() => location.hash = "#/", 700);
     } catch (e) {
       btn.disabled = false;
       popAlert(btn, e.message, "danger");
@@ -1702,6 +1705,26 @@ async function viewSettings() {
         <div class="btn-row">
           <button class="btn" id="testRuntime">Test connection</button></div>
       </div></div>
+    <div class="panel"><div class="panel-head"><h2>Private registries</h2></div>
+      <p class="hint">For images that need a login to pull - your own Forgejo or GitLab registry, a
+        private Docker Hub repo. Public images need nothing here. Tokens are stored encrypted and never
+        shown again once saved.</p>
+      <div id="regList"></div>
+      <div class="form-grid mt-lg">
+        <div class="two-col">
+          <div class="field"><label for="regHost">Registry address</label>
+            <input id="regHost" spellcheck="false" autocomplete="off" placeholder="registry.example.com:5000"></div>
+          <div class="field"><label for="regUser">Username</label>
+            <input id="regUser" spellcheck="false" autocomplete="off"></div>
+        </div>
+        <div class="field"><label for="regToken">Token or password</label>
+          <input id="regToken" type="password" autocomplete="new-password">
+          <span class="hint">A read-only token is enough - Dockup only ever pulls. To change the username on a
+            saved registry, leave this blank and the saved token is kept.</span></div>
+        <div class="btn-row">
+          <button class="btn" id="regTest">Test</button>
+          <button class="btn btn-primary" id="regSave">Save registry</button></div>
+      </div></div>
     <div class="panel"><div class="panel-head"><h2>Email alerts</h2><span class="spacer"></span>
       <span class="hint" data-tip="${s._smtp_ready ? "Host, sender, and recipient are all set" : "Fill in server, sender, and recipient below"}">${s._smtp_ready
         ? '<span class="version-tick" aria-hidden="true">✓</span> Active'
@@ -1786,6 +1809,57 @@ async function viewSettings() {
       applyAccent(f("setAccent").value);
       popAlert(f("saveSettings"), "Settings saved.", "success");
     } catch (e) { popAlert(f("saveSettings"), e.message, "danger"); }
+  });
+
+  const renderRegistries = async () => {
+    const box = f("regList");
+    if (!box) return;
+    let regs;
+    try { regs = await api("/api/settings/registries"); }
+    catch (e) { box.innerHTML = `<p class="alert alert-danger">! ${esc(e.message)}</p>`; return; }
+    box.innerHTML = regs.length ? "" : '<p class="hint">None saved yet.</p>';
+    for (const r of regs) {
+      const row = el(`<div class="check-row archived-row">
+        <span><code>${esc(r.host)}</code> <span class="hint">as ${esc(r.username)}</span></span>
+        <span class="spacer"></span>
+        <button class="btn" data-act="test">Test</button>
+        <button class="btn btn-danger" data-act="del">Remove</button></div>`);
+      box.appendChild(row);
+      const testBtn = row.querySelector('[data-act="test"]');
+      testBtn.addEventListener("click", async () => {
+        popAlert(testBtn, "Signing in…", "info");
+        try {
+          const res = await api("/api/settings/registries/test", { method: "POST",
+            body: { host: r.host, username: r.username, token: "" } });
+          popAlert(testBtn, res.message, "success");
+        } catch (e) { popAlert(testBtn, e.message, "danger"); }
+      });
+      const delBtn = row.querySelector('[data-act="del"]');
+      delBtn.dataset.tipOrig = "Remove";
+      armedAction(delBtn, async () => {
+        await api(`/api/settings/registries/${r.id}/delete`, { method: "POST", body: {} });
+        await renderRegistries();
+      }, `remove the saved login for ${r.host}`, { navigate: false });
+    }
+  };
+  renderRegistries();
+
+  f("regTest").addEventListener("click", async () => {
+    popAlert(f("regTest"), "Signing in…", "info");
+    try {
+      const res = await api("/api/settings/registries/test", { method: "POST", body: {
+        host: f("regHost").value, username: f("regUser").value, token: f("regToken").value } });
+      popAlert(f("regTest"), res.message, "success");
+    } catch (e) { popAlert(f("regTest"), e.message, "danger"); }
+  });
+  f("regSave").addEventListener("click", async () => {
+    try {
+      await api("/api/settings/registries", { method: "POST", body: {
+        host: f("regHost").value, username: f("regUser").value, token: f("regToken").value } });
+      f("regHost").value = f("regUser").value = f("regToken").value = "";
+      popAlert(f("regSave"), "Registry saved.", "success");
+      await renderRegistries();
+    } catch (e) { popAlert(f("regSave"), e.message, "danger"); }
   });
 
   f("testRuntime").addEventListener("click", async () => {
