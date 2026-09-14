@@ -192,6 +192,41 @@ def check_port_conflicts(name, compose_text, env_text):
 # -- API ----------------------------------------------------------------
 
 
+def add_port_state(s, served_ports):
+    """Everything about a stack's ports that both the dashboard and the
+    stack's own page need: what it publishes, what Serve fronts, what it
+    should be publishing but isn't, and what is published so widely that
+    Serve can't bind alongside it.
+
+    Shared deliberately - these were computed only for the dashboard at
+    first, so the stack page silently had none of them and its warnings
+    could never appear."""
+    from . import hostcompanion
+    ports, bindings = [], []
+    if s.get("managed"):
+        try:
+            cp = compose_path(s["name"])
+            compose_text = cp.read_text() if cp.exists() else ""
+            envp = stack_dir(s["name"]) / ".env"
+            env_text = envp.read_text() if envp.exists() else ""
+            bindings = hostcompanion.published_bindings(compose_text, env_text)
+            ports = hostcompanion.published_ports(compose_text, env_text)
+        except (ValueError, OSError):
+            pass
+    s["ports"] = ports
+    s["served"] = [p for p in ports if p in served_ports]
+    s["unpublished"] = _unpublished_ports(s, ports)
+    if s["unpublished"] and s.get("status") == "running":
+        # Every container is up and healthy, but a port the compose file
+        # publishes isn't actually bound - the state a plain `docker
+        # start` leaves behind after the daemon has been restarted.
+        # Nothing else Dockup looks at can tell: this would otherwise
+        # show a green stack nobody can connect to.
+        s["status"] = "warning"
+    s["wideBind"] = sorted(p for ip, p in bindings if not ip and p in served_ports)
+    return s
+
+
 @bp.get("/stacks")
 def api_list():
     from . import hostcompanion, updatecheck
@@ -211,30 +246,7 @@ def api_list():
 
     for s in result:
         s["updateAvailable"] = flags.get(s["name"], False)
-        ports, bindings = [], []
-        if s["managed"]:
-            try:
-                cp = compose_path(s["name"])
-                compose_text = cp.read_text() if cp.exists() else ""
-                envp = stack_dir(s["name"]) / ".env"
-                env_text = envp.read_text() if envp.exists() else ""
-                bindings = hostcompanion.published_bindings(compose_text, env_text)
-                ports = hostcompanion.published_ports(compose_text, env_text)
-            except (ValueError, OSError):
-                pass
-        s["ports"] = ports
-        s["served"] = [p for p in ports if p in served_ports]
-        s["unpublished"] = _unpublished_ports(s, ports)
-        if s["unpublished"] and s["status"] == "running":
-            # Every container is up and healthy, but a port the compose
-            # file publishes isn't actually bound - the state a plain
-            # `docker start` leaves behind after the daemon has been
-            # restarted. Nothing else Dockup looks at can tell: this
-            # would otherwise show a green stack nobody can connect to.
-            s["status"] = "warning"
-        s["wideBind"] = sorted(
-            p for ip, p in bindings if not ip and p in served_ports
-        ) if s["managed"] else []
+        add_port_state(s, served_ports)
 
     rt = runtime.current()
     return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error, "dnsName": dns_name})
@@ -321,8 +333,17 @@ def api_get(name):
     d = stack_dir(name)
     cp = compose_path(name)
     envp = d / ".env"
+    from . import hostcompanion
     stacks, _ = list_stacks()
     match = next((s for s in stacks if s["name"] == name), None)
+    served_ports = []
+    try:
+        if hostcompanion.is_available():
+            served_ports = hostcompanion.tailscale_serve_list().get("ports", [])
+    except hostcompanion.CompanionUnavailable:
+        pass
+    if match:
+        add_port_state(match, served_ports)
     return jsonify({
         "name": name,
         "exists": d.exists(),
@@ -334,6 +355,10 @@ def api_get(name):
         "containers": (match or {}).get("containers", []),
         "updateAvailable": updatecheck.get_flags().get(name, False),
         "dataPaths": _stack_data_paths(name),
+        "ports": (match or {}).get("ports", []),
+        "served": (match or {}).get("served", []),
+        "unpublished": (match or {}).get("unpublished", []),
+        "wideBind": (match or {}).get("wideBind", []),
     })
 
 

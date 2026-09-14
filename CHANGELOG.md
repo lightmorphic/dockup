@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.2 - 2026-09-14
+
+- Fixed yesterday's two new warnings never appearing on a stack's own
+  page. They were written for both the dashboard card and the stack
+  page, but only the dashboard was ever given the port information to
+  show them with, so the page stayed silent however bad the problem
+  was. Both pages now read the same source
+
 ## 2.4.1 - 2026-09-14
 
 - The warning about a port published on every interface now says what
