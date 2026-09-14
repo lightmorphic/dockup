@@ -297,8 +297,21 @@ binding covers the tailnet address too and Tailscale can never bind it.
 Serve still lists the rule and plain HTTP still works, so it looks fine,
 but HTTPS to that address fails.
 
-Dockup warns about this on the stack's page. The fix is to publish on
-loopback only, in the stack's Compose tab:
+This was tested directly on a scratch port: with a Serve rule in place,
+a container publishing on every interface **cannot start at all**, and a
+container publishing on loopback starts cleanly and serves over HTTPS
+while Serve holds the tailnet address at the same time. So the choice
+per stack is:
+
+- **Reached over Tailscale** (the usual case): publish on `127.0.0.1`.
+  Serve fronts it, HTTPS works, and stopping or restarting the stack
+  never fights Tailscale for the port.
+- **Reached directly from your network as well**: publish on every
+  interface and accept that Serve gets no certificate for that port, and
+  that the stack may refuse to start while a Serve rule for it exists.
+
+Dockup warns about this on the stack's page. To take the first option,
+in the stack's Compose tab:
 
 ```yaml
     ports:

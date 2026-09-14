@@ -999,10 +999,15 @@ async function viewStack(name) {
       outside it. A restart won't fix it - press Redeploy, which recreates the containers and
       re-establishes the port.</p>` : ""}
     ${wideBind.length ? `<p class="alert alert-warning">! Port ${esc(wideBind.join(", "))} is
-      published on every interface, so Tailscale can't get a certificate for it - the Serve
-      address will fail HTTPS while plain HTTP still works. Publish it as
+      published on every interface while Tailscale Serve is also fronting it. Two things follow,
+      both tested: Tailscale can't get a certificate, so the Serve address fails HTTPS while plain
+      HTTP still works; and once this stack stops, it won't start again, because Serve holds that
+      address the whole time and a publish on every interface can't bind alongside it.
+      Publishing on loopback instead fixes both - Serve still reaches it, and the two stop
+      competing. Change it to
       <code>127.0.0.1:${esc(String(wideBind[0]))}:&lt;container port&gt;</code> in the Compose tab
-      and redeploy.</p>` : ""}
+      and redeploy. Keep it as it is only if you also reach this stack directly from your
+      network, rather than over Tailscale.</p>` : ""}
     <div class="log-view action-output" id="actionOut" aria-live="polite"></div>
   </div>`);
   content.appendChild(head);

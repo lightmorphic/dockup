@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.1 - 2026-09-14
+
+- The warning about a port published on every interface now says what
+  was actually measured: as well as Tailscale getting no certificate for
+  it, the stack will refuse to start once it stops, because Tailscale
+  holds that address the whole time. It also says plainly when to ignore
+  the warning - if you reach the stack directly from your network rather
+  than over Tailscale
+- Runbook says the same, as a choice between the two ways of running a
+  stack rather than a single right answer
+
 ## 2.4.0 - 2026-09-14
 
 - A stack that is running but unreachable is no longer shown as healthy.
