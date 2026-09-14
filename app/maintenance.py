@@ -185,8 +185,9 @@ def api_self_update_check():
     try:
         latest = _fetch_remote_version()
     except Exception as exc:
-        note_self_check({"latest": None, "error": str(exc)})
-        return jsonify({"current": config.VERSION, "latest": None, "error": str(exc)}), 502
+        note_self_check({"latest": None, "error": check_failure_reason(exc)})
+        return jsonify({"current": config.VERSION, "latest": None,
+                        "error": check_failure_reason(exc)}), 502
     note_self_check({"latest": latest, "error": None})
     return jsonify({"current": config.VERSION, "latest": latest})
 
@@ -310,6 +311,26 @@ _self_check = {"at": 0.0, "result": None}
 _self_check_lock = threading.Lock()
 
 
+def check_failure_reason(exc: Exception) -> str:
+    """Plain English for why the update check failed, shown on the update
+    dot. "Can't reach GitHub" sent someone looking at GitHub and at Dockup
+    when the real fault was that the container had no DNS at all - a host
+    Docker setting, nothing to do with either. Worth naming precisely,
+    since the fix is completely different."""
+    reason = getattr(exc, "reason", exc)
+    text = str(reason)
+    if isinstance(reason, socket.gaierror) or "Name or service not known" in text \
+            or "Try again" in text or "Temporary failure in name resolution" in text:
+        return ("Can't look up github.com from inside the container - Docker has given "
+                "Dockup no working DNS. See \"When the update dot goes red\" in the runbook.")
+    if isinstance(reason, (socket.timeout, TimeoutError)) or "timed out" in text:
+        return "GitHub didn't answer within 10 seconds - it may be busy, or the connection is blocked."
+    code = getattr(exc, "code", None)
+    if code:
+        return f"GitHub answered {code} instead of the version file."
+    return f"Couldn't reach GitHub: {text}"
+
+
 def note_self_check(result: dict):
     """Remember a check someone else already paid for - the update dot's
     click-to-check refreshes this cache rather than racing it."""
@@ -324,7 +345,7 @@ def _refresh_self_check():
     except Exception as exc:
         # A failed check must never be worse than no check: the sidebar
         # simply shows the version without a tick.
-        note_self_check({"latest": None, "error": str(exc)})
+        note_self_check({"latest": None, "error": check_failure_reason(exc)})
 
 
 def _self_container_id() -> str:
@@ -360,6 +381,9 @@ def api_versions():
             "latest": latest,
             "upToDate": (latest == config.VERSION) if latest else None,
             "checkedAt": checked_at or None,
+            # Why the last check failed, if it did - so the dot can say
+            # which problem this is rather than one catch-all sentence.
+            "error": (cached or {}).get("error") or "",
             # A newer image already pulled, waiting only on the restart
             # click. Computed from the daemon's state, not remembered -
             # right after page reloads, Dockup restarts, or a pull done

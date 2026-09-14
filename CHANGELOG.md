@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.3.2 - 2026-09-14
+
+- The red update dot now says which problem it is. "Can't reach GitHub"
+  covered two completely different faults: Dockup's container having no
+  working DNS at all, and GitHub being unreachable or slow. The first is
+  a Docker setting on the machine and affects every container, not just
+  Dockup, so it is now named as that and points at the runbook
+- New runbook section, "When the update dot goes red": how to tell the
+  two apart in one command, and how to give Docker working DNS -
+  including the Tailscale case, where the machine's only resolver is one
+  Docker can't pass on to containers
+
 ## 2.3.1 - 2026-09-11
 
 - A compose.yaml that gives a variable a fallback, such as

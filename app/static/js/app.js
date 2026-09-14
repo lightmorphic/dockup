@@ -1982,7 +1982,10 @@ function updateDotFromVersions(dockup) {
   if (dockup.downloadReady) {
     paintUpdateDot("ready", "Click to restart");
   } else if (dockup.upToDate === null) {
-    if (dockup.checkedAt) paintUpdateDot("error", "Can't reach GitHub to check for updates");
+    // The server says which failure this was - a container with no DNS
+    // and a GitHub outage need completely different fixes, and the old
+    // catch-all sentence sent people looking in the wrong place.
+    if (dockup.checkedAt) paintUpdateDot("error", dockup.error || "Can't reach GitHub to check for updates");
     else paintUpdateDot("unknown", "Checking for updates…");
   } else if (dockup.upToDate === false) {
     paintUpdateDot("available", "Update available");

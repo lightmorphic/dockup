@@ -272,6 +272,53 @@ docker compose up -d                     # start it again
 The container restarts itself (`restart: unless-stopped`) and has a
 health check, so a crash normally self-heals within a minute.
 
+## When the update dot goes red
+
+The dot next to the version turns red when Dockup can't check for
+updates. Hover it - the message says which of two things is wrong.
+
+**"Can't look up github.com from inside the container"** means Dockup has
+no working DNS. Nothing is wrong with Dockup or with GitHub: Docker gives
+each container its name lookups, and on this machine it has nothing
+usable to pass on. Other containers will be affected too, not just
+Dockup - anything that checks a website, sends email or pulls an image.
+
+Check it from the host:
+
+```bash
+docker exec dockup getent hosts github.com || echo "no DNS in the container"
+```
+
+The usual cause is the machine's own resolver being one Docker can't
+share - a local stub on 127.0.0.53, or Tailscale's at 100.100.100.100.
+Give the Docker daemon real addresses instead, in
+`/etc/docker/daemon.json`:
+
+```json
+{
+  "dns": ["1.1.1.1", "8.8.8.8"]
+}
+```
+
+On a Tailscale machine put Tailscale's own resolver first, so names like
+`yourbox.tail1234.ts.net` keep working:
+
+```json
+{
+  "dns": ["100.100.100.100", "1.1.1.1"]
+}
+```
+
+Then restart Docker (`sudo systemctl restart docker`). Containers that
+were already running keep their old settings, so recreate the affected
+ones with `docker compose up -d --force-recreate` in each stack's folder,
+and re-run the check above.
+
+**"GitHub didn't answer"** or **"GitHub answered 404"** is the other case:
+DNS is fine and something else is in the way - an outage, a firewall, or
+a proxy. Dockup carries on running normally either way; only the update
+check is affected.
+
 ## Uptime check
 
 Dockup answers on `/health` without a login. Point any LAN uptime tool
