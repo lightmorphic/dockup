@@ -211,21 +211,57 @@ def api_list():
 
     for s in result:
         s["updateAvailable"] = flags.get(s["name"], False)
-        ports = []
+        ports, bindings = [], []
         if s["managed"]:
             try:
                 cp = compose_path(s["name"])
                 compose_text = cp.read_text() if cp.exists() else ""
                 envp = stack_dir(s["name"]) / ".env"
                 env_text = envp.read_text() if envp.exists() else ""
+                bindings = hostcompanion.published_bindings(compose_text, env_text)
                 ports = hostcompanion.published_ports(compose_text, env_text)
             except (ValueError, OSError):
                 pass
         s["ports"] = ports
         s["served"] = [p for p in ports if p in served_ports]
+        s["unpublished"] = _unpublished_ports(s, ports)
+        if s["unpublished"] and s["status"] == "running":
+            # Every container is up and healthy, but a port the compose
+            # file publishes isn't actually bound - the state a plain
+            # `docker start` leaves behind after the daemon has been
+            # restarted. Nothing else Dockup looks at can tell: this
+            # would otherwise show a green stack nobody can connect to.
+            s["status"] = "warning"
+        s["wideBind"] = sorted(
+            p for ip, p in bindings if not ip and p in served_ports
+        ) if s["managed"] else []
 
     rt = runtime.current()
     return jsonify({"stacks": result, "engine": rt.ping(), "engineError": engine_error, "dnsName": dns_name})
+
+
+def _unpublished_ports(stack, declared):
+    """Ports the compose file publishes that none of this stack's own
+    running containers is actually bound to.
+
+    Only meaningful when every container is up: a stopped container is
+    supposed to have no bindings. A running one without them is the
+    silent failure - `docker start` after a daemon restart brings the
+    container back without re-establishing its port mappings, so it
+    reports Up and healthy while being unreachable. Only a recreate
+    fixes it, which is why this is worth surfacing rather than trusting
+    container state alone."""
+    if not declared or stack.get("status") != "running":
+        return []
+    if config.MOCK_MODE:
+        return []  # the mock engine reports no bindings at all, which would read as a fault
+    bound = set()
+    for c in stack.get("containers", []):
+        if c.get("state") != "running":
+            return []  # not the whole stack up; absent bindings prove nothing
+        for m in _LIVE_PORT_RE.finditer(c.get("ports", "")):
+            bound.add(int(m.group(1)))
+    return sorted(p for p in declared if p not in bound)
 
 
 def _stack_data_paths(name):

@@ -95,10 +95,23 @@ def docker_restart() -> dict:
 
 def published_ports(compose_text: str, env_text: str = "") -> list:
     """Host-side ports a stack publishes, straight off its own `ports:`
-    list - what Tailscale Serve would actually front. Resolves
-    ${VAR}-style ports (e.g. stirling-pdf's "${PORT}:8080") against the
-    stack's .env, the same convention Arcane-managed stacks use for
-    bind-mount paths elsewhere."""
+    list - what Tailscale Serve would actually front."""
+    seen, ports = set(), []
+    for _ip, port in published_bindings(compose_text, env_text):
+        if port not in seen:
+            seen.add(port)
+            ports.append(port)
+    return ports
+
+
+def published_bindings(compose_text: str, env_text: str = "") -> list:
+    """(host address, port) for everything a stack publishes. The address
+    is "" when the compose file names none, which means every interface -
+    the case that stops Tailscale Serve getting a certificate for that
+    port, since Docker's wildcard bind covers the tailnet address too.
+    Resolves ${VAR}-style ports (e.g. stirling-pdf's "${PORT}:8080")
+    against the stack's .env, the same convention Arcane-managed stacks
+    use for bind-mount paths elsewhere."""
     try:
         doc = yaml.safe_load(compose_text) or {}
     except yaml.YAMLError:
@@ -106,28 +119,33 @@ def published_ports(compose_text: str, env_text: str = "") -> list:
     if not isinstance(doc, dict):
         return []
     env = envsub.parse_env(env_text)
-    ports, seen = [], set()
+    out, seen = [], set()
     for svc in (doc.get("services") or {}).values():
         if not isinstance(svc, dict):
             continue
         for p in svc.get("ports") or []:
-            host_port = None
+            host_port, host_ip = None, ""
             if isinstance(p, dict):
                 host_port = p.get("published")
+                host_ip = str(p.get("host_ip") or "")
             elif isinstance(p, (str, int)):
                 left = envsub.substitute(str(p), env).split("/")[0].split(":")
                 # "80" (no colon) publishes on the same port as target;
                 # "8080:80" or "127.0.0.1:8080:80" - host port is the
-                # second-to-last segment.
+                # second-to-last segment, and anything before it is the
+                # address. An IPv6 literal is bracketed, so the only
+                # colons that survive this split belong to the mapping.
                 host_port = left[-2] if len(left) > 1 else left[0]
+                if len(left) > 2:
+                    host_ip = ":".join(left[:-2]).strip("[]")
             try:
                 port = int(host_port)
             except (TypeError, ValueError):
                 continue
-            if port not in seen:
-                seen.add(port)
-                ports.append(port)
-    return ports
+            if (host_ip, port) not in seen:
+                seen.add((host_ip, port))
+                out.append((host_ip, port))
+    return out
 
 
 # -- mock support, for development without the companion installed -----

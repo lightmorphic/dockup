@@ -715,7 +715,10 @@ function cardDot(status) {
 function managedCard(s) {
   const updateReady = !!s.updateAvailable;
   const effectiveStatus = updateReady ? "update" : s.status;
-  const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
+  const unpublished = s.unpublished || [];
+  const dotTip = unpublished.length
+    ? `Running, but port ${unpublished.join(", ")} isn't published - press Redeploy`
+    : (STATUS_TIPS[effectiveStatus] || "Container is down");
   const port = s.ports && s.ports.length ? s.ports[0] : null;
   // Only offer to open it when something's actually running to answer -
   // the port is real either way (straight off the compose file), but a
@@ -968,7 +971,11 @@ async function viewStack(name) {
 
   content.innerHTML = "";
   const effectiveStatus = s.updateAvailable ? "update" : s.status;
-  const dotTip = STATUS_TIPS[effectiveStatus] || "Container is down";
+  const unpublished = s.unpublished || [];
+  const wideBind = s.wideBind || [];
+  const dotTip = unpublished.length
+    ? `Running, but port ${unpublished.join(", ")} isn't published - press Redeploy`
+    : (STATUS_TIPS[effectiveStatus] || "Container is down");
   const head = el(`<div class="panel"><div class="stack-head">
       <div class="stack-title-row">
         <h1 class="stack-title">${esc(name)}</h1>
@@ -987,6 +994,15 @@ async function viewStack(name) {
         <button class="icon-btn" id="actDelete" data-tip="Delete stack" aria-label="Delete stack">${ICONS.bin}</button>
       </div>
     </div>
+    ${unpublished.length ? `<p class="alert alert-danger">! Every container is running, but
+      port ${esc(unpublished.join(", "))} isn't published, so nothing can reach this stack from
+      outside it. A restart won't fix it - press Redeploy, which recreates the containers and
+      re-establishes the port.</p>` : ""}
+    ${wideBind.length ? `<p class="alert alert-warning">! Port ${esc(wideBind.join(", "))} is
+      published on every interface, so Tailscale can't get a certificate for it - the Serve
+      address will fail HTTPS while plain HTTP still works. Publish it as
+      <code>127.0.0.1:${esc(String(wideBind[0]))}:&lt;container port&gt;</code> in the Compose tab
+      and redeploy.</p>` : ""}
     <div class="log-view action-output" id="actionOut" aria-live="polite"></div>
   </div>`);
   content.appendChild(head);

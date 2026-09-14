@@ -272,6 +272,44 @@ docker compose up -d                     # start it again
 The container restarts itself (`restart: unless-stopped`) and has a
 health check, so a crash normally self-heals within a minute.
 
+## A stack says it's running but nothing can reach it
+
+After the Docker daemon restarts, a container can come back up reporting
+Up and healthy while its ports were never published. Dockup flags this
+now: the stack shows as a problem and names the port. A restart does not
+fix it - press **Redeploy**, which recreates the container and
+re-establishes the port.
+
+To see it by hand:
+
+```bash
+docker port <container-name>
+```
+
+Empty output on a running container that should publish something is the
+fault.
+
+## Tailscale Serve gets no certificate for a port
+
+If a stack publishes a port on every interface (`4050:80` rather than
+`127.0.0.1:4050:80`) and Tailscale Serve fronts that same port, Docker's
+binding covers the tailnet address too and Tailscale can never bind it.
+Serve still lists the rule and plain HTTP still works, so it looks fine,
+but HTTPS to that address fails.
+
+Dockup warns about this on the stack's page. The fix is to publish on
+loopback only, in the stack's Compose tab:
+
+```yaml
+    ports:
+      - "127.0.0.1:4050:80"
+```
+
+then Redeploy. Tailscale Serve reaches it on 127.0.0.1 exactly as before,
+and it stops the reverse problem too - Tailscale grabbing a container's
+port while the container is down, which leaves the container unable to
+start.
+
 ## When the update dot goes red
 
 The dot next to the version turns red when Dockup can't check for

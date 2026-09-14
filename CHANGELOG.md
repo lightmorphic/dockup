@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.4.0 - 2026-09-14
+
+- A stack that is running but unreachable is no longer shown as healthy.
+  After a Docker restart a container can come back reporting Up and
+  healthy while its ports were never actually published - every signal
+  Dockup used said green, and nothing could connect. Dockup now compares
+  the ports the compose file publishes against what the containers are
+  really bound to, marks the stack as a problem, names the port, and
+  says to press Redeploy, which is what actually repairs it
+- A port published on every interface while Tailscale Serve fronts it
+  now gets a warning on the stack's page. Docker's wildcard binding
+  stops Tailscale getting a certificate, so the Serve address fails
+  HTTPS while plain HTTP keeps working - silent until now. The warning
+  says to publish on 127.0.0.1 instead
+
 ## 2.3.2 - 2026-09-14
 
 - The red update dot now says which problem it is. "Can't reach GitHub"
